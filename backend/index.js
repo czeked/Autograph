@@ -644,3 +644,13 @@ const server = app.listen(PORT, () => {
   // Uruchom monitoring wiadomości
   startNewsMonitoring();
 });
+
+app.get('/api/news', async (req, res) => {
+  try {
+    const ticker = req.query.ticker || null;
+    const newsData = await getAllCryptoNews(ticker);
+    res.json(newsData);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
