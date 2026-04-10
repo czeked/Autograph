@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import './AiAnalyzer.css';
 
 function AiAnalyzer() {
@@ -99,11 +99,17 @@ function AiAnalyzer() {
     }
   };
 
+  const formatMarketCap = (cap) => {
+    if (cap > 1000000000) return `$${(cap / 1000000000).toFixed(2)}B`;
+    if (cap > 1000000) return `$${(cap / 1000000).toFixed(2)}M`;
+    return `$${cap.toFixed(2)}`;
+  };
+
   return (
     <div className="analyzer-container">
       <div className="analyzer-header">
         <h1>📈 Trading AI Assistant</h1>
-        <p>LIVE Candlestick Chart z Coinbase • 30 dni, 1 świeca = 1 dzień</p>
+        <p>LIVE Candlestick Chart z Coinbase • Zaawansowana analiza techniczna</p>
       </div>
 
       <div className="analyzer-card">
@@ -178,6 +184,8 @@ function AiAnalyzer() {
         {marketData && (
           <div className="market-data-summary">
             <h3>📊 {ticker}/{currency} 🔴 LIVE (Coinbase)</h3>
+            
+            {/* Główne dane */}
             <div className="data-grid">
               <div className="data-item">
                 <span className="label">Cena:</span>
@@ -190,30 +198,72 @@ function AiAnalyzer() {
                 </span>
               </div>
               <div className="data-item">
-                <span className="label">RSI:</span>
-                <span className="value">{marketData.rsi?.toFixed(0)}</span>
+                <span className="label">Kapitalizacja:</span>
+                <span className="value">{formatMarketCap(marketData.marketCap)}</span>
               </div>
               <div className="data-item">
-                <span className="label">SMA20:</span>
-                <span className="value">${marketData.sma20?.toFixed(2)}</span>
-              </div>
-              <div className="data-item">
-                <span className="label">SMA50:</span>
-                <span className="value">${marketData.sma50?.toFixed(2)}</span>
-              </div>
-              <div className="data-item">
-                <span className="label">Wsparcie:</span>
-                <span className="value">${marketData.support1?.toFixed(2)}</span>
-              </div>
-              <div className="data-item">
-                <span className="label">Opór:</span>
-                <span className="value">${marketData.resistance1?.toFixed(2)}</span>
-              </div>
-              <div className="data-item">
-                <span className="label">Źródło:</span>
-                <span className="value">{marketData.source}</span>
+                <span className="label">Wolumen dzis:</span>
+                <span className="value">${(marketData.volume / 1000000).toFixed(2)}M</span>
               </div>
             </div>
+
+            {/* Wsparcie/Opór */}
+            <div className="support-resistance">
+              <div className="sr-item">
+                <span>🔴 Opór: ${marketData.resistance1?.toFixed(2)}</span>
+              </div>
+              <div className="sr-item">
+                <span>🟢 Wsparcie: ${marketData.support1?.toFixed(2)}</span>
+              </div>
+            </div>
+
+            {/* Wskaźniki techniczne */}
+            <div className="indicators-grid">
+              <div className="indicator-box">
+                <h4>📊 RSI (14)</h4>
+                <div className={`indicator-value ${marketData.rsi > 70 ? 'overbought' : marketData.rsi < 30 ? 'oversold' : ''}`}>
+                  {marketData.rsi?.toFixed(0)}
+                </div>
+                <small>{marketData.rsi > 70 ? 'Wykupiony' : marketData.rsi < 30 ? 'Wyprzedany' : 'Neutralny'}</small>
+              </div>
+
+              <div className="indicator-box">
+                <h4>📈 EMA 12/26</h4>
+                <div className="indicator-value">
+                  <span>{marketData.ema12?.toFixed(2)}</span>
+                  <span>/</span>
+                  <span>{marketData.ema26?.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="indicator-box">
+                <h4>📊 MACD</h4>
+                <div className={`indicator-value ${marketData.macd?.signal === 'BULLISH' ? 'bullish' : 'bearish'}`}>
+                  {marketData.macd?.signal}
+                </div>
+                <small>Hist: {marketData.macd?.histogram}</small>
+              </div>
+
+              <div className="indicator-box">
+                <h4>🛑 SAR</h4>
+                <div className={`indicator-value ${marketData.sar?.signal === 'BULLISH' ? 'bullish' : 'bearish'}`}>
+                  {marketData.sar?.trend}
+                </div>
+                <small>${marketData.sar?.sar}</small>
+              </div>
+            </div>
+
+            {/* Formacje świec */}
+            {marketData.patterns && (
+              <div className="patterns-box">
+                <h4>🕯️ Formacje świec:</h4>
+                <div className="patterns-list">
+                  {marketData.patterns.map((pattern, idx) => (
+                    <span key={idx} className="pattern-tag">{pattern}</span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {chartData.length > 0 && (
               <div className="chart-container">
@@ -238,7 +288,7 @@ function AiAnalyzer() {
                     <span className="recommendation sell">❌ {line}</span>
                   ) : line.includes('TRZYMAJ') ? (
                     <span className="recommendation hold">⏸️ {line}</span>
-                  ) : line.match(/^\d️⃣/) ? (
+                  ) : line.match(/^[1-9]️⃣|🔟/) ? (
                     <span className="section-header">{line}</span>
                   ) : (
                     line
@@ -251,7 +301,7 @@ function AiAnalyzer() {
       </div>
 
       <div className="footer">
-        <p>⚡ LIVE Coinbase Exchange API • Auto-load na wpisanie • Groq AI</p>
+        <p>⚡ LIVE Coinbase Exchange API • RSI, MACD, SAR, EMA, Formacje • Groq AI</p>
       </div>
     </div>
   );
@@ -427,7 +477,6 @@ function CandlestickChart({ data, currency }) {
 
       <div className="chart-info">
         <p>📅 <strong>{data.length} dni</strong> | Każda świeca = 1 dzień | Wicki = High/Low | Body = Open/Close</p>
-        <p>🔄 Aktualizuje się automatycznie co 24h | Dane z Coinbase Exchange API</p>
       </div>
     </div>
   );
