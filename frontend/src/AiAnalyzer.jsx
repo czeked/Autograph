@@ -2,28 +2,55 @@ import { useState, useEffect } from 'react';
 import './AiAnalyzer.css';
 
 function AiAnalyzer() {
+  const [searchTicker, setSearchTicker] = useState('BTC');
+  const [currency, setCurrency] = useState('USD');
   const [prompt, setPrompt] = useState('');
   const [analysis, setAnalysis] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [marketData, setMarketData] = useState(null);
-  const [ticker, setTicker] = useState('BTC');
-  const [currency, setCurrency] = useState('USD');
+  const [ticker, setTicker] = useState('');
   const [chartData, setChartData] = useState([]);
-  const [cryptos, setCryptos] = useState([]);
-  const [currencies, setCurrencies] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
-  useEffect(() => {
-    fetch('http://localhost:3000/api/currencies')
-      .then(res => res.json())
-      .then(data => {
-        setCryptos(data.cryptos);
-        setCurrencies(data.currencies);
-      })
-      .catch(err => console.error('Error:', err));
-  }, []);
+  const cryptoList = [
+    'BTC', 'ETH', 'ADA', 'DOGE', 'SOL', 'XRP', 'BNB', 'LTC', 
+    'BCH', 'LINK', 'AVAX', 'MATIC', 'UNI', 'SHIB', 'ATOM', 'NEAR',
+    'POLKA', 'DOT', 'ICP', 'ARB', 'OP', 'PEPE', 'FLOKI', 'MEME',
+    'WIF', 'BONK', 'JUP', 'SAGA', 'GMX', 'BLUR'
+  ];
 
-  const fetchChart = async () => {
+  const currencyList = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'];
+
+  const handleSearchChange = (value) => {
+    const upperValue = value.toUpperCase();
+    setSearchTicker(upperValue);
+    
+    if (upperValue.length > 0) {
+      const filtered = cryptoList.filter(crypto => 
+        crypto.startsWith(upperValue)
+      );
+      setSuggestions(filtered);
+      setShowSuggestions(true);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectCrypto = (crypto) => {
+    setSearchTicker(crypto);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    handleSearch(crypto);
+  };
+
+  const handleSearch = async (searchValue) => {
+    const value = searchValue || searchTicker;
+    
+    if (value.length === 0) return;
+    
     setLoading(true);
     setError('');
     setAnalysis('');
@@ -35,9 +62,9 @@ function AiAnalyzer() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          ticker: ticker, 
+          ticker: value.toUpperCase(), 
           currency: currency,
-          prompt: prompt || `Analiza ${ticker}/${currency}`
+          prompt: `Analiza ${value.toUpperCase()}/${currency}`
         }),
       });
 
@@ -46,6 +73,7 @@ function AiAnalyzer() {
       if (res.ok && data.success) {
         setAnalysis(data.analysis);
         setMarketData(data.marketData);
+        setTicker(data.ticker);
         setChartData(data.chartData || []);
       } else {
         setError(`❌ ${data.error}`);
@@ -58,7 +86,17 @@ function AiAnalyzer() {
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && e.ctrlKey) fetchChart();
+    if (e.key === 'Enter') {
+      setShowSuggestions(false);
+      handleSearch(searchTicker);
+    }
+  };
+
+  const handleCurrencyChange = (newCurrency) => {
+    setCurrency(newCurrency);
+    if (marketData && ticker) {
+      handleSearch(ticker);
+    }
   };
 
   return (
@@ -70,50 +108,69 @@ function AiAnalyzer() {
 
       <div className="analyzer-card">
         <div className="input-section">
-          <div className="controls-row">
-            <div className="control-group">
-              <label>💰 Kryptowaluta:</label>
-              <select 
-                value={ticker} 
-                onChange={(e) => setTicker(e.target.value)}
-                className="select-input"
-              >
-                {cryptos.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+          <div className="controls-top">
+            <div className="search-container">
+              <label>🔍 Szukaj kryptowaluty:</label>
+              <div className="search-wrapper">
+                <input
+                  type="text"
+                  value={searchTicker}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  onFocus={() => searchTicker.length > 0 && setShowSuggestions(true)}
+                  placeholder="Np. BTC, ETH, SOL, DOGE..."
+                  className="search-input"
+                />
+                <button
+                  onClick={() => {
+                    setShowSuggestions(false);
+                    handleSearch(searchTicker);
+                  }}
+                  disabled={loading || searchTicker.length === 0}
+                  className={`search-button ${loading ? 'loading' : ''}`}
+                >
+                  {loading ? '⏳' : '🚀'}
+                </button>
+
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="suggestions-dropdown">
+                    {suggestions.map(crypto => (
+                      <div
+                        key={crypto}
+                        className="suggestion-item"
+                        onClick={() => selectCrypto(crypto)}
+                      >
+                        {crypto}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="control-group">
+            <div className="currency-container">
               <label>💵 Waluta:</label>
-              <select 
-                value={currency} 
-                onChange={(e) => setCurrency(e.target.value)}
-                className="select-input"
-              >
-                {currencies.map(c => (
-                  <option key={c} value={c}>{c}</option>
+              <div className="currency-buttons">
+                {currencyList.map(curr => (
+                  <button
+                    key={curr}
+                    onClick={() => handleCurrencyChange(curr)}
+                    className={`currency-btn ${currency === curr ? 'active' : ''}`}
+                  >
+                    {curr}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
           </div>
 
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            onKeyPress={handleKeyPress}
             placeholder="Opcjonalnie: Dodaj notatkę do analizy"
-            rows={3}
+            rows={2}
             className="input-textarea"
           />
-
-          <button
-            onClick={fetchChart}
-            disabled={loading}
-            className={`submit-button ${loading ? 'loading' : ''}`}
-          >
-            {loading ? '⏳ Pobierám z Coinbase...' : '🚀 Pobierz Chart & Analizę'}
-          </button>
 
           {error && <div className="error-message">{error}</div>}
         </div>
@@ -161,7 +218,7 @@ function AiAnalyzer() {
             {chartData.length > 0 && (
               <div className="chart-container">
                 <h4>📊 Candlestick Chart - Ostatnie 30 Dni</h4>
-                <CandlestickChart data={chartData} currency={currency} ticker={ticker} />
+                <CandlestickChart data={chartData} currency={currency} />
               </div>
             )}
           </div>
@@ -194,14 +251,13 @@ function AiAnalyzer() {
       </div>
 
       <div className="footer">
-        <p>💡 Tickery: BTC, ETH, ADA, DOGE, SOL, XRP, BNB, LTC, BCH, LINK, AVAX, POLYGON, UNI</p>
-        <p>⚡ LIVE Coinbase Exchange API • Aktualizacja co dzień • Groq AI</p>
+        <p>⚡ LIVE Coinbase Exchange API • Auto-load na wpisanie • Groq AI</p>
       </div>
     </div>
   );
 }
 
-function CandlestickChart({ data, currency, ticker }) {
+function CandlestickChart({ data, currency }) {
   if (!data || data.length === 0) return null;
 
   const chartHeight = 600;

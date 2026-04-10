@@ -15,7 +15,7 @@ const groq = new Groq({
 });
 
 const dataCache = {};
-const CACHE_TTL = 60 * 60 * 1000; // 1 godzina
+const CACHE_TTL = 60 * 60 * 1000;
 
 function calculateRSI(closes, period = 14) {
   if (closes.length < period + 1) return 50;
@@ -46,18 +46,15 @@ function calculateEMA(prices, period) {
   return ema;
 }
 
-// Pobierz OHLC z Coinbase
 async function getCoinbaseOHLC(productId) {
   try {
     console.log(`🔄 Coinbase OHLC: ${productId}`);
     
-    // Coinbase API - OHLC data (Open, High, Low, Close)
-    // 300 = 5 minut, 900 = 15 minut, 3600 = 1 godzina, 86400 = 1 dzień
     const res = await axios.get(
       `https://api.exchange.coinbase.com/products/${productId}/candles`,
       {
         params: {
-          granularity: 86400, // 1 dzień
+          granularity: 86400,
         },
         timeout: 10000,
         headers: {
@@ -66,7 +63,10 @@ async function getCoinbaseOHLC(productId) {
       }
     );
 
-    // Coinbase zwraca: [time, low, high, open, close, volume]
+    if (!res.data || res.data.length === 0) {
+      throw new Error(`Brak danych dla ${productId}`);
+    }
+
     let candles = res.data.map(d => ({
       timestamp: d[0],
       low: parseFloat(d[1]),
@@ -76,7 +76,6 @@ async function getCoinbaseOHLC(productId) {
       volume: parseFloat(d[5])
     })).reverse();
 
-    // Weź ostatnie 30 dni
     candles = candles.slice(-30);
 
     const closes = candles.map(c => c.close);
@@ -120,7 +119,6 @@ async function getCoinbaseOHLC(productId) {
   }
 }
 
-// Pobierz aktualną cenę z Coinbase
 async function getCoinbasePrice(productId) {
   try {
     const res = await axios.get(
@@ -147,27 +145,7 @@ async function getMarketData(ticker, currency = 'USD') {
       return dataCache[cacheKey].data;
     }
     
-    const cryptoMap = {
-      'BTC': 'BTC',
-      'ETH': 'ETH',
-      'ADA': 'ADA',
-      'DOGE': 'DOGE',
-      'SOL': 'SOL',
-      'XRP': 'XRP',
-      'BNB': 'BNB',
-      'LTC': 'LTC',
-      'BCH': 'BCH',
-      'LINK': 'LINK',
-      'AVAX': 'AVAX',
-      'POLYGON': 'POLYGON',
-      'UNI': 'UNI'
-    };
-
-    if (!cryptoMap[symbol]) {
-      throw new Error(`Nieznany ticker: ${symbol}`);
-    }
-
-    const productId = `${cryptoMap[symbol]}-${currency}`;
+    const productId = `${symbol}-${currency}`;
     
     const ohlcData = await getCoinbaseOHLC(productId);
     const currentPrice = await getCoinbasePrice(productId);
@@ -284,13 +262,6 @@ PO POLSKU, konkretnie.`
   }
 });
 
-app.get('/api/currencies', (req, res) => {
-  res.json({
-    currencies: ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'],
-    cryptos: ['BTC', 'ETH', 'ADA', 'DOGE', 'SOL', 'XRP', 'BNB', 'LTC', 'BCH', 'LINK', 'AVAX', 'POLYGON', 'UNI']
-  });
-});
-
 app.get('/', (req, res) => {
   res.json({ status: "✅ Online - COINBASE LIVE" });
 });
@@ -298,6 +269,5 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`\n✅ Backend: http://localhost:${PORT}`);
   console.log(`📊 Coinbase Exchange API - OHLC 30 dni`);
-  console.log(`💱 Waluty: USD, EUR, GBP, JPY, CAD, AUD`);
-  console.log(`💰 Krypto: BTC, ETH, ADA, DOGE, SOL, XRP, BNB, LTC, BCH, LINK, AVAX, POLYGON, UNI\n`);
+  console.log(`💱 Wyszukiwarka kryptowalut w USD\n`);
 });
