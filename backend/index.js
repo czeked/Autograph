@@ -61,7 +61,6 @@ async function getMarketData(ticker) {
   try {
     const apiKey = process.env.MASSIVE_API_KEY;
     
-    // Detect crypto or stock
     let isCrypto = false;
     let symbol = ticker.toUpperCase();
     
@@ -72,7 +71,6 @@ async function getMarketData(ticker) {
 
     console.log(`🔍 Pobieranie danych dla: ${symbol}`);
 
-    // Get last 100 days
     const endDate = new Date().toISOString().split('T')[0];
     const startDate = new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
@@ -91,27 +89,23 @@ async function getMarketData(ticker) {
     }
 
     const data = response.data.results;
-    const prices = data.map(d => d.c); // Close prices
+    const prices = data.map(d => d.c);
     const currentPrice = prices[prices.length - 1];
     const previousClose = prices[prices.length - 2];
     
-    // Calculate basics
     const change = currentPrice - previousClose;
     const changePercent = (change / previousClose) * 100;
     
-    // Support/Resistance (last 20 days)
     const last20Days = data.slice(-20);
     const high = Math.max(...last20Days.map(d => d.h));
     const low = Math.min(...last20Days.map(d => d.l));
     
-    // Fibonacci levels
     const range = high - low;
     const support1 = low;
     const resistance1 = high;
     const support2 = low - (range * 0.236);
     const resistance2 = high + (range * 0.236);
     
-    // Technical indicators
     const rsi = calculateRSI(prices);
     const sma20 = calculateSMA(prices, 20);
     const sma50 = calculateSMA(prices, 50);
@@ -155,7 +149,6 @@ app.post('/api/analyze', async (req, res) => {
   }
 
   try {
-    // Extract ticker from prompt
     const tickerMatch = prompt.match(/\b([A-Z]{1,5})\b/);
     const ticker = tickerMatch ? tickerMatch[1].toUpperCase() : null;
 
@@ -163,14 +156,12 @@ app.post('/api/analyze', async (req, res) => {
       return res.status(400).json({ error: "Nie znaleziono tickera (np. BTC, AAPL, ETH)" });
     }
 
-    // Fetch market data
     const marketData = await getMarketData(ticker);
 
     if (!marketData) {
       return res.status(400).json({ error: `Nie można pobrać danych dla ${ticker}` });
     }
 
-    // Prepare technical analysis
     const technicalAnalysis = `
 📊 DANE TECHNICZNE (${marketData.ticker}):
 
@@ -218,7 +209,7 @@ ZAWSZE zwróć analizę w DOKŁADNIE tym formacie (każda sekcja w nowej linii):
 - Wsparcie 2: XXX USD
 [Krótka interpretacja - gdzie może sięgnąć cena]
 
-3️⃣ POTENCJALNE SCENARIUSZE
+3��⃣ POTENCJALNE SCENARIUSZE
 - Scenariusz 1: [WYBICIE/KOREKTA/KONSOLIDACJA] - jeśli cena przekroczy XXXX USD
 - Scenariusz 2: [Alternatywny scenariusz]
 - Prawdopodobieństwo: [Szacunek % dla każdego]
@@ -294,10 +285,17 @@ ZASADY:
   }
 });
 
-// Health check
+// ============ ROUTES ============
+
+app.get('/', (req, res) => {
+  res.json({ status: "✅ Backend online", message: "Use POST /api/analyze" });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: "✅ Backend online", timestamp: new Date().toISOString() });
 });
+
+// ============ START SERVER ============
 
 app.listen(PORT, () => {
   console.log(`✅ Backend uruchomiony na http://localhost:${PORT}`);
