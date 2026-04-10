@@ -1,7 +1,7 @@
 {
   "name": "autograph",
   "version": "1.0.0",
-  "description": "Autograph",
+  "description": "Autograph - AI Trading Analysis",
   "main": "index.js",
   "type": "module",
   "scripts": {

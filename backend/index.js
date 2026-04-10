@@ -197,7 +197,7 @@ Pytanie użytkownika: ${prompt}
 
 ZAWSZE zwróć analizę w DOKŁADNIE tym formacie (każda sekcja w nowej linii):
 
-═══════════════════════════════════════════════════════════
+═══���═══════════════════════════════════════════════════════
 
 1️⃣ CENA BIEŻĄCA I TREND DZISIAJ
 [Podaj cenę, zmianę procentową, interpretacja trendu dzisiaj - czy rośnie/pada/konsoliduje]
@@ -209,7 +209,7 @@ ZAWSZE zwróć analizę w DOKŁADNIE tym formacie (każda sekcja w nowej linii):
 - Wsparcie 2: XXX USD
 [Krótka interpretacja - gdzie może sięgnąć cena]
 
-3��⃣ POTENCJALNE SCENARIUSZE
+3️⃣ POTENCJALNE SCENARIUSZE
 - Scenariusz 1: [WYBICIE/KOREKTA/KONSOLIDACJA] - jeśli cena przekroczy XXXX USD
 - Scenariusz 2: [Alternatywny scenariusz]
 - Prawdopodobieństwo: [Szacunek % dla każdego]
