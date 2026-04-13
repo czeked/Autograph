@@ -20,6 +20,23 @@
 }
 
 
+@font-face {
+    font-family: 'Cy Grotesk Grand';
+    src: url('./assets/fonts/CyGrotesk-GrandRegular.otf') format('opentype');
+    font-weight: 800;
+    font-style: normal;
+}
+
+
+@font-face {
+    font-family: 'Garet';
+    src: url('./assets/fonts/Garet-Book.otf') format('opentype');
+    font-weight: 800;
+    font-style: normal;
+}
+
+
+
 .header {
     width: 100%;
     display: flex;
@@ -33,7 +50,7 @@
 
 .icons {
     display: flex;
-    gap: 30px;
+    gap: 45px;
 }
 
 .header i {
@@ -101,4 +118,120 @@
 .homepage button:hover {
     background-color: #c9c9c9;
     transition: background-color .3s;
+}
+
+.footer{
+    width: 100vw;
+    background-color: #323232;
+    color: #fff;
+    padding: 20px 200px 20px 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.texts{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.version h1{
+    font-family: 'Parfumerie Script', cursive;
+    font-size: 152px;
+}
+
+.version p{
+    font-size: 16px;
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    margin-top: -100px;
+    margin-bottom: 100px;
+    text-align: left;
+}
+
+.motivation {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 34px;
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+    line-height: 120%;
+}
+
+.informations{
+    margin-top: 50px;
+    margin-bottom: 50px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    font-family: 'Garet', sans-serif;
+    font-size: 18px;
+}
+
+.i-block{
+    display: flex;
+    flex-direction: column;
+}
+
+.i-block h1{
+    margin-bottom: 20px;
+}
+
+.i-block ol{
+    list-style-type: none;
+    font-family: 'Garet', sans-serif;
+}
+
+.i-block ol li{
+    font-family: 'Garet', sans-serif;
+}
+
+.media h2{
+    font-family: 'Garet', sans-serif;
+    font-size: 48px;
+    padding: 30px 50px 30px 10px;
+}
+
+.finish-footer{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.media{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 50px;
+}
+
+.fa-brands.fa-instagram, .fa-brands.fa-x-twitter{
+    font-size: 48px;
+    color: #fff;
+    cursor: pointer;
+}
+
+.payments{
+    display: flex;
+    flex-direction: row;
+    font-size: 48px;
+    gap: 25px;
+    padding: 0 10px 0 0;
+}
+
+.payments i{
+    color: #fff;
+    cursor: default;
+}
+
+.disclaimer{
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 16px;
+    text-align: center;
+    margin-top: 20px;
+}
+
+.disclaimer-red{
+    color: #ff0000;
+    margin-top: 5px;
 }
