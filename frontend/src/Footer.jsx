@@ -10,7 +10,7 @@ export default function Footer() {
                 </div>
 
                 <div className="motivation">
-                    <h2>Dla ludzi.</h2>
+                    <h2>Dla Ciebie.</h2>
                     <h2>Dla analizy.</h2>
                 </div>
             </div>

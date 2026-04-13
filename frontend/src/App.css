@@ -157,6 +157,10 @@
     line-height: 120%;
 }
 
+.motivation h2{
+    font-family: 'Cy Grotesk Grand', sans-serif;
+}
+
 .informations{
     margin-top: 50px;
     margin-bottom: 50px;
@@ -173,6 +177,7 @@
 }
 
 .i-block h1{
+    font-family: 'Garet', sans-serif;
     margin-bottom: 20px;
 }
 
@@ -235,3 +240,11 @@
     color: #ff0000;
     margin-top: 5px;
 }
+
+
+
+
+
+
+
+
