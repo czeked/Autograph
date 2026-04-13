@@ -5,6 +5,7 @@ import AiAnalyzer from './AiAnalyzer.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
+    <App />
     <AiAnalyzer />
-  </StrictMode>
+  </StrictMode>,
 )
