@@ -29,11 +29,37 @@
 
 
 @font-face {
+    font-family: 'Cy Grotesk Key';
+    src: url('./assets/fonts/CyGrotesk-KeyRegular.otf') format('opentype');
+    font-weight: 100;
+    font-style: normal;
+}
+
+
+@font-face {
+    font-family: 'Cy Grotesk Key Bold';
+    src: url('./assets/fonts/CyGrotesk-KeyBold.otf') format('opentype');
+    font-weight: bold;
+    font-style: normal;
+}
+
+
+@font-face {
+    font-family: 'Cy Grotesk Grand Bold';
+    src: url('./assets/fonts/CyGrotesk-GrandBold.otf') format('opentype');
+    font-weight: bold;
+    font-style: normal;
+}
+
+
+@font-face {
     font-family: 'Garet';
     src: url('./assets/fonts/Garet-Book.otf') format('opentype');
     font-weight: 800;
     font-style: normal;
 }
+
+
 
 
 
@@ -73,7 +99,7 @@
 
 .homepage {
     background: linear-gradient(rgba(98, 62, 42, 0.4), rgba(98, 62, 42, 0.4)),
-    url("imgs/bg-grand.png");
+        url("imgs/bg-grand.png");
     background-repeat: no-repeat;
     background-size: cover;
     background-position: center;
@@ -92,7 +118,7 @@
     font-size: 226px;
 }
 
-.homepage p{
+.homepage p {
     font-size: 32px;
     margin-top: -115px;
     margin-bottom: 100px;
@@ -120,7 +146,7 @@
     transition: background-color .3s;
 }
 
-.footer{
+.footer {
     width: 100vw;
     background-color: #323232;
     color: #fff;
@@ -129,18 +155,18 @@
     flex-direction: column;
 }
 
-.texts{
+.texts {
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-.version h1{
+.version h1 {
     font-family: 'Parfumerie Script', cursive;
     font-size: 152px;
 }
 
-.version p{
+.version p {
     font-size: 16px;
     font-family: 'Cy Grotesk Grand', sans-serif;
     margin-top: -100px;
@@ -157,11 +183,11 @@
     line-height: 120%;
 }
 
-.motivation h2{
+.motivation h2 {
     font-family: 'Cy Grotesk Grand', sans-serif;
 }
 
-.informations{
+.informations {
     margin-top: 50px;
     margin-bottom: 50px;
     display: flex;
@@ -171,52 +197,53 @@
     font-size: 18px;
 }
 
-.i-block{
+.i-block {
     display: flex;
     flex-direction: column;
 }
 
-.i-block h1{
+.i-block h1 {
     font-family: 'Garet', sans-serif;
     margin-bottom: 20px;
 }
 
-.i-block ol{
+.i-block ol {
     list-style-type: none;
     font-family: 'Garet', sans-serif;
 }
 
-.i-block ol li{
+.i-block ol li {
     font-family: 'Garet', sans-serif;
 }
 
-.media h2{
+.media h2 {
     font-family: 'Garet', sans-serif;
     font-size: 48px;
     padding: 30px 50px 30px 10px;
 }
 
-.finish-footer{
+.finish-footer {
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
 }
 
-.media{
+.media {
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 50px;
 }
 
-.fa-brands.fa-instagram, .fa-brands.fa-x-twitter{
+.fa-brands.fa-instagram,
+.fa-brands.fa-x-twitter {
     font-size: 48px;
     color: #fff;
     cursor: pointer;
 }
 
-.payments{
+.payments {
     display: flex;
     flex-direction: row;
     font-size: 48px;
@@ -224,21 +251,216 @@
     padding: 0 10px 0 0;
 }
 
-.payments i{
+.payments i {
     color: #fff;
     cursor: default;
 }
 
-.disclaimer{
+.disclaimer {
     font-family: 'Cy Grotesk Grand', sans-serif;
     font-size: 16px;
     text-align: center;
     margin-top: 20px;
 }
 
-.disclaimer-red{
+.disclaimer-red {
     color: #ff0000;
     margin-top: 5px;
+}
+
+
+
+/* GETSTARTED PAGE */
+
+.div-hello {
+    background: url("imgs/bg-started1.png");
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 150px;
+    font-family: 'Cy Grotesk Key', sans-serif;
+
+}
+
+.div-hello p {
+    font-size: 46px;
+    width: 35%;
+    color: #fff;
+    text-align: center;
+}
+
+.strong {
+    font-family: 'cy Grotesk Key Bold', sans-serif;
+}
+
+.tptext {
+    width: 100%;
+    background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6));
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    padding: 8px 34%;
+    font-size: 28px;
+}
+
+.tptext-next {
+    font-family: 'Cy Grotesk Key Bold', sans-serif;
+}
+
+
+
+
+
+
+.div-offers {
+    background: linear-gradient(rgba(98, 62, 42, 0.4), rgba(98, 62, 42, 0.4)), url("imgs/bg-started2.png");
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    gap: 250px;
+}
+
+.div-offers h1 {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 34px;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 40px 0 25px 0;
+}
+
+.icons-s {
+    display: flex;
+    justify-content: center;
+    flex-direction: row;
+    gap: 200px;
+}
+
+.icons-sep {
+    font-family: 'cy grotesk grand', sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+}
+
+.icons-sep i {
+    text-align: center;
+    font-size: 48px;
+    margin-bottom: 10px;
+}
+
+.icons-sep p {
+    text-align: center;
+    font-size: 32px;
+    width: 400px;
+}
+
+
+
+
+
+.div-plans {
+    background: linear-gradient(rgba(98, 62, 42, 0.4), rgba(98, 62, 42, 0.4)), url("imgs/bg-started3.png");
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    width: 100vw;
+}
+
+.div-plans h1 {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 58px;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 40px 0 25px 0;
+}
+
+.block-plans {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 200px;
+    margin-top: 120px;
+}
+
+.block-plan {
+    border: 1px solid #fff;
+    width: 420px;
+    padding: 100px 0 20px 0;
+    text-align: center;
+}
+
+.block-plan:nth-child(2) {
+    border: 1px solid gold;
+}
+
+.block-plan:nth-child(2) button {
+    background-color: #ffd700;
+}
+
+.block-plan:nth-child(2) button:hover {
+    background-color: #ddb500;
+    transition: background-color .3s;
+}
+
+.block-plan i {
+    font-size: 144px;
+}
+
+.block-plan h2 {
+    font-family: 'Cy Grotesk Key', sans-serif;
+    padding: 40px 0 10px 0;
+    font-size: 36px;
+}
+
+.block-plan p {
+    font-family: 'Cy Grotesk Key', sans-serif;
+    font-size: 24px;
+    margin-bottom: 40px;
+}
+
+.block-plan button {
+    font-family: 'Cy Grotesk Grand Bold', sans-serif;
+    color: #fff;
+    background-color: #574335;
+    font-size: 24px;
+    text-transform: uppercase;
+    padding: 12px 40px;
+    cursor: pointer;
+    border-radius: 20px;
+    border: none;
+}
+
+.block-plan button:hover {
+    background-color: #796557;
+    transition: background-color .3s;
+}
+
+.div-plans .plans-logo {
+    font-family: 'Parfumerie Script', cursive;
+    text-align: center;
+    font-size: 54px;
+    margin-top: 50px;
+}
+
+.box-frame span {
+    font-size: 16px;
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    padding: 2px 0 0 5px;
+    position: absolute;
 }
 
 
@@ -248,3 +470,8 @@
 
 
 
+
+
+
+
+/* MOBILE */

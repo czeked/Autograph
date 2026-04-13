@@ -1,7 +1,14 @@
+import Header from "./Header";
+import Started from "./Started";
+import Footer from "./Footer";
+
 function GetStarted() {
+  
   return (
     <>
-      <div>elo</div>
+      <Header />
+      <Started />
+      <Footer/>
     </>
   );
 }
