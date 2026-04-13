@@ -1,0 +1,9 @@
+dzien 09.04.2026
+polaczenie githuba z projektem , sprawdzenie vs itp, itp 
+
+
+
+  dzien 2
+
+  wgralem groq i massive podlaczylem wszystko dziala gielda dane sa aktualne wszystko itp
+  backend robilem
