@@ -5,7 +5,7 @@ export default function Header() {
     return (
         <div className="header">
             <div className="icons">
-                <i className="fa-regular fa-user"></i>
+                <i className="fa-regular fa-user" onClick={()=> navigate("/user")}></i>
                 <i className="fa-solid fa-chart-simple" onClick={()=> navigate("/autograph")}></i>
             </div>
             <h1>Autograph</h1>

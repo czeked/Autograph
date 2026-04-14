@@ -474,4 +474,177 @@
 
 
 
-/* MOBILE */
+/* USER PAGE */
+
+.user-side {
+    width: 260px;
+    height: 100vh;
+    background: #212121;
+    color: #ccc;
+    padding: 25px 15px;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Cy Grotesk Key', sans-serif;
+}
+
+/* USER HEADER */
+.user-title {
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    gap: 15px;
+    margin-bottom: 10px;
+    word-break: break-all;
+}
+
+.user-title img {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+}
+
+.user-title p {
+    font-size: 18px;
+    color: #fff;
+}
+
+/* LISTY */
+.user-side ul {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 10px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* ELEMENT */
+.user-side li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+    color: #aaa;
+}
+
+/* IKONY */
+.user-side li i {
+    width: 18px;
+    text-align: center;
+}
+
+/* HOVER */
+.user-side li:hover {
+    background: #2a2a2a;
+    color: #fff;
+}
+
+/* AKTYWNY */
+.user-side li.active {
+    background: #00a8d6;
+    color: white;
+}
+
+/* LINIE */
+.user-side hr {
+    border: none;
+    border-top: 1px solid #333;
+    margin: 15px 0;
+}
+
+.close-btn {
+    position: absolute;
+    top: 25px;
+    right: 30px;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 34px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.close-btn:hover {
+    color: #fff;
+}
+
+.save-btn {
+    margin-top: auto;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.2s;
+    background: #444;
+    color: #888;
+    font-family: 'Cy Grotesk Grand', sans-serif;
+}
+
+/* aktywny (są zmiany) */
+.save-btn.active {
+    background: #22c55e;
+    color: white;
+}
+
+/* hover tylko gdy aktywny */
+.save-btn.active:hover {
+    background: #16a34a;
+}
+
+/* disabled */
+.save-btn:disabled {
+    cursor: not-allowed;
+}
+
+/* WARNING BAR (dół ekranu) */
+.warning-bar {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2a2a2a;
+    color: #fff;
+    padding: 15px 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    font-family: 'Cy Grotesk Key', sans-serif;
+}
+
+.warning-bar button {
+    margin-left: 10px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Cy Grotesk Key', sans-serif;
+}
+
+.warning-bar button:first-child {
+    background: #ef4444;
+    color: white;
+}
+
+.warning-bar button:last-child {
+    background: #444;
+    color: white;
+}
+
+.layout {
+    display: flex;
+}
+
+.content {
+    flex: 1;
+    padding: 30px;
+    background: #1d1d1d;
+    min-height: 100vh;
+}
+
+

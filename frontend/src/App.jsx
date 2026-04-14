@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./Home";
 import GetStarted from "./GetStarted";
 import AiAnalyzer from './AiAnalyzer';
+import User from './User';
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/getstarted" element={<GetStarted />} />
         <Route path="/autograph" element={<AiAnalyzer />} />
+        <Route path="/user" element={<User />} />
       </Routes>
     </BrowserRouter>
   );
