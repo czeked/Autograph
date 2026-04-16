@@ -1,6 +1,6 @@
-﻿import 'dotenv/config';
+import 'dotenv/config';
 import express from 'express';
-import Groq from 'groq-sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import cors from 'cors';
 import axios from 'axios';
 import { EventEmitter } from 'events';
@@ -11,9 +11,38 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// Lista modeli do próbowania (fallback)
+const GEMINI_MODELS = [
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash'
+];
+
+async function generateWithFallback(prompt, systemPrompt) {
+  let lastError = null;
+  for (const modelName of GEMINI_MODELS) {
+    try {
+      console.log(`🤖 Próbuję model: ${modelName}`);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: systemPrompt + '\n\n' + prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 3000,
+        },
+      });
+      console.log(`✅ Model ${modelName} odpowiedział pomyślnie`);
+      return result.response.text();
+    } catch (err) {
+      console.error(`⚠️ Model ${modelName} błąd: ${err.message.substring(0, 120)}`);
+      lastError = err;
+      // Zawsze próbuj następny model
+    }
+  }
+  throw new Error('Wszystkie modele Gemini są tymczasowo niedostępne. Spróbuj za chwilę. Ostatni błąd: ' + (lastError?.message?.substring(0, 100) || 'nieznany'));
+}
 
 const dataCache = {};
 const newsCache = {};
@@ -53,6 +82,40 @@ const COINGECKO_MAP = {
   'SAGA': 'saga',
   'GMX': 'gmx',
   'BLUR': 'blur'
+};
+
+// Mapowanie tickerów na słowa kluczowe do filtrowania wiadomości Finnhub
+const TICKER_KEYWORDS = {
+  'BTC': ['bitcoin', 'btc'],
+  'ETH': ['ethereum', 'eth', 'ether'],
+  'ADA': ['cardano', 'ada'],
+  'DOGE': ['dogecoin', 'doge'],
+  'SOL': ['solana', 'sol'],
+  'XRP': ['ripple', 'xrp'],
+  'BNB': ['binance', 'bnb'],
+  'LTC': ['litecoin', 'ltc'],
+  'BCH': ['bitcoin cash', 'bch'],
+  'LINK': ['chainlink', 'link'],
+  'AVAX': ['avalanche', 'avax'],
+  'MATIC': ['polygon', 'matic'],
+  'UNI': ['uniswap', 'uni'],
+  'SHIB': ['shiba', 'shib'],
+  'ATOM': ['cosmos', 'atom'],
+  'NEAR': ['near protocol', 'near'],
+  'DOT': ['polkadot', 'dot'],
+  'POLKA': ['polkadot'],
+  'ICP': ['internet computer', 'icp'],
+  'ARB': ['arbitrum', 'arb'],
+  'OP': ['optimism'],
+  'PEPE': ['pepe'],
+  'FLOKI': ['floki'],
+  'MEME': ['memecoin', 'meme'],
+  'WIF': ['dogwifhat', 'wif'],
+  'BONK': ['bonk'],
+  'JUP': ['jupiter', 'jup'],
+  'SAGA': ['saga'],
+  'GMX': ['gmx'],
+  'BLUR': ['blur']
 };
 
 // ======================== IMPORTANT KEYWORDS ========================
@@ -268,45 +331,72 @@ function getImportanceLevel(score) {
 
 // ======================== WIADOMOŚCI ========================
 
+// Globalny cache na surowe dane z Finnhub (jeden request dla wszystkich tickerów)
+let finnhubRawCache = { data: [], timestamp: 0 };
+const FINNHUB_RAW_TTL = 10 * 60 * 1000; // 10 minut
+
+async function fetchFinnhubRaw() {
+  if (finnhubRawCache.data.length > 0 && (Date.now() - finnhubRawCache.timestamp) < FINNHUB_RAW_TTL) {
+    return finnhubRawCache.data;
+  }
+
+  console.log(`📰 Pobieranie globalnych wiadomości z Finnhub...`);
+  const newsRes = await axios.get(
+    `https://finnhub.io/api/v1/news`,
+    {
+      params: {
+        category: 'crypto',
+        token: process.env.FINNHUB_API_KEY
+      },
+      timeout: 8000
+    }
+  );
+
+  if (Array.isArray(newsRes.data)) {
+    finnhubRawCache = { data: newsRes.data, timestamp: Date.now() };
+    console.log(`📰 Finnhub: pobrano ${newsRes.data.length} artykułów globalnych`);
+    return newsRes.data;
+  }
+  return [];
+}
+
 async function getCryptoNews(ticker) {
   try {
     if (newsCache[ticker] && (Date.now() - newsCache[ticker].timestamp) < NEWS_CACHE_TTL) {
       return newsCache[ticker].data;
     }
 
-    console.log(`📰 Pobierám wiadomości: ${ticker}`);
+    const allArticles = await fetchFinnhubRaw();
 
-    const newsRes = await axios.get(
-      `https://min-api.cryptocompare.com/data/v2/news/`,
-      {
-        params: {
-          lang: 'EN',
-          sortOrder: 'latest',
-          categories: ticker.toLowerCase()
-        },
-        timeout: 5000
-      }
-    );
+    // Filtruj wiadomości po słowach kluczowych tickera
+    const keywords = TICKER_KEYWORDS[ticker.toUpperCase()] || [ticker.toLowerCase()];
+    
+    const filtered = allArticles.filter(article => {
+      const text = (article.headline + ' ' + (article.summary || '')).toLowerCase();
+      return keywords.some(kw => text.includes(kw));
+    });
 
-    let news = [];
-    if (newsRes.data.Data) {
-      news = newsRes.data.Data.slice(0, 10).map(article => {
-        const importance = calculateImportanceScore(article.title + ' ' + article.body);
-        const importanceLevel = getImportanceLevel(importance);
-        
-        return {
-          title: article.title,
-          body: article.body.substring(0, 150) + '...',
-          source: article.source,
-          url: article.url,
-          published: new Date(article.published_on * 1000).toLocaleString('pl-PL'),
-          sentiment: analyzeSentiment(article.title + ' ' + article.body),
-          importance: importance,
-          importanceLevel: importanceLevel,
-          isImportant: importance >= 3
-        };
-      }).sort((a, b) => b.importance - a.importance);
-    }
+    // Jeśli brak dopasowań, weź ogólne kryptonewsy
+    const articlesToUse = filtered.length > 0 ? filtered.slice(0, 10) : allArticles.slice(0, 5);
+
+    const news = articlesToUse.map(article => {
+      const fullText = article.headline + ' ' + (article.summary || '');
+      const importance = calculateImportanceScore(fullText);
+      const importanceLevel = getImportanceLevel(importance);
+      
+      return {
+        title: article.headline,
+        body: (article.summary || '').substring(0, 150) + '...',
+        source: article.source,
+        url: article.url,
+        image: article.image || null,
+        published: new Date(article.datetime * 1000).toLocaleString('pl-PL'),
+        sentiment: analyzeSentiment(fullText),
+        importance: importance,
+        importanceLevel: importanceLevel,
+        isImportant: importance >= 3
+      };
+    }).sort((a, b) => b.importance - a.importance);
 
     newsCache[ticker] = {
       data: news,
@@ -324,9 +414,10 @@ async function getCryptoNews(ticker) {
       });
     }
 
+    console.log(`📰 Finnhub: ${news.length} artykułów dla ${ticker}`);
     return news;
   } catch (err) {
-    console.error(`⚠️ News error: ${err.message}`);
+    console.error(`⚠️ Finnhub News error: ${err.message}`);
     return [];
   }
 }
@@ -506,15 +597,16 @@ async function getMarketData(ticker, currency = 'USD') {
 // ======================== BACKGROUND NEWS MONITOR ========================
 
 function startNewsMonitoring() {
-  const tickers = Object.keys(COINGECKO_MAP);
-  
   setInterval(async () => {
-    for (let ticker of tickers) {
-      try {
-        await getCryptoNews(ticker);
-      } catch (err) {
-        console.error(`Error monitoring ${ticker}:`, err.message);
-      }
+    try {
+      // Wymuś odświeżenie globalnego cache Finnhub (1 request)
+      finnhubRawCache.timestamp = 0;
+      await fetchFinnhubRaw();
+      // Wyczyść cache per-ticker żeby przy następnym zapytaniu przefiltrować na nowo
+      Object.keys(newsCache).forEach(k => { newsCache[k].timestamp = 0; });
+      console.log('🔄 News cache odświeżony');
+    } catch (err) {
+      console.error(`Error monitoring news:`, err.message);
     }
   }, NEWS_CHECK_INTERVAL);
 
@@ -555,11 +647,7 @@ app.post('/api/analyze', async (req, res) => {
 🕯️ Formacje świec: ${data.patterns.join(', ')}${newsText}
 Pytanie: ${prompt || 'Analiza techniczny'}`;
 
-    const completion = await groq.chat.completions.create({
-      messages: [
-        { 
-          role: "system", 
-          content: `Jesteś zaawansowanym analitykiem technicznym kryptowalut. Dokonaj analizy:
+    const systemPrompt = `Jesteś zaawansowanym analitykiem technicznym kryptowalut. Dokonaj analizy:
 1️⃣ TREND GŁÓWNY - RSI, MACD, SAR
 2️⃣ ŚREDNIE KROCZĄCE - EMA12/26, SMA20/50
 3️⃣ WSPARCIE/OPÓR - Poziomy, Fibonacci
@@ -570,20 +658,22 @@ Pytanie: ${prompt || 'Analiza techniczny'}`;
 8️⃣ SCENARIUSZE - Byczy, niedźwiedzi, neutralny
 9️⃣ ENTRY/EXIT - Gdzie wejść, gdzie wyjść
 🔟 PODSUMOWANIE - Co robić teraz?
-PO POLSKU, konkretnie, z cyframi!`
-        },
-        { role: "user", content: analysis }
-      ],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
-      max_tokens: 3000,
-    });
+PO POLSKU, konkretnie, z cyframi!`;
+
+    // Próbuj wygenerować analizę AI z fallback
+    let aiAnalysis = '';
+    try {
+      aiAnalysis = await generateWithFallback(analysis, systemPrompt);
+    } catch (aiErr) {
+      console.error(`⚠️ AI niedostępne: ${aiErr.message}`);
+      aiAnalysis = `⚠️ AI tymczasowo niedostępne (rate limit). Dane rynkowe i wiadomości są aktualne.\n\n📊 Podsumowanie danych:\n- Cena: ${data.price.toFixed(2)} ${currency}\n- Zmiana: ${data.changePercent > 0 ? '+' : ''}${data.changePercent.toFixed(2)}%\n- RSI: ${data.rsi.toFixed(0)} (${data.rsi > 70 ? 'Wykupiony' : data.rsi < 30 ? 'Wyprzedany' : 'Neutralny'})\n- MACD: ${data.macd.signal}\n- SAR: ${data.sar.signal}\n\nSpróbuj ponownie za minutę, aby uzyskać pełną analizę AI.`;
+    }
 
     res.json({
       success: true,
       ticker: data.ticker,
       currency: currency,
-      analysis: completion.choices[0].message.content,
+      analysis: aiAnalysis,
       marketData: {
         price: data.price,
         change: data.change,
@@ -633,13 +723,14 @@ app.get('/api/important-news', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.json({ status: "✅ Online - COINGECKO + LIVE NEWS" });
+  res.json({ status: "✅ Online - COINGECKO + FINNHUB + GEMINI AI" });
 });
 
 const server = app.listen(PORT, () => {
   console.log(`\n✅ Backend: http://localhost:${PORT}`);
   console.log(`📊 CoinGecko API - OHLC 30 dni`);
-  console.log(`📰 CryptoCompare News - Real Time Monitoring\n`);
+  console.log(`🤖 AI Engine: Google Gemini (gemini-2.0-flash)`);
+  console.log(`📰 Finnhub News - Real Time Crypto Monitoring\n`);
   
   // Uruchom monitoring wiadomości
   startNewsMonitoring();
@@ -647,8 +738,8 @@ const server = app.listen(PORT, () => {
 
 app.get('/api/news', async (req, res) => {
   try {
-    const ticker = req.query.ticker || null;
-    const newsData = await getAllCryptoNews(ticker);
+    const ticker = req.query.ticker || 'BTC';
+    const newsData = await getCryptoNews(ticker);
     res.json(newsData);
   } catch (error) {
     res.status(500).json({ error: error.message });

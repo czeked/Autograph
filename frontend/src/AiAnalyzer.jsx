@@ -69,7 +69,6 @@ export default function AiAnalyzer() {
   const [dayStreamText, setDayStreamText] = useState('');
   const [dayLoading, setDayLoading] = useState(false);
   const [dayArticles, setDayArticles] = useState([]);
-  const [articlesLoading, setArticlesLoading] = useState(false);
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
@@ -149,11 +148,14 @@ export default function AiAnalyzer() {
             try {
               const parsed = JSON.parse(dataStr);
               if (parsed.text) setDayStreamText(prev => prev + parsed.text);
-            } catch (e) { }
+            } catch (ignore) { 
+              // ignore parse errors
+            }
           }
         }
       }
-    } catch (e) {
+    } catch (err) {
+      console.error(err);
       setDayStreamText("Błąd ładowania szczegółów z Quantum Core...");
       setDayLoading(false);
     }
@@ -315,6 +317,7 @@ export default function AiAnalyzer() {
               placeholder="Szukaj rynków (np. AAPL, NVDA)..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
             />
           </div>
           {suggestions.length > 0 && (
