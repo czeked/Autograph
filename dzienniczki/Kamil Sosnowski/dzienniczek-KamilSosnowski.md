@@ -12,7 +12,7 @@ polaczenie githuba z projektem , sprawdzenie vs itp, itp
 
   dzien 3.
 
-
+ byłem na wyjezdzie caly dzien
 
 
   dzien 4
