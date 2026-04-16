@@ -554,6 +554,26 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
     return null;
   };
 
+  // Section icon mapping based on number
+  const sectionIcons = {
+    '1': '📊', '2': '📈', '3': '🎯', '4': '📉', '5': '⚠️',
+    '6': '😱', '7': '📰', '8': '🔮', '9': '💰', '10': '🏆'
+  };
+  const sectionColors = {
+    '1': '#58a6ff', '2': '#3fb950', '3': '#f0883e', '4': '#a371f7', '5': '#f85149',
+    '6': '#d29922', '7': '#79c0ff', '8': '#bc8cff', '9': '#3fb950', '10': '#f0883e'
+  };
+
+  const parseTitle = (title) => {
+    const numMatch = title.match(/^([1-9]️⃣|🔟)\s*(.*)/);
+    if (numMatch) {
+      const num = numMatch[1] === '🔟' ? '10' : numMatch[1].replace('️⃣', '');
+      const rest = numMatch[2].replace(/^[—–-]\s*/, '');
+      return { num, text: rest, icon: sectionIcons[num] || '📌', color: sectionColors[num] || '#58a6ff' };
+    }
+    return { num: null, text: title, icon: '📌', color: '#58a6ff' };
+  };
+
   const sections = [];
   let cur = null;
 
@@ -590,6 +610,42 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
   const riskRaw = riskMatch ? riskMatch[1].toLowerCase() : null;
   const risk = riskRaw === 'niskie' || riskRaw === 'low' ? 'niskie' :
                riskRaw === 'wysokie' || riskRaw === 'high' ? 'wysokie' : 'średnie';
+
+  // Split key: value pairs for better rendering
+  const renderLine = (line, li) => {
+    const sig = getSignal(line);
+
+    // Detect key-value patterns like "Sygnał: KUPUJ" or "Siła trendu: 4/10"
+    const kvMatch = line.match(/^(.+?)[:\s]+(.+)$/);
+    const isKV = kvMatch && kvMatch[1].length < 30 && !sig;
+
+    if (sig) {
+      return (
+        <div key={li} className={`sig-line sig-${sig}`}>
+          <span className="sig-icon">{sig === 'buy' ? '🟢' : sig === 'sell' ? '🔴' : '🟡'}</span>
+          <span>{line}</span>
+        </div>
+      );
+    }
+
+    if (isKV) {
+      return (
+        <div key={li} className="kv-line">
+          <span className="kv-key">{kvMatch[1]}:</span>
+          <span className="kv-val">{kvMatch[2]}</span>
+        </div>
+      );
+    }
+
+    return (
+      <p key={li} className={/^[-•●▸▹]/.test(line) ? 'a-bullet' : 'a-line'}>{line}</p>
+    );
+  };
+
+  // Identify decision section (last / 🔟)
+  const isDecisionSection = (section) => {
+    return section.title && (/^🔟/.test(section.title) || /DECYZJA/i.test(section.title));
+  };
 
   return (
     <div className="analysis-section">
@@ -651,26 +707,42 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
       </div>
 
       <div className="analysis-body">
-        {sections.map((section, idx) => (
-          <div key={idx} className={`analysis-block ${section.type === 'intro' ? 'intro-block' : ''} ${section.signal ? `block-${section.signal}` : ''}`}>
-            {section.title && (
-              <div className="block-header">
-                <span className="block-title">{section.title}</span>
+        <div className="analysis-grid">
+          {sections.filter(s => !isDecisionSection(s)).map((section, idx) => {
+            const parsed = section.title ? parseTitle(section.title) : null;
+            return (
+              <div key={idx} className={`analysis-card ${section.type === 'intro' ? 'intro-card' : ''} ${section.signal ? `card-${section.signal}` : ''}`}>
+                {parsed && (
+                  <div className="card-header" style={{ borderColor: parsed.color + '40' }}>
+                    <div className="card-num" style={{ background: parsed.color + '20', color: parsed.color }}>
+                      {parsed.num || '#'}
+                    </div>
+                    <span className="card-title">{parsed.text}</span>
+                  </div>
+                )}
+                <div className="card-content">
+                  {section.lines.map((l, li) => renderLine(l, li))}
+                </div>
               </div>
-            )}
-            <div className="block-content">
-              {section.lines.map((l, li) => {
-                const sig = getSignal(l);
-                return (
-                  <p key={li} className={
-                    sig ? `sig-line sig-${sig}` :
-                    /^[-•●▸▹]/.test(l) ? 'a-bullet' : 'a-line'
-                  }>{l}</p>
-                );
-              })}
+            );
+          })}
+        </div>
+
+        {/* Decision Section - Special */}
+        {sections.filter(s => isDecisionSection(s)).map((section, idx) => {
+          const parsed = parseTitle(section.title);
+          return (
+            <div key={`dec-${idx}`} className={`analysis-decision-card ${overallSignal ? `decision-card-${overallSignal}` : ''}`}>
+              <div className="decision-card-header">
+                <span className="decision-card-icon">🏆</span>
+                <span className="decision-card-title">{parsed.text}</span>
+              </div>
+              <div className="decision-card-body">
+                {section.lines.map((l, li) => renderLine(l, li))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="analysis-footer-info">
