@@ -1,34 +1,30 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
-  Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Filler, Legend as ChartLegend
+  Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Filler, Legend
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import {
-  Search, TrendingUp, TrendingDown, Activity, ChevronDown, ChevronUp, Bot, BrainCircuit, Target, AlertTriangle, Calendar, Radar, ExternalLink, Zap, HelpCircle, X, FlaskConical, Printer
+  Search, TrendingUp, TrendingDown, Activity, ChevronDown, ChevronUp, Bot, BrainCircuit, Target, AlertTriangle, Calendar, Radar, ExternalLink, Zap
 } from 'lucide-react';
-import GlassCardComponent from './components/GlassCard.jsx';
-import LegendModal from './components/Legend.jsx';
-import IndicatorsGrid from './components/IndicatorsGrid.jsx';
-import TrendMatrix from './components/TrendMatrix.jsx';
-import Watchlist from './components/Watchlist.jsx';
-import BacktestModal from './components/BacktestModal.jsx';
 
 
 import zoomPlugin from 'chartjs-plugin-zoom';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Filler, ChartLegend, zoomPlugin);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Filler, Legend, zoomPlugin);
 
 // --- KOMPONENTY POMOCNICZE UI ---
 
-const GlassCard = ({ children, className = "", style = {} }) => (
-  <GlassCardComponent className={className} style={style}>{children}</GlassCardComponent>
+const GlassCard = ({ children, className = "" }) => (
+  <div className={`glass-panel ${className}`}>
+    {children}
+  </div>
 );
 
 const SentimentGauge = ({ score }) => {
   const rotation = (score / 100) * 180 - 90;
   let color = 'var(--accent-red)';
-  let text = 'NIEDŹWIEDŹ';
+  let text = 'NIED┼╣WIED┼╣';
   if (score > 40) { color = '#f59e0b'; text = 'NEUTRALNY'; }
   if (score > 60) { color = 'var(--accent-green)'; text = 'BYK'; }
 
@@ -51,40 +47,7 @@ const SentimentGauge = ({ score }) => {
   );
 };
 
-
-// --- ERROR BOUNDARY ---
-class ErrorBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
-  static getDerivedStateFromError(error) { return { hasError: true, error }; }
-  componentDidCatch(error, info) { console.error('[ErrorBoundary]', error, info); }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--accent-red)' }}>
-          <AlertTriangle size={48} style={{ marginBottom: '1rem' }} />
-          <h3>Blad renderowania dashboardu</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{this.state.error?.message}</p>
-          <button className="tf-btn" style={{ marginTop: '1rem' }} onClick={() => this.setState({ hasError: false, error: null })}>
-            Sprobuj ponownie
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-// --- SKELETON LOADERS ---
-const SkeletonCard = ({ height = 120, label = '' }) => (
-  <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '0.75rem', height, animation: 'pulse 1.5s infinite' }}>
-    {label && <div style={{ fontSize: '0.65rem', color: 'var(--accent-blue)', fontWeight: 'bold', marginBottom: '0.5rem', letterSpacing: '0.08em' }}>{label}</div>}
-    <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '4px', height: '12px', width: '60%', marginBottom: '8px' }} />
-    <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '4px', height: '10px', width: '40%', marginBottom: '6px' }} />
-    <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '4px', height: '10px', width: '50%' }} />
-  </div>
-);
-
-// --- GŁÓWNA APLIKACJA ---
+// --- G┼ü├ôWNA APLIKACJA ---
 
 export default function AiAnalyzer() {
   const [query, setQuery] = useState('');
@@ -106,11 +69,6 @@ export default function AiAnalyzer() {
   const [dayStreamText, setDayStreamText] = useState('');
   const [dayLoading, setDayLoading] = useState(false);
   const [dayArticles, setDayArticles] = useState([]);
-  const [showEMA, setShowEMA] = useState(true);
-  const [showLegend, setShowLegend] = useState(false);
-  const [showBacktest, setShowBacktest] = useState(false);
-  const [showBB, setShowBB] = useState(false);
-  const [showMACD, setShowMACD] = useState(true);
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
@@ -135,11 +93,11 @@ export default function AiAnalyzer() {
         timeframe: '1Y',
         entryPrice: userEntry || null,
         stopLoss: userSL || null
-      }, { timeout: 120_000 });
+      });
       setData(response.data);
-      setTimeframe('1Y'); // Resetujemy okno na pełny wgląd
+      setTimeframe('1Y'); // Resetujemy okno na pe┼ény wgl─ůd
     } catch (err) {
-      setError(err.response?.data?.error || err.message || "Błąd pobierania danych z rynku.");
+      setError(err.response?.data?.error || err.message || "B┼é─ůd pobierania danych z rynku.");
     } finally {
       setLoading(false);
     }
@@ -155,7 +113,7 @@ export default function AiAnalyzer() {
     setDeepDiveDay(null);
     setDayStreamText('');
 
-    // Zamiast strzelać do osobnego zacinającego się API, ładujemy to natychmiast z danych głównych
+    // Zamiast strzela─ç do osobnego zacinaj─ůcego si─Ö API, ┼éadujemy to natychmiast z danych g┼é├│wnych
     const anom = data.analysis?.anomalies?.find(a => a.date === dateStr);
     if (anom && anom.articles) {
       setDayArticles(anom.articles);
@@ -198,7 +156,7 @@ export default function AiAnalyzer() {
       }
     } catch (err) {
       console.error(err);
-      setDayStreamText("Błąd ładowania szczegółów z Quantum Core...");
+      setDayStreamText("B┼é─ůd ┼éadowania szczeg├│┼é├│w z Quantum Core...");
       setDayLoading(false);
     }
   };
@@ -233,7 +191,7 @@ export default function AiAnalyzer() {
     if (!historySlice.length) return null;
 
     const anomalyDates = new Set(data.analysis?.anomalies?.map(a => a.date) || []);
-    // volatile_days = top 40 dni z największym ruchem cenowym (z backendu, pure matematyka)
+    // volatile_days = top 40 dni z najwi─Ökszym ruchem cenowym (z backendu, pure matematyka)
     const volatileDatesSet = new Set((data.volatile_days || []).map(v => v.date));
     const labels = historySlice.map(h => new Date(h.t).toLocaleDateString());
     const prices = historySlice.map(h => h.c);
@@ -246,8 +204,8 @@ export default function AiAnalyzer() {
     });
     const pointColors = historySlice.map(h => {
       const d = new Date(h.t).toISOString().split('T')[0];
-      if (volatileDatesSet.has(d)) return 'var(--accent-purple)'; // Największe anomalie na fioletowo
-      if (anomalyDates.has(d)) return 'rgba(139,92,246, 0.4)'; // Zwykłe dni z newsami bledsze
+      if (volatileDatesSet.has(d)) return 'var(--accent-purple)'; // Najwi─Öksze anomalie na fioletowo
+      if (anomalyDates.has(d)) return 'rgba(139,92,246, 0.4)'; // Zwyk┼ée dni z newsami bledsze
       return 'transparent';
     });
     const pointBorders = historySlice.map(h => {
@@ -279,36 +237,7 @@ export default function AiAnalyzer() {
           pointHoverRadius: 11,
           fill: true,
           tension: 0.1
-        },
-        ...(showEMA && data?.chart_series ? [
-          { label: 'EMA 50', data: data.chart_series.ema50, borderColor: 'rgba(255,165,0,0.85)', borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: false },
-          { label: 'EMA 200', data: data.chart_series.ema200, borderColor: 'rgba(255,80,80,0.85)', borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: false }
-        ] : []),
-        ...(showBB && data?.chart_series ? [
-          { label: 'BB Upper', data: data.chart_series.bb_upper, borderColor: 'rgba(139,92,246,0.55)', borderWidth: 1, pointRadius: 0, tension: 0.1, fill: false, borderDash: [5, 3] },
-          { label: 'BB Middle', data: data.chart_series.bb_middle, borderColor: 'rgba(139,92,246,0.3)', borderWidth: 1, pointRadius: 0, tension: 0.1, fill: false, borderDash: [2, 3] },
-          { label: 'BB Lower', data: data.chart_series.bb_lower, borderColor: 'rgba(139,92,246,0.55)', borderWidth: 1, pointRadius: 0, tension: 0.1, fill: false, borderDash: [5, 3] }
-        ] : [])
-      ]
-    };
-  };
-
-  const getMACDChartData = () => {
-    const historySlice = getFilteredHistory();
-    if (historySlice.length < 30 || !data?.chart_series?.macd) return null;
-    const labels = historySlice.map(h => new Date(h.t).toLocaleDateString());
-    const macd = data.chart_series.macd;
-    const signalLine = data.chart_series.macd_signal;
-    const histogram = data.chart_series.macd_hist;
-    const histPos = histogram.map(v => (v !== null && v > 0) ? v : null);
-    const histNeg = histogram.map(v => (v !== null && v < 0) ? v : null);
-    return {
-      labels,
-      datasets: [
-        { label: '+Hist', data: histPos, borderColor: 'rgba(16,185,129,0.4)', backgroundColor: 'rgba(16,185,129,0.35)', borderWidth: 0, fill: 'origin', tension: 0.1, pointRadius: 0 },
-        { label: '-Hist', data: histNeg, borderColor: 'rgba(239,68,68,0.4)', backgroundColor: 'rgba(239,68,68,0.35)', borderWidth: 0, fill: 'origin', tension: 0.1, pointRadius: 0 },
-        { label: 'MACD', data: macd, borderColor: 'rgba(0,229,255,0.9)', borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: false },
-        { label: 'Signal', data: signalLine, borderColor: 'rgba(255,165,0,0.9)', borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: false }
+        }
       ]
     };
   };
@@ -322,7 +251,7 @@ export default function AiAnalyzer() {
         const idx = elements[0].index;
         const h = getFilteredHistory()[idx];
         const dStr = new Date(h.t).toISOString().split('T')[0];
-        expandDay(dStr); // Zawsze otwieraj dzień, niezależnie czy to anomalia
+        expandDay(dStr); // Zawsze otwieraj dzie┼ä, niezale┼╝nie czy to anomalia
       }
     },
     plugins: {
@@ -350,8 +279,8 @@ export default function AiAnalyzer() {
             const dStr = new Date(h.t).toISOString().split('T')[0];
             const anom = data.analysis?.anomalies?.find(a => a.date === dStr);
             const vol = (data.volatile_days || []).find(v => v.date === dStr);
-            if (anom) return `\n⚡ AI: ${anom.short_desc}\n(Kliknij po szczegółową analizę!)`;
-            if (vol) return `\n📈 Ruch: ${vol.pct > 0 ? '+' : ''}${vol.pct.toFixed(2)}%\n(Kliknij po analizę Quantum!)`;
+            if (anom) return `\nÔÜí AI: ${anom.short_desc}\n(Kliknij po szczeg├│┼éow─ů analiz─Ö!)`;
+            if (vol) return `\n­čôł Ruch: ${vol.pct > 0 ? '+' : ''}${vol.pct.toFixed(2)}%\n(Kliknij po analiz─Ö Quantum!)`;
             return '';
           }
         }
@@ -373,9 +302,6 @@ export default function AiAnalyzer() {
   return (
     <div className="app-container">
 
-      {showLegend && <LegendModal onClose={() => setShowLegend(false)} />}
-      {showBacktest && data?.ticker && <BacktestModal ticker={data.ticker} onClose={() => setShowBacktest(false)} />}
-
       <header className="header-nav">
         <div className="brand">
           <BrainCircuit color="var(--accent-blue)" size={32} />
@@ -388,7 +314,7 @@ export default function AiAnalyzer() {
             <input
               type="text"
               className="search-input"
-              placeholder="Szukaj rynków (np. AAPL, NVDA)..."
+              placeholder="Szukaj rynk├│w (np. AAPL, NVDA)..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -407,30 +333,9 @@ export default function AiAnalyzer() {
         </div>
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <Watchlist currentTicker={data?.ticker} onSelect={handleSelect} />
-          {data?.ticker && (
-            <button
-              onClick={() => setShowBacktest(true)}
-              style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '8px', color: '#a78bfa', padding: '6px 14px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-            >
-              <FlaskConical size={15} /> Backtest
-            </button>
-          )}
-          <button
-            onClick={() => window.print()}
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#fff', padding: '6px 14px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-          >
-            <Printer size={15} /> PDF
-          </button>
-          <button
-            onClick={() => setShowLegend(true)}
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#fff', padding: '6px 14px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-          >
-            <HelpCircle size={15} /> Legenda
-          </button>
           <input
             type="number"
-            placeholder="Twój Entry Price ($)"
+            placeholder="Tw├│j Entry Price ($)"
             className="search-input"
             style={{ width: '160px', fontSize: '0.8rem' }}
             value={userEntry}
@@ -438,7 +343,7 @@ export default function AiAnalyzer() {
           />
           <input
             type="number"
-            placeholder="Twój Stop Loss ($)"
+            placeholder="Tw├│j Stop Loss ($)"
             className="search-input"
             style={{ width: '160px', fontSize: '0.8rem' }}
             value={userSL}
@@ -452,25 +357,15 @@ export default function AiAnalyzer() {
         {!data && !loading && !error && (
           <div className="empty-state">
             <Target size={64} color="var(--text-muted)" />
-            <h2>Wybierz aktywo, aby rozpocząć.</h2>
-            <p>System pobierze historię bazową, a algorytm wygeneruje wnioski AI pod Twoje ramy czasowe.</p>
+            <h2>Wybierz aktywo, aby rozpocz─ů─ç.</h2>
+            <p>System pobierze histori─Ö bazow─ů, a algorytm wygeneruje wnioski AI pod Twoje ramy czasowe.</p>
           </div>
         )}
 
         {loading && (
-          <div>
-            <div className="loading-state" style={{ marginBottom: '1.5rem' }}>
-              <div className="spinner"></div>
-              <p className="loading-text">Trwa praca Quant AI...</p>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', maxWidth: '900px', margin: '0 auto' }}>
-              <SkeletonCard height={130} label="EMA CROSSOVERS" />
-              <SkeletonCard height={130} label="MACD (12/26/9)" />
-              <SkeletonCard height={130} label="BOLLINGER BANDS" />
-              <SkeletonCard height={130} label="ADX - SILA TRENDU" />
-              <SkeletonCard height={130} label="ATR - ZMIENNOSC" />
-              <SkeletonCard height={130} label="STOCH RSI" />
-            </div>
+          <div className="loading-state">
+            <div className="spinner"></div>
+            <p className="loading-text">Trwa praca Quant AI...</p>
           </div>
         )}
 
@@ -482,7 +377,6 @@ export default function AiAnalyzer() {
         )}
 
         {data && !loading && (
-          <ErrorBoundary>
           <div className="dashboard-grid" style={{ gridTemplateColumns: '1fr' }}>
 
             {/* LEWA STRONA (Wykres, Anomalie) */}
@@ -525,37 +419,11 @@ export default function AiAnalyzer() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '8px', marginTop: '-4px' }}>
-                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>OVERLAY:</span>
-                <button onClick={() => setShowEMA(p => !p)} className={`tf-btn ${showEMA ? 'active' : ''}`} style={{ fontSize: '0.7rem', padding: '3px 10px', opacity: showEMA ? 1 : 0.55 }}>EMA 50/200</button>
-                <button onClick={() => setShowMACD(p => !p)} className="tf-btn" style={{ fontSize: '0.7rem', padding: '3px 10px', opacity: showMACD ? 1 : 0.5 }}>MACD</button>
-                <button onClick={() => setShowBB(p => !p)} className={`tf-btn ${showBB ? 'active' : ''}`} style={{ fontSize: '0.7rem', padding: '3px 10px', opacity: showBB ? 1 : 0.55 }}>Bollinger Bands</button>
-              </div>
               <GlassCard className="chart-container">
-                {(() => { const cd = getChartData(); return cd ? <Line data={cd} options={chartOptions} /> : null; })()}
+                <Line data={getChartData()} options={chartOptions} />
               </GlassCard>
 
-              {data.quant_stats && (
-                <IndicatorsGrid qs={data.quant_stats} />
-              )}
-
-              {showMACD && getMACDChartData() && (
-                <GlassCard style={{ marginTop: '1rem', marginBottom: '1.5rem', padding: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff', letterSpacing: '0.08em' }}>MACD (12 / 26 / 9)</span>
-                    <div style={{ display: 'flex', gap: '16px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                      <span>MACD: <strong style={{ color: 'rgba(0,229,255,0.9)' }}>{data.quant_stats?.macd}</strong></span>
-                      <span>Signal: <strong style={{ color: 'rgba(255,165,0,0.9)' }}>{data.quant_stats?.macd_signal}</strong></span>
-                      <span>Status: <strong style={{ color: data.quant_stats?.macd_cross?.includes('BULL') ? 'var(--accent-green)' : 'var(--accent-red)' }}>{data.quant_stats?.macd_cross}</strong></span>
-                    </div>
-                  </div>
-                  <div style={{ height: '120px' }}>
-                    <Line data={getMACDChartData()} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } }, scales: { x: { display: false }, y: { position: 'right', grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', font: { size: 10 } } } } }} />
-                  </div>
-                </GlassCard>
-              )}
-
-              {/* SEKCJA ANALIZY QUANT I GLOBAL DATA */}
+              {/* SEKCJJA ANALIZY QUANT I GLOBAL DATA */}
               <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2rem', marginTop: '2.5rem', marginBottom: '1rem' }}>
 
                 {/* Kolumna Lewa: Quant + Global */}
@@ -565,27 +433,40 @@ export default function AiAnalyzer() {
                       <h3 className="card-title" style={{ color: '#fff', marginBottom: '1rem' }}>
                         <Target size={20} color="var(--accent-blue)" /> Quant Analysis
                       </h3>
+
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem', marginBottom: '1rem' }}>
-                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '8px', gridColumn: '1 / -1' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '8px' }}>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>REKOMENDACJA</span>
                           <div style={{ fontSize: '1rem', fontWeight: 'bold', color: data.analysis.quant_analysis.recommendation === 'LONG' ? 'var(--accent-green)' : (data.analysis.quant_analysis.recommendation === 'SHORT' ? 'var(--accent-red)' : 'var(--text-secondary)'), marginTop: '0.2rem' }}>
                             {data.analysis.quant_analysis.recommendation}
                           </div>
                         </div>
                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '8px' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>PRAWDOPODOBIE┼âSTWO</span>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                            <span style={{ color: 'var(--accent-green)' }}>L: {data.analysis.quant_analysis.probability_long}</span> / <span style={{ color: 'var(--accent-red)' }}>S: {data.analysis.quant_analysis.probability_short}</span>
+                          </div>
+                        </div>
+                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '8px' }}>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>MIKRO TREND</span>
-                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>{data.analysis.quant_analysis.micro_trend}</div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                            {data.analysis.quant_analysis.micro_trend}
+                          </div>
                         </div>
                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '8px' }}>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>MAKRO TREND</span>
-                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>{data.analysis.quant_analysis.macro_trend}</div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                            {data.analysis.quant_analysis.macro_trend}
+                          </div>
                         </div>
                       </div>
+
                       <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', borderLeft: '3px solid var(--accent-purple)', marginBottom: '0.8rem' }}>
                         <p style={{ fontSize: '0.75rem', color: 'var(--accent-purple)', margin: '0 0 0.4rem 0', fontWeight: 'bold' }}>TRADE SETUP</p>
                         <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 0.3rem 0' }}><strong>Entry:</strong> {data.analysis.quant_analysis.entry_target}</p>
                         <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0' }}><strong>Stop Loss:</strong> {data.analysis.quant_analysis.stop_loss}</p>
                       </div>
+
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
                         <strong style={{ color: '#fff' }}>PnL Analysis:</strong> {data.analysis.quant_analysis.take_profit_analysis}
                       </p>
@@ -599,7 +480,7 @@ export default function AiAnalyzer() {
                       </h3>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                         <div>
-                          <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '0 0 0.2rem 0', fontWeight: 'bold' }}>BIEŻĄCY STATUS</p>
+                          <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '0 0 0.2rem 0', fontWeight: 'bold' }}>BIE┼╗─äCY STATUS</p>
                           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0', lineHeight: '1.4' }}>{data.analysis.global_data.current_status}</p>
                         </div>
                         <div>
@@ -607,15 +488,15 @@ export default function AiAnalyzer() {
                           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0', lineHeight: '1.4' }}>{data.analysis.global_data.future_outlook}</p>
                         </div>
                         <div>
-                          <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '0 0 0.2rem 0', fontWeight: 'bold' }}>SENTYMENT ELIT & PŁYNNOŚĆ</p>
+                          <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '0 0 0.2rem 0', fontWeight: 'bold' }}>SENTYMENT ELIT & P┼üYNNO┼Ü─ć</p>
                           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0', lineHeight: '1.4' }}>{data.analysis.global_data.elite_view}</p>
                         </div>
                         <div>
                           <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '0 0 0.2rem 0', fontWeight: 'bold' }}>PROFIL DYWIDENDOWY</p>
                           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0', lineHeight: '1.4' }}>{data.analysis.global_data.dividend_trend}</p>
                         </div>
-                        <div style={{ background: 'rgba(245,158,11,0.05)', padding: '0.8rem', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.2)' }}>
-                          <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '0 0 0.2rem 0', fontWeight: 'bold' }}>ZAINTERESOWANIE PUBLICZNE</p>
+                        <div style={{ background: 'rgba(245, 158, 11, 0.05)', padding: '0.8rem', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                          <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '0 0 0.2rem 0', fontWeight: 'bold' }}>ZAINTERESOWANIE PUBLICZNE (SEX APPEAL)</p>
                           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0', lineHeight: '1.4' }}>{data.analysis.global_data.sex_appeal}</p>
                         </div>
                         <div style={{ marginTop: '0.5rem', paddingTop: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
@@ -627,80 +508,16 @@ export default function AiAnalyzer() {
                   )}
                 </div>
 
-                {/* Kolumna Prawa: Skan Główny (AI) */}
+                {/* Kolumna Prawa: Skan G┼é├│wny (AI) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  <GlassCard style={{ borderTop: '4px solid var(--accent-purple)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                      <h3 className="card-title" style={{ color: '#fff', margin: 0 }}>Skan Główny (AI)</h3>
-                      {data.analysis?.sentiment_score != null && (
-                        <SentimentGauge score={data.analysis.sentiment_score} />
-                      )}
-                    </div>
+                  <GlassCard style={{ borderTop: '4px solid var(--accent-purple)', height: '100%' }}>
+                    <h3 className="card-title" style={{ color: '#fff' }}>Skan G┼é├│wny (AI)</h3>
                     {data.analysis?.summary?.split('\n\n').map((para, i) => (
                       <p key={i} className="summary-text" style={{ marginBottom: i < data.analysis?.summary.split('\n\n').length - 1 ? '0.85rem' : 0 }}>{para}</p>
                     ))}
                   </GlassCard>
                 </div>
               </div>
-
-              {/* BULL / BEAR CASE */}
-              {(data.analysis?.bull_case?.length > 0 || data.analysis?.bear_case?.length > 0) && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                  {data.analysis?.bull_case?.length > 0 && (
-                    <GlassCard style={{ borderTop: '4px solid var(--accent-green)' }}>
-                      <h3 className="card-title" style={{ color: 'var(--accent-green)', marginBottom: '0.8rem' }}>🟢 Bull Case</h3>
-                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {data.analysis.bull_case.map((pt, i) => (
-                          <li key={i} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', gap: '6px' }}>
-                            <span style={{ color: 'var(--accent-green)', flexShrink: 0 }}>+</span>{pt}
-                          </li>
-                        ))}
-                      </ul>
-                    </GlassCard>
-                  )}
-                  {data.analysis?.bear_case?.length > 0 && (
-                    <GlassCard style={{ borderTop: '4px solid var(--accent-red)' }}>
-                      <h3 className="card-title" style={{ color: 'var(--accent-red)', marginBottom: '0.8rem' }}>🔴 Bear Case</h3>
-                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {data.analysis.bear_case.map((pt, i) => (
-                          <li key={i} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', gap: '6px' }}>
-                            <span style={{ color: 'var(--accent-red)', flexShrink: 0 }}>−</span>{pt}
-                          </li>
-                        ))}
-                      </ul>
-                    </GlassCard>
-                  )}
-                </div>
-              )}
-
-              {/* RADAR — Scenariusze */}
-              {data.analysis?.radar?.scenarios?.length > 0 && (
-                <GlassCard style={{ borderTop: '4px solid var(--accent-purple)', marginBottom: '1.5rem' }}>
-                  <h3 className="card-title" style={{ color: '#fff', marginBottom: '1rem' }}>
-                    <Radar size={18} color="var(--accent-purple)" style={{ marginRight: '6px' }} /> Scenariusze & Katalizatory
-                  </h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${data.analysis.radar.scenarios.length}, 1fr)`, gap: '1rem' }}>
-                    {data.analysis.radar.scenarios.map((s, i) => (
-                      <div key={i} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '0.8rem', borderLeft: `3px solid ${s.name?.toLowerCase().includes('bear') ? 'var(--accent-red)' : 'var(--accent-green)'}` }}>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: s.name?.toLowerCase().includes('bear') ? 'var(--accent-red)' : 'var(--accent-green)', marginBottom: '0.4rem' }}>{s.name} — {s.probability}</div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}><strong>Trigger:</strong> {s.trigger}</div>
-                        <div style={{ fontSize: '0.78rem', color: '#fff' }}><strong>Target:</strong> {s.target}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {data.analysis.radar.key_dates?.length > 0 && (
-                    <div style={{ marginTop: '0.8rem', paddingTop: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>KEY DATES:</span>
-                      {data.analysis.radar.key_dates.map((d, i) => (
-                        <span key={i} style={{ fontSize: '0.72rem', background: 'rgba(139,92,246,0.15)', color: 'var(--accent-purple)', padding: '2px 8px', borderRadius: '4px' }}>{d}</span>
-                      ))}
-                    </div>
-                  )}
-                </GlassCard>
-              )}
-
-              {/* TREND ALIGNMENT MATRIX */}
-              <TrendMatrix matrix={data.chart_series?.trend_matrix} />
 
               <h3 className="section-title">
                 <Calendar color="var(--accent-purple)" size={24} />
@@ -710,52 +527,65 @@ export default function AiAnalyzer() {
               <div className="anomalies-list" style={{ display: 'flex', justifyContent: 'center' }}>
                 {!expandedDay ? (
                   <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '12px', width: '100%' }}>
-                    <p>Kliknij na dany dzień na wykresie powyżej, aby wygenerować raport dla tamtego dnia.</p>
+                    <p>Kliknij na dany dzie┼ä na wykresie powy┼╝ej, aby wygenerowa─ç raport dla tamtego dnia.</p>
                   </div>
                 ) : (
                   (() => {
                     const hIdx = data.history.findIndex(h => new Date(h.t).toISOString().split('T')[0] === expandedDay);
                     if (hIdx === -1) return null;
+
                     const anom = data.analysis?.anomalies?.find(a => a.date === expandedDay);
+
                     let pct = 0;
                     if (hIdx > 0) {
                       const prevC = data.history[hIdx - 1].c;
                       const currC = data.history[hIdx].c;
                       pct = ((currC - prevC) / prevC) * 100;
                     }
+
                     const isMinor = Math.abs(pct) < 1.0;
+
                     const defaultNote = isMinor
-                      ? `Ruch w tym dniu był znikomy (${pct > 0 ? '+' : ''}${pct.toFixed(2)}%). Cena poruszała się w ramach standardowego giełdowego szumu rynkowego.`
-                      : `Zanotowano zmianę ceny równą ${pct > 0 ? '+' : ''}${pct.toFixed(2)}%. AI uznało go za wtórny efekt techniczny lub echo sentymentu całego sektora.`;
+                      ? `Ruch w tym dniu by┼é znikomy (${pct > 0 ? '+' : ''}${pct.toFixed(2)}%). Cena porusza┼éa si─Ö w ramach standardowego gie┼édowego szumu rynkowego, a modele AI nie wykry┼éy gigantycznych waha┼ä powi─ůzanych z przep┼éywem informacji.`
+                      : `Zanotowano zmian─Ö ceny r├│wn─ů ${pct > 0 ? '+' : ''}${pct.toFixed(2)}%. Poniewa┼╝ jednak ruch ten nie skorelowa┼é si─Ö z najwa┼╝niejszymi nag┼é├│wkami news├│w w ca┼éej osi czasu, AI uzna┼éo go za wt├│rny efekt techniczny lub echo sentymentu ca┼éego sektora.`;
+
                     return (
                       <GlassCard className="anomaly-card" style={{ width: '100%' }}>
                         <div className="anomaly-header" style={{ cursor: 'default' }}>
                           <div className="anomaly-info">
                             <div className="anomaly-date">Wybrano: {expandedDay}</div>
-                            <span className="anomaly-desc">{anom ? anom.short_desc : (isMinor ? 'Naturalny szum giełdowy' : 'Korekta techniczna / Sektorowa')}</span>
+                            <span className="anomaly-desc">{anom ? anom.short_desc : (isMinor ? 'Naturalny szum gie┼édowy' : 'Korekta techniczna / Sektorowa')}</span>
                           </div>
                           <div className="anomaly-action" style={{ fontSize: '1.2rem', fontWeight: 'bold', color: pct >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                             {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
                           </div>
                         </div>
+
                         <div className="anomaly-expanded">
                           <div className="ai-stream-row">
                             <Bot color="var(--accent-purple)" size={28} style={{ marginTop: '4px', flexShrink: 0 }} />
                             <div className="ai-stream-text">
                               <div style={{ marginBottom: '10px' }}>{anom ? anom.details : defaultNote}</div>
+
                               {anom?.url && (
-                                <a href={anom.url} target="_blank" rel="noreferrer" className="source-link-btn">
-                                  <ExternalLink size={14} /> Czytaj źródło
+                                <a
+                                  href={anom.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="source-link-btn"
+                                >
+                                  <ExternalLink size={14} /> Czytaj ┼║r├│d┼éo
                                 </a>
                               )}
+                              {/* SEKCJA ZGROMADZONYCH ARTYKU┼ü├ôW */}
                               {dayArticles && dayArticles.length > 0 && (
-                                <div style={{ marginTop: '15px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', borderLeft: '3px solid var(--accent-blue)' }}>
+                                <div style={{ marginTop: '15px', padding: '15px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '8px', borderLeft: '3px solid var(--accent-blue)' }}>
                                   <h4 style={{ marginTop: 0, marginBottom: '10px', fontSize: '0.9rem', color: 'var(--accent-blue)' }}>Zebrane na celowniku ({dayArticles.length}):</h4>
                                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                     {dayArticles.map((art, i) => (
                                       <li key={i} style={{ fontSize: '0.85rem' }}>
                                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                                          <span style={{ color: '#94a3b8', marginTop: '2px' }}>•</span>
+                                          <span style={{ color: '#94a3b8', marginTop: '2px' }}>ÔÇó</span>
                                           <div>
                                             <span style={{ fontWeight: '600', color: '#e2e8f0' }}>{art.headline}</span>
                                             {art.url && <a href={art.url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-purple)', marginLeft: '6px', textDecoration: 'none' }}><ExternalLink size={12} /></a>}
@@ -766,15 +596,18 @@ export default function AiAnalyzer() {
                                   </ul>
                                 </div>
                               )}
+
                               {deepDiveDay !== expandedDay && (
+
                                 <button onClick={() => generateDeepDive(expandedDay)} className="tf-btn" style={{ marginTop: '10px', width: '100%' }}>
-                                  🤖 Głęboka Analiza Quantum (Gemma 4)
+                                  ­čĄľ G┼é─Öboka Analiza Quantum (Gemma 4)
                                 </button>
                               )}
+
                               {deepDiveDay === expandedDay && (
                                 <div style={{ marginTop: '15px', padding: '15px', backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '8px', borderLeft: '3px solid var(--accent-purple)' }}>
-                                  <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: 'var(--accent-purple)' }}>SZCZEGÓŁOWY RAPORT QUANTUM:</h4>
-                                  {dayLoading && !dayStreamText && <span style={{ color: 'var(--text-muted)' }}>Inicjalizacja śledztwa AI...</span>}
+                                  <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: 'var(--accent-purple)' }}>SZCZEG├ô┼üOWY RAPORT QUANTUM:</h4>
+                                  {dayLoading && !dayStreamText && <span style={{ color: 'var(--text-muted)' }}>Inicjalizacja ┼Ťledztwa AI...</span>}
                                   {dayStreamText}
                                   {dayLoading && dayStreamText && <span className="loading-pulse" />}
                                 </div>
@@ -790,8 +623,9 @@ export default function AiAnalyzer() {
 
             </div>
 
+
+
           </div>
-          </ErrorBoundary>
         )}
       </main>
     </div>
