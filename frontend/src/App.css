@@ -1,0 +1,650 @@
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+@font-face {
+    font-family: 'Parfumerie Script';
+    src: url('./assets/fonts/parfumerie-script-old-style.otf') format('opentype');
+    font-weight: 700;
+    font-style: normal;
+}
+
+
+@font-face {
+    font-family: 'Coco Gothic';
+    src: url('./assets/fonts/coco-gothic.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+}
+
+
+@font-face {
+    font-family: 'Cy Grotesk Grand';
+    src: url('./assets/fonts/CyGrotesk-GrandRegular.otf') format('opentype');
+    font-weight: 800;
+    font-style: normal;
+}
+
+
+@font-face {
+    font-family: 'Cy Grotesk Key';
+    src: url('./assets/fonts/CyGrotesk-KeyRegular.otf') format('opentype');
+    font-weight: 100;
+    font-style: normal;
+}
+
+
+@font-face {
+    font-family: 'Cy Grotesk Key Bold';
+    src: url('./assets/fonts/CyGrotesk-KeyBold.otf') format('opentype');
+    font-weight: bold;
+    font-style: normal;
+}
+
+
+@font-face {
+    font-family: 'Cy Grotesk Grand Bold';
+    src: url('./assets/fonts/CyGrotesk-GrandBold.otf') format('opentype');
+    font-weight: bold;
+    font-style: normal;
+}
+
+
+@font-face {
+    font-family: 'Garet';
+    src: url('./assets/fonts/Garet-Book.otf') format('opentype');
+    font-weight: 800;
+    font-style: normal;
+}
+
+
+
+
+
+.header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 40px 0 40px;
+    background-color: transparent;
+    z-index: 3;
+    position: absolute;
+}
+
+.icons {
+    display: flex;
+    gap: 45px;
+}
+
+.header i {
+    font-size: 32px;
+    color: #fff;
+    cursor: pointer;
+}
+
+.header i:hover {
+    color: #c9c9c9;
+    transition: color .3s;
+}
+
+.header h1 {
+    font-family: 'Parfumerie Script', cursive;
+    font-size: 64px;
+    color: #fff;
+    cursor: default;
+}
+
+.homepage {
+    background: linear-gradient(rgba(98, 62, 42, 0.4), rgba(98, 62, 42, 0.4)),
+        url("imgs/bg-grand.png");
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    width: 100vw;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+}
+
+.homepage h1 {
+    font-family: 'Parfumerie Script', cursive;
+    font-size: 226px;
+}
+
+.homepage p {
+    font-size: 32px;
+    margin-top: -115px;
+    margin-bottom: 100px;
+    text-transform: uppercase;
+    font-family: 'Coco Gothic', sans-serif;
+    letter-spacing: 4px;
+}
+
+.homepage button {
+    margin-top: 140px;
+    font-family: 'Coco Gothic', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    padding: 12px 70px;
+    letter-spacing: 4px;
+    border: none;
+    background-color: #fff;
+    color: #623e2a;
+    cursor: pointer;
+    text-transform: uppercase;
+}
+
+.homepage button:hover {
+    background-color: #c9c9c9;
+    transition: background-color .3s;
+}
+
+.footer {
+    width: 100vw;
+    background-color: #323232;
+    color: #fff;
+    padding: 20px 200px 20px 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.texts {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.version h1 {
+    font-family: 'Parfumerie Script', cursive;
+    font-size: 152px;
+}
+
+.version p {
+    font-size: 16px;
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    margin-top: -100px;
+    margin-bottom: 100px;
+    text-align: left;
+}
+
+.motivation {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 34px;
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+    line-height: 120%;
+}
+
+.motivation h2 {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+}
+
+.informations {
+    margin-top: 50px;
+    margin-bottom: 50px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    font-family: 'Garet', sans-serif;
+    font-size: 18px;
+}
+
+.i-block {
+    display: flex;
+    flex-direction: column;
+}
+
+.i-block h1 {
+    font-family: 'Garet', sans-serif;
+    margin-bottom: 20px;
+}
+
+.i-block ol {
+    list-style-type: none;
+    font-family: 'Garet', sans-serif;
+}
+
+.i-block ol li {
+    font-family: 'Garet', sans-serif;
+}
+
+.media h2 {
+    font-family: 'Garet', sans-serif;
+    font-size: 48px;
+    padding: 30px 50px 30px 10px;
+}
+
+.finish-footer {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.media {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 50px;
+}
+
+.fa-brands.fa-instagram,
+.fa-brands.fa-x-twitter {
+    font-size: 48px;
+    color: #fff;
+    cursor: pointer;
+}
+
+.payments {
+    display: flex;
+    flex-direction: row;
+    font-size: 48px;
+    gap: 25px;
+    padding: 0 10px 0 0;
+}
+
+.payments i {
+    color: #fff;
+    cursor: default;
+}
+
+.disclaimer {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 16px;
+    text-align: center;
+    margin-top: 20px;
+}
+
+.disclaimer-red {
+    color: #ff0000;
+    margin-top: 5px;
+}
+
+
+
+/* GETSTARTED PAGE */
+
+.div-hello {
+    background: url("imgs/bg-started1.png");
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 150px;
+    font-family: 'Cy Grotesk Key', sans-serif;
+
+}
+
+.div-hello p {
+    font-size: 46px;
+    width: 35%;
+    color: #fff;
+    text-align: center;
+}
+
+.strong {
+    font-family: 'cy Grotesk Key Bold', sans-serif;
+}
+
+.tptext {
+    width: 100%;
+    background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6));
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    padding: 8px 34%;
+    font-size: 28px;
+}
+
+.tptext-next {
+    font-family: 'Cy Grotesk Key Bold', sans-serif;
+}
+
+
+
+
+
+
+.div-offers {
+    background: linear-gradient(rgba(98, 62, 42, 0.4), rgba(98, 62, 42, 0.4)), url("imgs/bg-started2.png");
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    gap: 250px;
+}
+
+.div-offers h1 {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 34px;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 40px 0 25px 0;
+}
+
+.icons-s {
+    display: flex;
+    justify-content: center;
+    flex-direction: row;
+    gap: 200px;
+}
+
+.icons-sep {
+    font-family: 'cy grotesk grand', sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+}
+
+.icons-sep i {
+    text-align: center;
+    font-size: 48px;
+    margin-bottom: 10px;
+}
+
+.icons-sep p {
+    text-align: center;
+    font-size: 32px;
+    width: 400px;
+}
+
+
+
+
+
+.div-plans {
+    background: linear-gradient(rgba(98, 62, 42, 0.4), rgba(98, 62, 42, 0.4)), url("imgs/bg-started3.png");
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    width: 100vw;
+}
+
+.div-plans h1 {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 58px;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 40px 0 25px 0;
+}
+
+.block-plans {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 200px;
+    margin-top: 120px;
+}
+
+.block-plan {
+    border: 1px solid #fff;
+    width: 420px;
+    padding: 100px 0 20px 0;
+    text-align: center;
+}
+
+.block-plan:nth-child(2) {
+    border: 1px solid gold;
+}
+
+.block-plan:nth-child(2) button {
+    background-color: #ffd700;
+}
+
+.block-plan:nth-child(2) button:hover {
+    background-color: #ddb500;
+    transition: background-color .3s;
+}
+
+.block-plan i {
+    font-size: 144px;
+}
+
+.block-plan h2 {
+    font-family: 'Cy Grotesk Key', sans-serif;
+    padding: 40px 0 10px 0;
+    font-size: 36px;
+}
+
+.block-plan p {
+    font-family: 'Cy Grotesk Key', sans-serif;
+    font-size: 24px;
+    margin-bottom: 40px;
+}
+
+.block-plan button {
+    font-family: 'Cy Grotesk Grand Bold', sans-serif;
+    color: #fff;
+    background-color: #574335;
+    font-size: 24px;
+    text-transform: uppercase;
+    padding: 12px 40px;
+    cursor: pointer;
+    border-radius: 20px;
+    border: none;
+}
+
+.block-plan button:hover {
+    background-color: #796557;
+    transition: background-color .3s;
+}
+
+.div-plans .plans-logo {
+    font-family: 'Parfumerie Script', cursive;
+    text-align: center;
+    font-size: 54px;
+    margin-top: 50px;
+}
+
+.box-frame span {
+    font-size: 16px;
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    padding: 2px 0 0 5px;
+    position: absolute;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/* USER PAGE */
+
+.user-side {
+    width: 260px;
+    height: 100vh;
+    background: #212121;
+    color: #ccc;
+    padding: 25px 15px;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Cy Grotesk Key', sans-serif;
+}
+
+/* USER HEADER */
+.user-title {
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    gap: 15px;
+    margin-bottom: 10px;
+    word-break: break-all;
+}
+
+.user-title img {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+}
+
+.user-title p {
+    font-size: 18px;
+    color: #fff;
+}
+
+/* LISTY */
+.user-side ul {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 10px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* ELEMENT */
+.user-side li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+    color: #aaa;
+}
+
+/* IKONY */
+.user-side li i {
+    width: 18px;
+    text-align: center;
+}
+
+/* HOVER */
+.user-side li:hover {
+    background: #2a2a2a;
+    color: #fff;
+}
+
+/* AKTYWNY */
+.user-side li.active {
+    background: #00a8d6;
+    color: white;
+}
+
+/* LINIE */
+.user-side hr {
+    border: none;
+    border-top: 1px solid #333;
+    margin: 15px 0;
+}
+
+.close-btn {
+    position: absolute;
+    top: 25px;
+    right: 30px;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 34px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.close-btn:hover {
+    color: #fff;
+}
+
+.save-btn {
+    margin-top: auto;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.2s;
+    background: #444;
+    color: #888;
+    font-family: 'Cy Grotesk Grand', sans-serif;
+}
+
+/* aktywny (są zmiany) */
+.save-btn.active {
+    background: #22c55e;
+    color: white;
+}
+
+/* hover tylko gdy aktywny */
+.save-btn.active:hover {
+    background: #16a34a;
+}
+
+/* disabled */
+.save-btn:disabled {
+    cursor: not-allowed;
+}
+
+/* WARNING BAR (dół ekranu) */
+.warning-bar {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2a2a2a;
+    color: #fff;
+    padding: 15px 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    font-family: 'Cy Grotesk Key', sans-serif;
+}
+
+.warning-bar button {
+    margin-left: 10px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Cy Grotesk Key', sans-serif;
+}
+
+.warning-bar button:first-child {
+    background: #ef4444;
+    color: white;
+}
+
+.warning-bar button:last-child {
+    background: #444;
+    color: white;
+}
+
+.layout {
+    display: flex;
+}
+
+.content {
+    flex: 1;
+    padding: 30px;
+    background: #1d1d1d;
+    min-height: 100vh;
+}
+
+
