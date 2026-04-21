@@ -134,11 +134,11 @@ h5 {
 }
 
 .search-input {
-  width: 100%;
+  width: 90%;
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid var(--glass-border);
   border-radius: 100px;
-  padding: 0.55rem 1rem 0.55rem 2.5rem;
+  padding: 5px 40px;
   color: var(--text-primary);
   font-family: var(--font-body);
   font-size: 0.9rem;

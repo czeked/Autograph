@@ -13,6 +13,7 @@ import IndicatorsGrid from './components/IndicatorsGrid.jsx';
 import TrendMatrix from './components/TrendMatrix.jsx';
 import Watchlist from './components/Watchlist.jsx';
 import Header from './Header.jsx';
+import Footer from './Footer.jsx';
 import zoomPlugin from 'chartjs-plugin-zoom';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Filler, ChartLegend, zoomPlugin);
@@ -377,12 +378,12 @@ export default function AiAnalyzer() {
 
       {showLegend && <LegendModal onClose={() => setShowLegend(false)} />}
 
-      <div className="app-container">
-      <main className="main-content" style={{ paddingTop: '100px' }}>
+      <div className="analyzer-page">
+      <main className="main-content">
 
         {/* SEARCH BAR */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '2rem' }}>
-          <div className="search-container" style={{ flex: 1, maxWidth: '500px' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '2rem', justifyContent: 'center'}}>
+          <div className="search-container" style={{ flex: 1, maxWidth: '520px' }}>
             <div className="search-input-wrapper">
               <Search className="search-icon" size={18} />
               <input
@@ -822,6 +823,7 @@ export default function AiAnalyzer() {
         )}
       </main>
       </div>
+      <Footer />
     </>
   );
 }

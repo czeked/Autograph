@@ -23,19 +23,19 @@ export default function Header() {
     return (
         <div className="header">
             <div className="icons">
-                <i className="fa-regular fa-user" title="Użytkownik" onClick={()=> navigate("/user")}></i>
-                <i className="fa-solid fa-chart-column" title="Rynek tradycyjny" onClick={()=> navigate("/autograph")}></i>
-                <i className="fa-brands fa-bitcoin" title="Kryptowaluty" onClick={()=> navigate("/aitrader")}></i>
+                <i className="fa-regular fa-user" title="Użytkownik" onClick={() => navigate("/user")}></i>
+                <i className="fa-solid fa-chart-column" title="Rynek tradycyjny" onClick={() => navigate("/autograph")}></i>
+                <i className="fa-brands fa-bitcoin" title="Kryptowaluty" onClick={() => navigate("/aitrader")}></i>
                 {isMaximum && (
-                    <i 
+                    <i
                         className="fa-solid fa-chart-pie ai-dividends-icon"
-                        title="Dywidendy" 
+                        title="Spółki dywidendowe"
                         onClick={() => navigate("/aidividends")}
                     ></i>
                 )}
             </div>
             <h1>Autograph</h1>
         </div>
-        
+
     )
 }
