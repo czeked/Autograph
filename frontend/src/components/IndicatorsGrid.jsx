@@ -10,8 +10,8 @@ const Row = ({ label, value, color }) => (
 );
 
 const Card = ({ title, titleColor, children }) => (
-  <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '0.75rem' }}>
-    <div style={{ fontSize: '0.65rem', color: titleColor, fontWeight: 'bold', marginBottom: '0.5rem', letterSpacing: '0.08em' }}>{title}</div>
+  <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '0.85rem', border: '1px solid rgba(255,255,255,0.04)', transition: 'border-color 0.2s, background 0.2s' }}>
+    <div style={{ fontSize: '0.65rem', color: titleColor, fontWeight: 'bold', marginBottom: '0.6rem', letterSpacing: '0.08em', paddingBottom: '0.4rem', borderBottom: `1px solid ${titleColor}22` }}>{title}</div>
     <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
       {children}
     </div>

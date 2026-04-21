@@ -17,8 +17,9 @@ export const AI_RESPONSE_SCHEMA = {
                 take_profit_analysis: { type: SchemaType.STRING },
                 micro_trend:          { type: SchemaType.STRING },
                 macro_trend:          { type: SchemaType.STRING },
+                confidence_level:     { type: SchemaType.STRING },
             },
-            required: ['recommendation','probability_long','probability_short','entry_target','stop_loss','take_profit_analysis','micro_trend','macro_trend'],
+            required: ['recommendation','probability_long','probability_short','entry_target','stop_loss','take_profit_analysis','micro_trend','macro_trend','confidence_level'],
         },
         global_data: {
             type: SchemaType.OBJECT,

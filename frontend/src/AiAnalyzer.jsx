@@ -5,16 +5,14 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import {
-  Search, TrendingUp, TrendingDown, Activity, ChevronDown, ChevronUp, Bot, BrainCircuit, Target, AlertTriangle, Calendar, Radar, ExternalLink, Zap, HelpCircle, X, FlaskConical, Printer
+  Search, TrendingUp, TrendingDown, Activity, ChevronDown, ChevronUp, Bot, BrainCircuit, Target, AlertTriangle, Calendar, ExternalLink, HelpCircle, Printer
 } from 'lucide-react';
 import GlassCardComponent from './components/GlassCard.jsx';
 import LegendModal from './components/Legend.jsx';
 import IndicatorsGrid from './components/IndicatorsGrid.jsx';
 import TrendMatrix from './components/TrendMatrix.jsx';
 import Watchlist from './components/Watchlist.jsx';
-import BacktestModal from './components/BacktestModal.jsx';
-
-
+import Header from './Header.jsx';
 import zoomPlugin from 'chartjs-plugin-zoom';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Filler, ChartLegend, zoomPlugin);
@@ -94,8 +92,6 @@ export default function AiAnalyzer() {
   const [timeframe, setTimeframe] = useState('1M');
   const timeframes = ['1W', '1M', '3M', '6M', '1Y'];
 
-  const [userEntry, setUserEntry] = useState('');
-  const [userSL, setUserSL] = useState('');
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -108,9 +104,9 @@ export default function AiAnalyzer() {
   const [dayArticles, setDayArticles] = useState([]);
   const [showEMA, setShowEMA] = useState(true);
   const [showLegend, setShowLegend] = useState(false);
-  const [showBacktest, setShowBacktest] = useState(false);
   const [showBB, setShowBB] = useState(false);
   const [showMACD, setShowMACD] = useState(true);
+  const anomalyRef = React.useRef(null);
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
@@ -133,8 +129,6 @@ export default function AiAnalyzer() {
       const response = await axios.post('http://localhost:3001/api/analyze', {
         ticker: tickerToFetch,
         timeframe: '1Y',
-        entryPrice: userEntry || null,
-        stopLoss: userSL || null
       }, { timeout: 120_000 });
       setData(response.data);
       setTimeframe('1Y'); // Resetujemy okno na pełny wgląd
@@ -154,6 +148,7 @@ export default function AiAnalyzer() {
     setExpandedDay(dateStr);
     setDeepDiveDay(null);
     setDayStreamText('');
+    setTimeout(() => anomalyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
 
     // Zamiast strzelać do osobnego zacinającego się API, ładujemy to natychmiast z danych głównych
     const anom = data.analysis?.anomalies?.find(a => a.date === dateStr);
@@ -217,7 +212,8 @@ export default function AiAnalyzer() {
   const getFilteredHistory = () => {
     if (!data?.history) return [];
     let days = 365;
-    if (timeframe === '1W') days = 7;
+    if (timeframe === '1D') days = 2;
+    if (timeframe === '1W') days = 10;
     if (timeframe === '1M') days = 30;
     if (timeframe === '3M') days = 90;
     if (timeframe === '6M') days = 180;
@@ -235,6 +231,9 @@ export default function AiAnalyzer() {
     const anomalyDates = new Set(data.analysis?.anomalies?.map(a => a.date) || []);
     // volatile_days = top 40 dni z największym ruchem cenowym (z backendu, pure matematyka)
     const volatileDatesSet = new Set((data.volatile_days || []).map(v => v.date));
+    const startIdx = data.history.findIndex(h => h.t === historySlice[0].t);
+    const sliceSeries = (arr) => arr ? arr.slice(startIdx, startIdx + historySlice.length) : [];
+
     const labels = historySlice.map(h => new Date(h.t).toLocaleDateString());
     const prices = historySlice.map(h => h.c);
 
@@ -281,13 +280,13 @@ export default function AiAnalyzer() {
           tension: 0.1
         },
         ...(showEMA && data?.chart_series ? [
-          { label: 'EMA 50', data: data.chart_series.ema50, borderColor: 'rgba(255,165,0,0.85)', borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: false },
-          { label: 'EMA 200', data: data.chart_series.ema200, borderColor: 'rgba(255,80,80,0.85)', borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: false }
+          { label: 'EMA 50', data: sliceSeries(data.chart_series.ema50), borderColor: 'rgba(255,165,0,0.85)', borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: false },
+          { label: 'EMA 200', data: sliceSeries(data.chart_series.ema200), borderColor: 'rgba(255,80,80,0.85)', borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: false }
         ] : []),
         ...(showBB && data?.chart_series ? [
-          { label: 'BB Upper', data: data.chart_series.bb_upper, borderColor: 'rgba(139,92,246,0.55)', borderWidth: 1, pointRadius: 0, tension: 0.1, fill: false, borderDash: [5, 3] },
-          { label: 'BB Middle', data: data.chart_series.bb_middle, borderColor: 'rgba(139,92,246,0.3)', borderWidth: 1, pointRadius: 0, tension: 0.1, fill: false, borderDash: [2, 3] },
-          { label: 'BB Lower', data: data.chart_series.bb_lower, borderColor: 'rgba(139,92,246,0.55)', borderWidth: 1, pointRadius: 0, tension: 0.1, fill: false, borderDash: [5, 3] }
+          { label: 'BB Upper', data: sliceSeries(data.chart_series.bb_upper), borderColor: 'rgba(139,92,246,0.55)', borderWidth: 1, pointRadius: 0, tension: 0.1, fill: false, borderDash: [5, 3] },
+          { label: 'BB Middle', data: sliceSeries(data.chart_series.bb_middle), borderColor: 'rgba(139,92,246,0.3)', borderWidth: 1, pointRadius: 0, tension: 0.1, fill: false, borderDash: [2, 3] },
+          { label: 'BB Lower', data: sliceSeries(data.chart_series.bb_lower), borderColor: 'rgba(139,92,246,0.55)', borderWidth: 1, pointRadius: 0, tension: 0.1, fill: false, borderDash: [5, 3] }
         ] : [])
       ]
     };
@@ -296,10 +295,12 @@ export default function AiAnalyzer() {
   const getMACDChartData = () => {
     const historySlice = getFilteredHistory();
     if (historySlice.length < 30 || !data?.chart_series?.macd) return null;
+    const startIdx = data.history.findIndex(h => h.t === historySlice[0].t);
+    const sliceArr = (arr) => arr ? arr.slice(startIdx, startIdx + historySlice.length) : [];
     const labels = historySlice.map(h => new Date(h.t).toLocaleDateString());
-    const macd = data.chart_series.macd;
-    const signalLine = data.chart_series.macd_signal;
-    const histogram = data.chart_series.macd_hist;
+    const macd = sliceArr(data.chart_series.macd);
+    const signalLine = sliceArr(data.chart_series.macd_signal);
+    const histogram = sliceArr(data.chart_series.macd_hist);
     const histPos = histogram.map(v => (v !== null && v > 0) ? v : null);
     const histNeg = histogram.map(v => (v !== null && v < 0) ? v : null);
     return {
@@ -371,83 +372,47 @@ export default function AiAnalyzer() {
   };
 
   return (
-    <div className="app-container">
+    <>
+      <Header />
 
       {showLegend && <LegendModal onClose={() => setShowLegend(false)} />}
-      {showBacktest && data?.ticker && <BacktestModal ticker={data.ticker} onClose={() => setShowBacktest(false)} />}
 
-      <header className="header-nav">
-        <div className="brand">
-          <BrainCircuit color="var(--accent-blue)" size={32} />
-          <h1>Autograph <span>4.0</span></h1>
-        </div>
+      <div className="app-container">
+      <main className="main-content" style={{ paddingTop: '100px' }}>
 
-        <div className="search-container">
-          <div className="search-input-wrapper">
-            <Search className="search-icon" size={18} />
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Szukaj rynków (np. AAPL, NVDA)..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-          </div>
-          {suggestions.length > 0 && (
-            <div className="suggestions-dropdown">
-              {suggestions.map((s, i) => (
-                <div key={i} className="suggestion-item" onClick={() => handleSelect(s.ticker)}>
-                  <span className="suggestion-ticker">{s.ticker}</span>
-                  <span className="suggestion-name">{s.name}</span>
-                </div>
-              ))}
+        {/* SEARCH BAR */}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '2rem' }}>
+          <div className="search-container" style={{ flex: 1, maxWidth: '500px' }}>
+            <div className="search-input-wrapper">
+              <Search className="search-icon" size={18} />
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Szukaj rynków (np. AAPL, NVDA)..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
             </div>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {suggestions.length > 0 && (
+              <div className="suggestions-dropdown">
+                {suggestions.map((s, i) => (
+                  <div key={i} className="suggestion-item" onClick={() => handleSelect(s.ticker)}>
+                    <span className="suggestion-ticker">{s.ticker}</span>
+                    <span className="suggestion-name">{s.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <Watchlist currentTicker={data?.ticker} onSelect={handleSelect} />
-          {data?.ticker && (
-            <button
-              onClick={() => setShowBacktest(true)}
-              style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '8px', color: '#a78bfa', padding: '6px 14px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-            >
-              <FlaskConical size={15} /> Backtest
-            </button>
-          )}
-          <button
-            onClick={() => window.print()}
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#fff', padding: '6px 14px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-          >
-            <Printer size={15} /> PDF
+          <button onClick={() => window.print()} className="header-btn">
+            <Printer size={14} /> PDF
           </button>
-          <button
-            onClick={() => setShowLegend(true)}
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#fff', padding: '6px 14px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-          >
-            <HelpCircle size={15} /> Legenda
+          <button onClick={() => setShowLegend(true)} className="header-btn">
+            <HelpCircle size={14} /> Legenda
           </button>
-          <input
-            type="number"
-            placeholder="Twój Entry Price ($)"
-            className="search-input"
-            style={{ width: '160px', fontSize: '0.8rem' }}
-            value={userEntry}
-            onChange={(e) => setUserEntry(e.target.value)}
-          />
-          <input
-            type="number"
-            placeholder="Twój Stop Loss ($)"
-            className="search-input"
-            style={{ width: '160px', fontSize: '0.8rem' }}
-            value={userSL}
-            onChange={(e) => setUserSL(e.target.value)}
-          />
         </div>
-      </header>
-
-      <main className="main-content">
 
         {!data && !loading && !error && (
           <div className="empty-state">
@@ -539,88 +504,149 @@ export default function AiAnalyzer() {
                 <IndicatorsGrid qs={data.quant_stats} />
               )}
 
-              {showMACD && getMACDChartData() && (
-                <GlassCard style={{ marginTop: '1rem', marginBottom: '1.5rem', padding: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff', letterSpacing: '0.08em' }}>MACD (12 / 26 / 9)</span>
-                    <div style={{ display: 'flex', gap: '16px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                      <span>MACD: <strong style={{ color: 'rgba(0,229,255,0.9)' }}>{data.quant_stats?.macd}</strong></span>
-                      <span>Signal: <strong style={{ color: 'rgba(255,165,0,0.9)' }}>{data.quant_stats?.macd_signal}</strong></span>
-                      <span>Status: <strong style={{ color: data.quant_stats?.macd_cross?.includes('BULL') ? 'var(--accent-green)' : 'var(--accent-red)' }}>{data.quant_stats?.macd_cross}</strong></span>
+              {showMACD && (() => {
+                const macdData = getMACDChartData();
+                if (!macdData) return null;
+                const macdArr = macdData.datasets[2]?.data || [];
+                const sigArr  = macdData.datasets[3]?.data || [];
+                const lastMacd = [...macdArr].reverse().find(v => v != null);
+                const lastSig  = [...sigArr].reverse().find(v => v != null);
+                const isBull = lastMacd != null && lastSig != null && lastMacd > lastSig;
+                return (
+                  <GlassCard style={{ marginTop: '1rem', marginBottom: '1.5rem', padding: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff', letterSpacing: '0.08em' }}>MACD (12 / 26 / 9)</span>
+                      <div style={{ display: 'flex', gap: '16px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        <span>MACD: <strong style={{ color: 'rgba(0,229,255,0.9)' }}>{lastMacd?.toFixed(4) ?? '—'}</strong></span>
+                        <span>Signal: <strong style={{ color: 'rgba(255,165,0,0.9)' }}>{lastSig?.toFixed(4) ?? '—'}</strong></span>
+                        <span>Status: <strong style={{ color: isBull ? 'var(--accent-green)' : 'var(--accent-red)' }}>{isBull ? 'POWYŻEJ SYGNAŁU (bullish)' : 'PONIŻEJ SYGNAŁU (bearish)'}</strong></span>
+                      </div>
+                    </div>
+                    <div style={{ height: '150px' }}>
+                      <Line data={macdData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, backgroundColor: 'rgba(11,15,25,0.95)', titleFont: { size: 12 }, bodyFont: { size: 11 }, padding: 10 } }, scales: { x: { display: false }, y: { position: 'right', grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }, ticks: { color: '#64748b', font: { size: 10 } }, border: { display: false } } } }} />
+                    </div>
+                  </GlassCard>
+                );
+              })()}
+
+              {/* === CONSENSUS BANNER === */}
+              {data.analysis?.quant_analysis?.recommendation && (() => {
+                const rec = data.analysis.quant_analysis.recommendation;
+                const score = data.composite_score ?? data.analysis?.sentiment_score ?? 50;
+                const conf = data.analysis.quant_analysis.confidence_level || '';
+                const recColor = rec === 'LONG' ? 'var(--accent-green)' : rec === 'SHORT' ? 'var(--accent-red)' : '#f59e0b';
+                const recBg = rec === 'LONG' ? 'rgba(16,185,129,0.06)' : rec === 'SHORT' ? 'rgba(239,68,68,0.06)' : 'rgba(245,158,11,0.06)';
+                const recBorder = rec === 'LONG' ? 'rgba(16,185,129,0.25)' : rec === 'SHORT' ? 'rgba(239,68,68,0.25)' : 'rgba(245,158,11,0.25)';
+                const recIcon = rec === 'LONG' ? '↑' : rec === 'SHORT' ? '↓' : '→';
+                const scoreBarWidth = Math.max(5, Math.min(100, score));
+                return (
+                  <div className="consensus-banner" style={{ background: recBg, border: `1px solid ${recBorder}`, borderRadius: '16px', padding: '1.5rem 2rem', marginTop: '2.5rem', marginBottom: '1.5rem', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: recColor }} />
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                          <span style={{ fontSize: '2rem', lineHeight: 1, color: recColor }}>{recIcon}</span>
+                          <div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: '2px' }}>CONSENSUS</div>
+                            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: recColor, letterSpacing: '2px', lineHeight: 1 }}>{rec}</div>
+                          </div>
+                        </div>
+                        <div style={{ width: '1px', height: '3rem', background: 'rgba(255,255,255,0.08)' }} />
+                        <div>
+                          <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: '4px' }}>COMPOSITE SCORE</div>
+                          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: recColor, lineHeight: 1 }}>{score}<span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>/100</span></div>
+                          <div style={{ width: '80px', height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', marginTop: '6px', overflow: 'hidden' }}>
+                            <div style={{ width: `${scoreBarWidth}%`, height: '100%', background: recColor, borderRadius: '2px', transition: 'width 0.8s ease' }} />
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+                        <div>
+                          <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: '3px' }}>PEWNOŚĆ</div>
+                          <div style={{ fontSize: '0.9rem', color: conf === 'WYSOKA' ? 'var(--accent-green)' : conf === 'NISKA' ? 'var(--accent-red)' : '#f59e0b', fontWeight: 700 }}>{conf || '—'}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: '3px' }}>TREND</div>
+                          <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 600 }}>{data.quant_stats?.trend || '—'}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: '3px' }}>SIGNAL BIAS</div>
+                          <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 600 }}>{data.quant_stats?.signal_bias || '—'}</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div style={{ height: '120px' }}>
-                    <Line data={getMACDChartData()} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } }, scales: { x: { display: false }, y: { position: 'right', grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', font: { size: 10 } } } } }} />
-                  </div>
-                </GlassCard>
-              )}
+                );
+              })()}
 
               {/* SEKCJA ANALIZY QUANT I GLOBAL DATA */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2rem', marginTop: '2.5rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
 
                 {/* Kolumna Lewa: Quant + Global */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {data.analysis?.quant_analysis && (
-                    <GlassCard style={{ borderTop: '4px solid var(--accent-blue)' }}>
-                      <h3 className="card-title" style={{ color: '#fff', marginBottom: '1rem' }}>
-                        <Target size={20} color="var(--accent-blue)" /> Quant Analysis
-                      </h3>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem', marginBottom: '1rem' }}>
-                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '8px', gridColumn: '1 / -1' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>REKOMENDACJA</span>
-                          <div style={{ fontSize: '1rem', fontWeight: 'bold', color: data.analysis.quant_analysis.recommendation === 'LONG' ? 'var(--accent-green)' : (data.analysis.quant_analysis.recommendation === 'SHORT' ? 'var(--accent-red)' : 'var(--text-secondary)'), marginTop: '0.2rem' }}>
-                            {data.analysis.quant_analysis.recommendation}
+                  {data.analysis?.quant_analysis && (() => {
+                    const rec = data.analysis.quant_analysis.recommendation;
+                    const recColor = rec === 'LONG' ? 'var(--accent-green)' : rec === 'SHORT' ? 'var(--accent-red)' : '#f59e0b';
+                    const recBg = rec === 'LONG' ? 'rgba(16,185,129,0.12)' : rec === 'SHORT' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)';
+                    return (
+                    <GlassCard style={{ borderTop: `3px solid ${recColor}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h3 className="card-title" style={{ color: '#fff', margin: 0 }}>
+                          <Target size={18} color={recColor} /> Quant Analysis
+                        </h3>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 800, color: recColor, background: recBg, border: `1px solid ${recColor}`, padding: '3px 14px', borderRadius: '6px', letterSpacing: '0.08em' }}>{rec}</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginBottom: '1rem' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.7rem', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>MIKRO TREND</div>
+                          <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>{data.analysis.quant_analysis.micro_trend}</div>
+                        </div>
+                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.7rem', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>MAKRO TREND</div>
+                          <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>{data.analysis.quant_analysis.macro_trend}</div>
+                        </div>
+                      </div>
+                      <div style={{ background: 'rgba(139,92,246,0.06)', padding: '0.85rem', borderRadius: '8px', border: '1px solid rgba(139,92,246,0.18)', marginBottom: '0.8rem' }}>
+                        <div style={{ fontSize: '0.62rem', color: 'var(--accent-purple)', marginBottom: '0.5rem', fontWeight: 700, letterSpacing: '0.08em' }}>TRADE SETUP</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                          <div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '2px' }}>ENTRY</div>
+                            <div style={{ fontSize: '0.88rem', color: 'var(--accent-green)', fontWeight: 700 }}>{data.analysis.quant_analysis.entry_target}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '2px' }}>STOP LOSS</div>
+                            <div style={{ fontSize: '0.88rem', color: 'var(--accent-red)', fontWeight: 700 }}>{data.analysis.quant_analysis.stop_loss}</div>
                           </div>
                         </div>
-                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '8px' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>MIKRO TREND</span>
-                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>{data.analysis.quant_analysis.micro_trend}</div>
-                        </div>
-                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '8px' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>MAKRO TREND</span>
-                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>{data.analysis.quant_analysis.macro_trend}</div>
-                        </div>
                       </div>
-                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', borderLeft: '3px solid var(--accent-purple)', marginBottom: '0.8rem' }}>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--accent-purple)', margin: '0 0 0.4rem 0', fontWeight: 'bold' }}>TRADE SETUP</p>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 0.3rem 0' }}><strong>Entry:</strong> {data.analysis.quant_analysis.entry_target}</p>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0' }}><strong>Stop Loss:</strong> {data.analysis.quant_analysis.stop_loss}</p>
-                      </div>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                        <strong style={{ color: '#fff' }}>PnL Analysis:</strong> {data.analysis.quant_analysis.take_profit_analysis}
+                      <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>
+                        {data.analysis.quant_analysis.take_profit_analysis}
                       </p>
                     </GlassCard>
-                  )}
+                    );
+                  })()}
 
                   {data.analysis?.global_data && (
-                    <GlassCard style={{ borderTop: '4px solid #f59e0b' }}>
+                    <GlassCard style={{ borderTop: '3px solid #f59e0b' }}>
                       <h3 className="card-title" style={{ color: '#fff', marginBottom: '1rem' }}>
-                        <Activity size={20} color="#f59e0b" /> Global Data & Fundamentals
+                        <Activity size={18} color="#f59e0b" /> Global Data & Fundamentals
                       </h3>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                        <div>
-                          <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '0 0 0.2rem 0', fontWeight: 'bold' }}>BIEŻĄCY STATUS</p>
-                          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0', lineHeight: '1.4' }}>{data.analysis.global_data.current_status}</p>
-                        </div>
-                        <div>
-                          <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '0 0 0.2rem 0', fontWeight: 'bold' }}>PROGNOZA (1 MC)</p>
-                          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0', lineHeight: '1.4' }}>{data.analysis.global_data.future_outlook}</p>
-                        </div>
-                        <div>
-                          <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '0 0 0.2rem 0', fontWeight: 'bold' }}>SENTYMENT ELIT & PŁYNNOŚĆ</p>
-                          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0', lineHeight: '1.4' }}>{data.analysis.global_data.elite_view}</p>
-                        </div>
-                        <div>
-                          <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '0 0 0.2rem 0', fontWeight: 'bold' }}>PROFIL DYWIDENDOWY</p>
-                          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0', lineHeight: '1.4' }}>{data.analysis.global_data.dividend_trend}</p>
-                        </div>
-                        <div style={{ background: 'rgba(245,158,11,0.05)', padding: '0.8rem', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.2)' }}>
-                          <p style={{ fontSize: '0.7rem', color: '#f59e0b', margin: '0 0 0.2rem 0', fontWeight: 'bold' }}>ZAINTERESOWANIE PUBLICZNE</p>
-                          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0', lineHeight: '1.4' }}>{data.analysis.global_data.sex_appeal}</p>
-                        </div>
-                        <div style={{ marginTop: '0.5rem', paddingTop: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                          <p style={{ fontSize: '0.7rem', color: '#fff', margin: '0 0 0.4rem 0', fontWeight: 'bold' }}>TWARDY KIERUNEK</p>
-                          <p style={{ fontSize: '0.9rem', color: '#fff', margin: '0', lineHeight: '1.5' }}>{data.analysis.global_data.final_direction}</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                        {[
+                          { label: 'BIEŻĄCY STATUS', val: data.analysis.global_data.current_status },
+                          { label: 'PROGNOZA (1 MC)', val: data.analysis.global_data.future_outlook },
+                          { label: 'SENTYMENT ELIT & PŁYNNOŚĆ', val: data.analysis.global_data.elite_view },
+                          { label: 'PROFIL DYWIDENDOWY', val: data.analysis.global_data.dividend_trend },
+                          { label: 'ZAINTERESOWANIE PUBLICZNE', val: data.analysis.global_data.sex_appeal },
+                        ].map(({ label, val }) => (
+                          <div key={label} style={{ padding: '0.65rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                            <div style={{ fontSize: '0.6rem', color: '#f59e0b', fontWeight: 700, letterSpacing: '0.07em', marginBottom: '0.2rem' }}>{label}</div>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{val}</div>
+                          </div>
+                        ))}
+                        <div style={{ paddingTop: '0.8rem', marginTop: '0.2rem' }}>
+                          <div style={{ fontSize: '0.62rem', color: '#fff', fontWeight: 700, letterSpacing: '0.07em', marginBottom: '0.3rem' }}>TWARDY KIERUNEK</div>
+                          <div style={{ fontSize: '0.88rem', color: '#fff', lineHeight: 1.5 }}>{data.analysis.global_data.final_direction}</div>
                         </div>
                       </div>
                     </GlassCard>
@@ -629,80 +655,81 @@ export default function AiAnalyzer() {
 
                 {/* Kolumna Prawa: Skan Główny (AI) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  <GlassCard style={{ borderTop: '4px solid var(--accent-purple)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                      <h3 className="card-title" style={{ color: '#fff', margin: 0 }}>Skan Główny (AI)</h3>
-                      {data.analysis?.sentiment_score != null && (
-                        <SentimentGauge score={data.analysis.sentiment_score} />
-                      )}
+                  <GlassCard style={{ borderTop: '3px solid var(--accent-purple)', height: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <h3 className="card-title" style={{ color: '#fff', margin: 0 }}>
+                        <BrainCircuit size={18} color="var(--accent-purple)" /> Skan Główny (AI)
+                      </h3>
+                      {data.analysis?.sentiment_score != null && (() => {
+                        const s = data.analysis.sentiment_score;
+                        const sColor = s > 60 ? 'var(--accent-green)' : s > 40 ? '#f59e0b' : 'var(--accent-red)';
+                        const sLabel = s > 60 ? 'BYK' : s > 40 ? 'NEUTRALNY' : 'NIEDŹWIEDŹ';
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', padding: '4px 12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: sColor }} />
+                            <span style={{ fontSize: '0.95rem', fontWeight: 800, color: sColor }}>{s}</span>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>{sLabel}</span>
+                          </div>
+                        );
+                      })()}
                     </div>
-                    {data.analysis?.summary?.split('\n\n').map((para, i) => (
-                      <p key={i} className="summary-text" style={{ marginBottom: i < data.analysis?.summary.split('\n\n').length - 1 ? '0.85rem' : 0 }}>{para}</p>
+                    {data.analysis?.summary?.split('\n\n').map((para, i, arr) => (
+                      <p key={i} className="summary-text" style={{ marginBottom: i < arr.length - 1 ? '0.9rem' : 0, lineHeight: 1.65 }}>{para}</p>
                     ))}
                   </GlassCard>
                 </div>
               </div>
 
               {/* BULL / BEAR CASE */}
-              {(data.analysis?.bull_case?.length > 0 || data.analysis?.bear_case?.length > 0) && (
+              {(data.analysis?.bull_case?.length > 0 || data.analysis?.bear_case?.length > 0) && (() => {
+                const rec = data.analysis?.quant_analysis?.recommendation;
+                const bullStrong = rec === 'LONG';
+                const bearStrong = rec === 'SHORT';
+                return (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
                   {data.analysis?.bull_case?.length > 0 && (
-                    <GlassCard style={{ borderTop: '4px solid var(--accent-green)' }}>
-                      <h3 className="card-title" style={{ color: 'var(--accent-green)', marginBottom: '0.8rem' }}>🟢 Bull Case</h3>
-                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <GlassCard style={{ borderTop: '3px solid var(--accent-green)', background: bullStrong ? 'rgba(16,185,129,0.06)' : 'rgba(16,185,129,0.02)', opacity: bearStrong ? 0.7 : 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.8rem' }}>
+                        <h3 className="card-title" style={{ color: 'var(--accent-green)', margin: 0, fontSize: '1rem' }}>
+                          <TrendingUp size={16} style={{ marginRight: '6px' }} /> Bull Case
+                        </h3>
+                        {bullStrong && <span style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--accent-green)', background: 'rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: '4px', letterSpacing: '0.06em' }}>DOMINANT</span>}
+                      </div>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {data.analysis.bull_case.map((pt, i) => (
-                          <li key={i} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', gap: '6px' }}>
-                            <span style={{ color: 'var(--accent-green)', flexShrink: 0 }}>+</span>{pt}
+                          <li key={i} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', gap: '8px', lineHeight: 1.5, padding: '6px 8px', background: 'rgba(16,185,129,0.04)', borderRadius: '6px', borderLeft: '2px solid rgba(16,185,129,0.3)' }}>
+                            <span style={{ color: 'var(--accent-green)', flexShrink: 0, marginTop: '1px', fontWeight: 700 }}>+</span>{pt}
                           </li>
                         ))}
                       </ul>
                     </GlassCard>
                   )}
                   {data.analysis?.bear_case?.length > 0 && (
-                    <GlassCard style={{ borderTop: '4px solid var(--accent-red)' }}>
-                      <h3 className="card-title" style={{ color: 'var(--accent-red)', marginBottom: '0.8rem' }}>🔴 Bear Case</h3>
-                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <GlassCard style={{ borderTop: '3px solid var(--accent-red)', background: bearStrong ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.02)', opacity: bullStrong ? 0.7 : 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.8rem' }}>
+                        <h3 className="card-title" style={{ color: 'var(--accent-red)', margin: 0, fontSize: '1rem' }}>
+                          <TrendingDown size={16} style={{ marginRight: '6px' }} /> Bear Case
+                        </h3>
+                        {bearStrong && <span style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--accent-red)', background: 'rgba(239,68,68,0.15)', padding: '2px 8px', borderRadius: '4px', letterSpacing: '0.06em' }}>DOMINANT</span>}
+                      </div>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {data.analysis.bear_case.map((pt, i) => (
-                          <li key={i} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', gap: '6px' }}>
-                            <span style={{ color: 'var(--accent-red)', flexShrink: 0 }}>−</span>{pt}
+                          <li key={i} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', gap: '8px', lineHeight: 1.5, padding: '6px 8px', background: 'rgba(239,68,68,0.04)', borderRadius: '6px', borderLeft: '2px solid rgba(239,68,68,0.3)' }}>
+                            <span style={{ color: 'var(--accent-red)', flexShrink: 0, marginTop: '1px', fontWeight: 700 }}>-</span>{pt}
                           </li>
                         ))}
                       </ul>
                     </GlassCard>
                   )}
                 </div>
-              )}
+                );
+              })()}
 
-              {/* RADAR — Scenariusze */}
-              {data.analysis?.radar?.scenarios?.length > 0 && (
-                <GlassCard style={{ borderTop: '4px solid var(--accent-purple)', marginBottom: '1.5rem' }}>
-                  <h3 className="card-title" style={{ color: '#fff', marginBottom: '1rem' }}>
-                    <Radar size={18} color="var(--accent-purple)" style={{ marginRight: '6px' }} /> Scenariusze & Katalizatory
-                  </h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${data.analysis.radar.scenarios.length}, 1fr)`, gap: '1rem' }}>
-                    {data.analysis.radar.scenarios.map((s, i) => (
-                      <div key={i} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '0.8rem', borderLeft: `3px solid ${s.name?.toLowerCase().includes('bear') ? 'var(--accent-red)' : 'var(--accent-green)'}` }}>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: s.name?.toLowerCase().includes('bear') ? 'var(--accent-red)' : 'var(--accent-green)', marginBottom: '0.4rem' }}>{s.name} — {s.probability}</div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}><strong>Trigger:</strong> {s.trigger}</div>
-                        <div style={{ fontSize: '0.78rem', color: '#fff' }}><strong>Target:</strong> {s.target}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {data.analysis.radar.key_dates?.length > 0 && (
-                    <div style={{ marginTop: '0.8rem', paddingTop: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>KEY DATES:</span>
-                      {data.analysis.radar.key_dates.map((d, i) => (
-                        <span key={i} style={{ fontSize: '0.72rem', background: 'rgba(139,92,246,0.15)', color: 'var(--accent-purple)', padding: '2px 8px', borderRadius: '4px' }}>{d}</span>
-                      ))}
-                    </div>
-                  )}
-                </GlassCard>
-              )}
 
               {/* TREND ALIGNMENT MATRIX */}
               <TrendMatrix matrix={data.chart_series?.trend_matrix} />
 
-              <h3 className="section-title">
+              <h3 ref={anomalyRef} className="section-title" style={{ scrollMarginTop: '80px' }}>
                 <Calendar color="var(--accent-purple)" size={24} />
                 Kalendarium Anomalii ({timeframe})
               </h3>
@@ -794,6 +821,7 @@ export default function AiAnalyzer() {
           </ErrorBoundary>
         )}
       </main>
-    </div>
+      </div>
+    </>
   );
 }

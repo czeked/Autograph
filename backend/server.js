@@ -541,6 +541,9 @@ app.post('/api/analyze', async (req, res) => {
 
         const periodReturn = (((lastC - (history[0]?.c || lastC)) / (history[0]?.c || lastC)) * 100);
         const dataRecommendation = bullScore > bearScore ? 'LONG' : (bearScore > bullScore ? 'SHORT' : 'NEUTRAL');
+        const compositeScore = Math.round(bullScore / (bullScore + bearScore || 1) * 100);
+        const compositeLabel = compositeScore >= 70 ? 'SILNY BYK' : compositeScore >= 55 ? 'BYK' : compositeScore >= 45 ? 'NEUTRALNY' : compositeScore >= 30 ? 'NIEDZWIEDZ' : 'SILNY NIEDZWIEDZ';
+        const suggestedConfidence = (compositeScore >= 68 || compositeScore <= 32) ? 'WYSOKA' : (compositeScore >= 58 || compositeScore <= 42) ? 'SREDNIA' : 'NISKA';
         const currentDate = new Date().toISOString().split('T')[0];
 
         const promptFull = `Jestes obiektywnym, precyzyjnym analitykiem quant. Analizujesz spolke ${symbol} dla okresu ${timeframe}. DZISIEJSZA DATA: ${currentDate}.
@@ -619,16 +622,24 @@ Zmiana w wybranym oknie ${timeframe}: ${periodReturn.toFixed(1)}%
 Cena poczatkowa: $${history[0]?.c.toFixed(2)} => Obecna: $${lastC.toFixed(2)}
 ${userPositionStr}
 
-SUGESTIA ALGORYTMU: ${dataRecommendation}
-KRYTYCZNE: Trzymaj sie tej sugestii! Zmien na NEUTRAL TYLKO gdy RSI>70 i StochRSI>80 jednoczesnie, lub newsy sa skrajnie negatywne. Niskie ADX samo w sobie NIE jest powodem do NEUTRAL!
+=== CONSENSUS ALGORYTMU (OBLIGATORYJNY) ===
+KIERUNEK: ${dataRecommendation} | COMPOSITE: ${compositeScore}/100 (${compositeLabel})
+Byki: ${bullScore} pkt | Niedzwiedzie: ${bearScore} pkt | Sugerowana pewnosc: ${suggestedConfidence}
+
+KRYTYCZNE ZASADY SPOJNOSCI — BEZWZGLEDNIE PRZESTRZEGAJ:
+1. quant_analysis.recommendation = "${dataRecommendation}" — BEZ WYJATKOW. NIE ZMIENIAJ.
+2. sentiment_score MUSI byc miedzy ${Math.max(0, compositeScore - 10)} a ${Math.min(100, compositeScore + 10)}. ZAKAZ wartosci domyslnej 50!
+3. global_data.final_direction MUSI jednoznacznie wspierac "${dataRecommendation}". Jesli LONG — pisz o wzrostach. Jesli SHORT — o spadkach.
+4. Ton summary MUSI odpowiadac "${dataRecommendation}": LONG = dominuje optymizm, SHORT = pesymizm, NEUTRAL = wywazone.
+5. bull_case vs bear_case: ${dataRecommendation === 'LONG' ? 'bull_case = SILNE, szczegolowe argumenty. bear_case = pomniejsze ryzyka, zastrzezenia (slabsze).' : dataRecommendation === 'SHORT' ? 'bear_case = SILNE, szczegolowe argumenty. bull_case = pomniejsze szanse (slabsze).' : 'Obie strony rownej wagi.'}
+6. ZERO SPRZECZNOSCI. Wszystkie sekcje musza mowic JEDNYM GLOSEM. Nie moze byc tak, ze quant mowi LONG a bear_case jest silniejszy od bull_case.
+7. quant_analysis.confidence_level = "${suggestedConfidence}" (mozesz zmienic o 1 poziom jesli masz dobry powod, ale uzasadnij).
 
 ZASADY DECYZYJNE:
-- LONG: Golden Cross (EMA50>EMA200) + MACD>Signal + Cena>EMA200 + RSI<70 => dawaj LONG (ADX = sila, nie kierunek; niskie ADX nie blokuje LONG!)
-- SHORT: Death Cross (EMA50<EMA200) + MACD<Signal + Cena<EMA200 => dawaj SHORT
-- NEUTRAL: TYLKO gdy sygnaly sa sprzeczne LUB BB Squeeze (bandwidth<5%)
-- Wyrazna przewaga sygnalow LONG + Golden Cross => ZAWSZE LONG chyba ze RSI>70 i StochRSI>80
-- Wyrazna przewaga sygnalow SHORT + Death Cross => ZAWSZE SHORT chyba ze RSI<30
-- ATR rosnacy = wieksze ryzyko, dostosuj SL do 2xATR; rozwaztarget = 3xATR
+- LONG: Golden Cross + MACD>Signal + Cena>EMA200 + RSI<70 => LONG (niskie ADX = slaby trend, NIE blokuje LONG!)
+- SHORT: Death Cross + MACD<Signal + Cena<EMA200 => SHORT
+- NEUTRAL: TYLKO gdy sygnaly sa dokladnie 50/50 LUB BB Squeeze (bandwidth<5%) przy braku trendu
+- ATR rosnacy = wieksze ryzyko, SL = 2xATR, TP = 3xATR
 
 [WYNIKI KWARTALNE (Finnhub)]
 ${earningsCtx}
@@ -650,10 +661,11 @@ summary: Napisz TRZY pelne akapity rozdzielone podwojna nowa linia (\n\n):
   Akapit 2 (KATALIZATORY I FUNDAMENTY): Wymien KONKRETNE nadchodzace wydarzenia ktore moga zmienic cene: najblizszy raport earnings (kiedy, czego sie spodziewac po ostatnim EPS surprise%), konferencje produktowe, zmiany regulacyjne, decyzje Fed, geopolityka — wszystko co jest widoczne w newsach i danych. Dodaj sentyment newsow (${quantStats.sent_bull_pct}% pozytywnych). Jesli nie ma bliskiego triggera — napisz to wprost i podaj co jest nastepnym kluczowym wydarzeniem w kalendarzu.
   Akapit 3 (REKOMENDACJA): Konkretne entry/SL/TP w dolarach, R:R, poziom przekonania, kluczowe ryzyko. ZAKAZ wymieniania slow "bullScore", "bearScore", "Bias Score" ani zadnych wewnetrznych zmiennych systemowych — pisz tylko o wskaznikach technicznych i danych rynkowych.
 
-quant_analysis.recommendation: dokladnie "LONG", "SHORT" lub "NEUTRAL".
+quant_analysis.recommendation: MUSI byc "${dataRecommendation}" — nie zmieniaj!
 quant_analysis.probability_long + probability_short musi sumowac sie do DOKLADNIE 100%.
 quant_analysis.entry_target: konkretna cena w dolarach lub "NIE WCHODZ" z uzasadnieniem.
 quant_analysis.stop_loss: konkretna cena w dolarach (ATR-based, referencja: ${quantStats.atr_stop_loss}).
+quant_analysis.confidence_level: "${suggestedConfidence}" (WYSOKA/SREDNIA/NISKA — na podstawie wyrownania sygnalow).
 
 global_data.current_status: biezaca sytuacja rynkowa, pozycja wzgledem 52W High/Low i makro.
 global_data.future_outlook: scenariusz bazowy na najblizszy miesiac, uwzgledniaj daty earnings.
@@ -663,7 +675,7 @@ global_data.sex_appeal: sentyment medialny — ${quantStats.sent_bull_pct}% pozy
 global_data.final_direction: TWARDY WERDYKT: kierunek + sila przekonania (wysoka/srednia/niska) + kluczowy katalizator + glowne ryzyko.
 
 radar.scenarios: dwa scenariusze — Bear i Bull — z konkretnymi triggerami i targetami cenowymi.
-sentiment_score: liczba 0-100 odzwierciedlajaca RZECZYWISTY sentyment na podstawie danych (nie domyslna wartosc 50).`;
+sentiment_score: liczba ${Math.max(0, compositeScore - 10)}-${Math.min(100, compositeScore + 10)} — MUSI odzwierciedlac consensus algorytmu (${compositeScore}/100). ZAKAZ ustawiania na 50 domyslnie!`;
         // --- GENERACJA AI (Structured Output — dane tylko z API) ---
         console.log(`[AI] ${symbol} ${timeframe} | bulls=${bullScore} bears=${bearScore} | news=${filteredNews.length}`);
         const aiStart = Date.now();
