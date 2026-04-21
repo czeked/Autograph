@@ -1,7 +1,7 @@
 export default function Settings({ setHasChanges }) {
     return (
-        <div>
-            <h1>Ustawienia modelu</h1>
+        <div className="panel-settings">
+            <h1>Ustawienia modułu</h1>
 
             <div className="card">
                 <label>Tryb odpowiedzi</label>

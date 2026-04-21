@@ -1,6 +1,6 @@
 export default function Help() {
     return (
-        <div>
+        <div className="panel-help">
             <h1>Pomoc</h1>
 
             <div className="card">

@@ -1,5 +1,5 @@
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
 
 import Dashboard from "./components/user/Dashboard";
 import Profile from "./components/user/Profile";
@@ -8,18 +8,40 @@ import Plans from "./components/user/Plans";
 import Settings from "./components/user/Settings";
 import Help from "./components/user/Help";
 
+const DEFAULT_AVATAR = "/imgs/user-icon-default.png";
+const DEFAULT_USERNAME = "Administrator";
+
 export default function UserPage() {
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [hasChanges, setHasChanges] = useState(false);
     const [showWarning, setShowWarning] = useState(false);
-    const [activeSection, setActiveSection] = useState("dashboard"); // 🔥 BRAKOWAŁO
+    const [activeSection, setActiveSection] = useState(location.state?.section || "dashboard"); // Pobierz z nawigacji
+    const [notifications, setNotifications] = useState([
+        { id: 1, text: "BTC wzrósł o 5%" },
+        { id: 2, text: "Nowa funkcja dostępna" },
+    ]);
+    const [toast, setToast] = useState(null);
+
+    // Profile state – loaded from localStorage on mount
+    const [username, setUsername] = useState(() => {
+        return localStorage.getItem("autograph_username") || DEFAULT_USERNAME;
+    });
+    const [profileImage, setProfileImage] = useState(() => {
+        return localStorage.getItem("autograph_avatar") || DEFAULT_AVATAR;
+    });
+
+    const showToast = (message, type = "info") => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
+    };
 
     const handleClose = () => {
         if (hasChanges) {
             setShowWarning(true);
         } else {
-            navigate(-1);
+            navigate("/");
         }
     };
 
@@ -31,20 +53,45 @@ export default function UserPage() {
         setActiveSection(section);
     };
 
+    const handleSave = () => {
+        // Persist profile data
+        localStorage.setItem("autograph_username", username);
+        localStorage.setItem("autograph_avatar", profileImage);
+        setHasChanges(false);
+        showToast("Zmiany zostały zapisane!", "success");
+    };
+
+    const [plan, setPlan] = useState(null);
+
+    useEffect(() => {
+        const updatePlan = () => {
+            const saved = localStorage.getItem("autograph_plan");
+            setPlan(saved && saved !== "none" ? saved : null);
+        };
+
+        window.addEventListener("planChange", updatePlan);
+
+        updatePlan(); // 🔥 żeby działało od razu
+
+        return () => window.removeEventListener("planChange", updatePlan);
+    }, []);
+
     return (
         <>
             <div className="layout"> {/* 🔥 NOWY WRAPPER */}
-
+                <button className="close-btn" onClick={handleClose}>
+                    <i className="fa-regular fa-circle-xmark"></i>
+                </button>
                 {/* SIDEBAR */}
                 <div className="user-side">
 
-                    <button className="close-btn" onClick={handleClose}>
-                        <i className="fa-regular fa-circle-xmark"></i>
-                    </button>
+
 
                     <div className="user-title">
-                        <img src="/imgs/user-icon-default.png" alt="user-icon" />
-                        <p>Abdul Ihn</p>
+                        <img src={profileImage} alt="user-icon" />
+                        <p className={`username ${plan || "none"}`}>
+                            {username}
+                        </p>
                     </div>
 
                     <hr />
@@ -57,7 +104,11 @@ export default function UserPage() {
 
                         <li className={activeSection === "notifications" ? "active" : ""}
                             onClick={() => handleClick("notifications")}>
-                            <i className="fa-solid fa-bell"></i> Powiadomienia
+                            {notifications.length > 0 ? (
+                                <i className="fa-solid fa-bell"></i>
+                            ) : (
+                                <i className="fa-solid fa-bell-slash"></i>
+                            )} Powiadomienia
                         </li>
                     </ul>
 
@@ -97,7 +148,7 @@ export default function UserPage() {
                     <button
                         className={`save-btn ${hasChanges ? "active" : ""}`}
                         disabled={!hasChanges}
-                        onClick={() => setHasChanges(false)}
+                        onClick={handleSave}
                     >
                         Zapisz zmiany
                     </button>
@@ -107,9 +158,17 @@ export default function UserPage() {
                 <div className="content">
 
                     {activeSection === "dashboard" && <Dashboard />}
-                    {activeSection === "notifications" && <Notifications />}
-                    {activeSection === "profile" && <Profile setHasChanges={setHasChanges} />}
-                    {activeSection === "plans" && <Plans />}
+                    {activeSection === "notifications" && <Notifications notifications={notifications} setNotifications={setNotifications} setHasChanges={setHasChanges} />}
+                    {activeSection === "profile" && (
+                        <Profile
+                            setHasChanges={setHasChanges}
+                            username={username}
+                            setUsername={setUsername}
+                            profileImage={profileImage}
+                            setProfileImage={setProfileImage}
+                        />
+                    )}
+                    {activeSection === "plans" && <Plans showToast={showToast} />}
                     {activeSection === "settings" && <Settings setHasChanges={setHasChanges} />}
                     {activeSection === "help" && <Help />}
 
@@ -121,9 +180,17 @@ export default function UserPage() {
                 <div className="warning-bar">
                     <p>Masz niezapisane zmiany. Wyjść bez zapisywania?</p>
                     <div>
-                        <button onClick={() => navigate(-1)}>Wyjdź</button>
+                        <button onClick={() => navigate("/")}>Wyjdź</button>
                         <button onClick={() => setShowWarning(false)}>Anuluj</button>
                     </div>
+                </div>
+            )}
+
+            {/* TOAST */}
+            {toast && (
+                <div className={`toast-notification toast-${toast.type}`}>
+                    <i className={toast.type === "success" ? "fa-solid fa-circle-check" : toast.type === "error" ? "fa-solid fa-circle-exclamation" : "fa-solid fa-circle-info"}></i>
+                    <span>{toast.message}</span>
                 </div>
             )}
         </>
