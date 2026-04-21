@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './AiTrader.css';
 
 function AiTrader() {
+  const navigate = useNavigate();
   const [searchTicker, setSearchTicker] = useState('BTC');
   const [currency, setCurrency] = useState('USD');
   const [prompt, setPrompt] = useState('');
@@ -18,8 +20,19 @@ function AiTrader() {
   const [alerts, setAlerts] = useState([]);
   const [chartType, setChartType] = useState('candlestick');
   const [activeOverlays, setActiveOverlays] = useState(new Set(['fibonacci']));
+  const [favorites, setFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('favorites')) || []; } catch { return []; }
+  });
   const wsRef = useRef(null);
   const prevPriceRef = useRef(null);
+
+  const toggleFavorite = (crypto) => {
+    setFavorites(prev => {
+      const next = prev.includes(crypto) ? prev.filter(f => f !== crypto) : [...prev, crypto];
+      localStorage.setItem('favorites', JSON.stringify(next));
+      return next;
+    });
+  };
 
   const toggleOverlay = (name) => {
     setActiveOverlays(prev => {
@@ -226,11 +239,35 @@ function AiTrader() {
 
   return (
     <div className="analyzer-container">
-      <div className="analyzer-header">
-        <h1>📈 Asystent Handlowy AI</h1>
-        <p className="header-subtitle">CoinGecko DANE NA ŻYWO • Analiza Gemma 4 AI • Wiadomości Finnhub</p>
-        <span className="date-badge">📅 {new Date().toLocaleDateString('pl-PL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-      </div>
+      {/* Navigation Header */}
+      <nav className="trader-nav">
+        <div className="nav-left">
+          <div className="nav-icons">
+            <i className="fa-regular fa-user" title="User" onClick={() => navigate('/user')}></i>
+            <i className="fa-solid fa-chart-simple" title="Autograph" onClick={() => navigate('/autograph')}></i>
+            <i className="fa-solid fa-chart-line nav-active" title="AI Trader" onClick={() => navigate('/aitrader')}></i>
+          </div>
+          <div className="nav-divider"></div>
+          <span className="nav-page-title">AI Trader</span>
+        </div>
+
+        <h1 className="nav-logo" onClick={() => navigate('/')}>Autograph</h1>
+      </nav>
+
+      {/* Favorites Bar */}
+      {favorites.length > 0 && (
+        <div className="favorites-bar">
+          <span className="fav-label">⭐ Ulubione</span>
+          <div className="fav-list">
+            {favorites.map(fav => (
+              <button key={fav} className={`fav-chip ${ticker === fav ? 'fav-active' : ''}`} onClick={() => { setSearchTicker(fav); handleSearch(fav); }}>
+                {fav}
+                <span className="fav-remove" onClick={(e) => { e.stopPropagation(); toggleFavorite(fav); }}>×</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Search Section */}
       <div className="search-section">
@@ -330,6 +367,9 @@ function AiTrader() {
               <span className="currency-label">{currency}</span>
               <span className="live-dot"></span>
               <span className="live-text">NA ŻYWO</span>
+              <button className={`fav-star-btn ${favorites.includes(ticker) ? 'fav-starred' : ''}`} onClick={() => toggleFavorite(ticker)} title={favorites.includes(ticker) ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}>
+                {favorites.includes(ticker) ? '★' : '☆'}
+              </button>
             </h2>
             <div className="header-right">
               {livePrice && (
@@ -617,7 +657,7 @@ function AiTrader() {
                   </div>
                 </div>
               </div>
-              <ChartComponent data={chartData} currency={currency} chartType={chartType} overlays={marketData?.overlays} fibonacci={marketData?.fibonacci} activeOverlays={activeOverlays} onToggleOverlay={toggleOverlay} />
+              <ChartComponent data={chartData} chartType={chartType} overlays={marketData?.overlays} fibonacci={marketData?.fibonacci} activeOverlays={activeOverlays} />
             </div>
           )}
         </div>
@@ -632,8 +672,9 @@ function AiTrader() {
       {analysis && <AnalysisDisplay analysis={analysis} ticker={ticker} currency={currency} />}
 
       <footer className="app-footer">
-        <p>⚡ CoinGecko API • RSI, MACD, SAR, EMA • Gemma 4 AI • Wiadomości Finnhub</p>
-        <p>📅 {new Date().toLocaleDateString('pl-PL')}</p>
+        <div className="footer-brand">Autograph</div>
+        <p>CoinGecko API • Technical Analysis • Gemma 4 AI • Finnhub News</p>
+        <p className="footer-date">{new Date().toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
       </footer>
     </div>
   );
@@ -649,8 +690,8 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
     .replace(/\*(.*?)\*/g, '$1')
     .trim();
 
-  const isJunk = (t) => /^(\*?\s*)?(use emoji|keep it|self-correct|i will|i'll|okay|sure|got it|understood|alright|polish only|no markdown|ensure|let me|let's go|wait,|double check|final check|final polish|language:|formatting:|style:|structure:|input data:|drafting|construction)/i.test(t);
-  const isHeader = (t) => /^[1-9]️⃣|^🔟|^\*\*\s*\d+[.)]|^#{1,3}\s+\d|^\d+[.)]\s+[A-ZĄĆĘŁŃÓŚŹŻ]{2,}/i.test(t);
+  const isJunk = (t) => /^(\*?\s*)?(use emoji|keep it|self-correct|i will|i'll|okay|sure|got it|understood|alright|polish only|no markdown|ensure|let me|let's go|wait,|double check|final check|final polish|language:|formatting:|style:|structure:|input data:|drafting|construction|no bolding|no italics|no headers|only polish|emojis used|no thoughts|all 10 sections|checked\.|self-correction|bez markdown|nie pisz)/i.test(t);
+  const isHeader = (t) => /[1-9]️⃣|🔟|^\*\*\s*\d+[.)]|^#{1,3}\s+\d|^\d+[.)]\s+[A-ZĄĆĘŁŃÓŚŹŻ]{2,}/i.test(t);
   const getSignal = (t) => {
     if (/KUPUJ|BUY|LONG/i.test(t)) return 'buy';
     if (/SPRZEDAJ|SELL|SHORT/i.test(t)) return 'sell';
@@ -732,13 +773,23 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
   const sections = [];
   let cur = null;
 
+  // Pre-expand: AI sometimes joins sections on one line with *: prefix
+  const expandedLines = [];
   for (const raw of analysis.split('\n')) {
     const t = raw.trim();
     if (!t || /^[═─-]{4,}$/.test(t)) continue;
+    const parts = t.split(/\*:\s*(?=[1-9]️⃣|🔟)/);
+    for (const p of parts) {
+      const trimmed = p.replace(/^\*:\s*/, '').trim();
+      if (trimmed) expandedLines.push(trimmed);
+    }
+  }
+
+  for (const t of expandedLines) {
     const c = clean(t);
     if (!c || isJunk(c)) continue;
 
-    if (isHeader(t)) {
+    if (isHeader(t) || isHeader(c)) {
       if (cur) sections.push(cur);
       cur = { title: c, lines: [], signal: null };
     } else if (cur) {
@@ -772,7 +823,7 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
 
     // Detect key-value patterns like "Sygnał: KUPUJ" or "Siła trendu: 4/10"
     const kvMatch = line.match(/^(.+?)[:\s]+(.+)$/);
-    const isKV = kvMatch && kvMatch[1].length < 30 && !sig;
+    const isKV = kvMatch && kvMatch[1].length < 30 && !sig && !/^\*$|^\(Self-Correction\)/.test(kvMatch[1].trim());
 
     if (sig) {
       return (
@@ -911,7 +962,7 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
 
 /* ======================== CANDLESTICK CHART ======================== */
 
-function ChartComponent({ data, currency, chartType = 'candlestick', overlays, fibonacci, activeOverlays, onToggleOverlay }) {
+function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, activeOverlays }) {
   const containerRef = useRef(null);
   const [tooltip, setTooltip] = useState(null);
   const [crosshair, setCrosshair] = useState(null);

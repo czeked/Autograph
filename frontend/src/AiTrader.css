@@ -16,47 +16,235 @@
   padding: 0 0 40px 0;
 }
 
-/* ======================== HEADER ======================== */
+/* ======================== NAV HEADER ======================== */
 
-.analyzer-header {
-  text-align: center;
-  padding: 48px 20px 32px;
-  background: linear-gradient(180deg, #161b22 0%, #0d1117 100%);
+.trader-nav {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 40px;
+  background: linear-gradient(180deg, rgba(22, 27, 34, 0.95) 0%, rgba(13, 17, 23, 0.9) 100%);
   border-bottom: 1px solid #21262d;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
 }
 
-.analyzer-header h1 {
-  font-size: 2.4em;
-  font-weight: 800;
+.nav-left {
+  display: flex;
+  align-items: center;
+}
+
+.nav-icons {
+  display: flex;
+  gap: 28px;
+}
+
+.nav-icons i {
+  font-size: 22px;
+  color: #8b949e;
+  cursor: pointer;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.nav-icons i:hover {
   color: #f0f6fc;
-  margin-bottom: 8px;
-  letter-spacing: -0.5px;
+  transform: scale(1.1);
 }
 
-.header-subtitle {
-  font-size: 0.95em;
-  color: #8b949e;
-  font-weight: 400;
-  margin-bottom: 16px;
+.nav-icons i.nav-active {
+  color: #58a6ff;
 }
 
-.date-badge {
-  display: inline-block;
-  background: #21262d;
-  color: #8b949e;
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 0.85em;
-  font-weight: 500;
+.nav-logo {
+  font-family: 'Parfumerie Script', cursive;
+  font-size: 42px;
+  color: #f0f6fc;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  letter-spacing: 1px;
+}
+
+.nav-logo:hover {
+  opacity: 0.8;
+}
+
+.nav-divider {
+  width: 1px;
+  height: 24px;
+  background: #30363d;
+  margin: 0 8px;
+}
+
+.nav-page-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #58a6ff;
+  letter-spacing: 0.3px;
+}
+
+.nav-center {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-badge {
+  padding: 4px 10px;
+  background: rgba(33, 38, 45, 0.8);
   border: 1px solid #30363d;
+  border-radius: 12px;
+  font-size: 0.7em;
+  font-weight: 600;
+  color: #8b949e;
+  letter-spacing: 0.3px;
+}
+
+/* ======================== FAVORITES BAR ======================== */
+
+.favorites-bar {
+  position: fixed;
+  top: 0;
+  left: -180px;
+  width: 180px;
+  height: 100vh;
+  background: #161b22;
+  border-right: 1px solid #21262d;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 16px 12px;
+  gap: 8px;
+  z-index: 200;
+  overflow-y: auto;
+  transition: left 0.3s ease;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+}
+
+.favorites-bar:hover,
+.favorites-bar:focus-within {
+  left: 0;
+}
+
+.favorites-bar::after {
+  content: '⭐';
+  position: fixed;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 48px;
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 201;
+  transition: left 0.3s ease;
+}
+
+.favorites-bar:hover::after,
+.favorites-bar:focus-within::after {
+  left: 180px;
+}
+
+.fav-label {
+  font-size: 0.6em;
+  color: #8b949e;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.fav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.fav-chip {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #c9d1d9;
+  font-size: 0.8em;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  white-space: nowrap;
+}
+
+.fav-chip:hover {
+  background: #30363d;
+  border-color: #58a6ff;
+  color: #f0f6fc;
+}
+
+.fav-chip.fav-active {
+  background: rgba(88, 166, 255, 0.15);
+  border-color: #58a6ff;
+  color: #58a6ff;
+}
+
+.fav-remove {
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  color: #484f58;
+  border: none;
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.fav-remove:hover {
+  background: rgba(248, 81, 73, 0.15);
+  color: #f85149;
+}
+
+.fav-star-btn {
+  background: none;
+  border: none;
+  font-size: 1.2em;
+  cursor: pointer;
+  color: #484f58;
+  transition: color 0.2s, transform 0.2s;
+  margin-left: 8px;
+}
+
+.fav-star-btn:hover {
+  transform: scale(1.2);
+}
+
+.fav-star-btn.fav-starred {
+  color: #f0c14b;
 }
 
 /* ======================== SEARCH SECTION ======================== */
 
 .search-section {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px 24px 16px;
+  margin: 0;
+  padding: 24px 40px 16px;
 }
 
 .search-row {
@@ -238,8 +426,7 @@
 /* ======================== ERROR ======================== */
 
 .error-message {
-  max-width: 1200px;
-  margin: 16px auto;
+  margin: 16px 40px;
   padding: 16px 24px;
   background: #490202;
   border: 1px solid #f85149;
@@ -253,8 +440,7 @@
 /* ======================== LOADING ======================== */
 
 .loading-overlay {
-  max-width: 1200px;
-  margin: 40px auto;
+  margin: 40px;
   text-align: center;
   padding: 60px 20px;
 }
@@ -288,9 +474,8 @@
 /* ======================== DASHBOARD ======================== */
 
 .dashboard {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 24px;
+  margin: 0;
+  padding: 0 40px;
 }
 
 .dashboard-header {
@@ -389,9 +574,8 @@
 /* ======================== ALERTS ======================== */
 
 .alerts-bar {
-  max-width: 1200px;
-  margin: 12px auto 0;
-  padding: 0 24px;
+  margin: 12px 0 0;
+  padding: 0 40px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1255,9 +1439,8 @@
 /* ======================== NEWS SECTION ======================== */
 
 .news-section {
-  max-width: 1200px;
-  margin: 24px auto 0;
-  padding: 0 24px;
+  margin: 24px 0 0;
+  padding: 0 40px;
 }
 
 .news-section > .news-header,
@@ -1497,11 +1680,13 @@
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
 .article-body.expanded {
   -webkit-line-clamp: unset;
+  line-clamp: unset;
   display: block;
 }
 
@@ -1561,9 +1746,8 @@
 /* ======================== ANALYSIS ======================== */
 
 .analysis-section {
-  max-width: 1200px;
-  margin: 24px auto 0;
-  padding: 0 24px;
+  margin: 24px 0 0;
+  padding: 0 40px;
 }
 
 /* --- Hero Header --- */
@@ -1935,22 +2119,30 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding: 4px 0;
-  gap: 8px;
+  padding: 6px 0;
+  gap: 10px;
+  border-bottom: 1px solid rgba(48, 54, 61, 0.3);
+}
+
+.kv-line:last-child {
+  border-bottom: none;
 }
 
 .kv-key {
-  font-size: 0.83em;
+  font-size: 0.82em;
   color: #8b949e;
   font-weight: 600;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .kv-val {
-  font-size: 0.85em;
-  color: #f0f6fc;
-  font-weight: 600;
+  font-size: 0.84em;
+  color: #c9d1d9;
+  font-weight: 500;
   text-align: right;
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 /* --- Signal Lines --- */
@@ -2058,24 +2250,65 @@
 /* ======================== FOOTER ======================== */
 
 .app-footer {
-  max-width: 1200px;
-  margin: 40px auto 0;
-  padding: 24px;
+  margin: 40px 0 0;
+  padding: 32px 40px;
   text-align: center;
   border-top: 1px solid #21262d;
 }
 
+.footer-brand {
+  font-family: 'Parfumerie Script', cursive;
+  font-size: 28px;
+  color: #484f58;
+  margin-bottom: 8px;
+}
+
 .app-footer p {
   color: #484f58;
-  font-size: 0.85em;
+  font-size: 0.8em;
   margin: 4px 0;
+  letter-spacing: 0.5px;
+}
+
+.footer-date {
+  color: #30363d;
 }
 
 /* ======================== RESPONSIVE ======================== */
 
 @media (max-width: 900px) {
-  .analyzer-header h1 {
-    font-size: 1.8em;
+  .favorites-bar {
+    left: -180px;
+    width: 180px;
+  }
+
+  .favorites-bar:hover,
+  .favorites-bar:focus-within {
+    left: 0;
+  }
+
+  .trader-nav {
+    padding: 12px 20px;
+  }
+
+  .nav-logo {
+    font-size: 32px;
+  }
+
+  .nav-icons {
+    gap: 18px;
+  }
+
+  .nav-icons i {
+    font-size: 18px;
+  }
+
+  .nav-center {
+    display: none;
+  }
+
+  .nav-page-title {
+    font-size: 12px;
   }
 
   .search-row {
@@ -2103,14 +2336,6 @@
 }
 
 @media (max-width: 600px) {
-  .analyzer-header {
-    padding: 32px 16px 24px;
-  }
-
-  .analyzer-header h1 {
-    font-size: 1.4em;
-  }
-
   .search-section,
   .dashboard,
   .news-section,
