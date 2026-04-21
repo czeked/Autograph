@@ -23,6 +23,7 @@ function AiTrader() {
   const [favorites, setFavorites] = useState(() => {
     try { return JSON.parse(localStorage.getItem('favorites')) || []; } catch { return []; }
   });
+  const isMaximum = localStorage.getItem('autograph_plan') === 'maximum';
   const wsRef = useRef(null);
   const prevPriceRef = useRef(null);
 
@@ -240,19 +241,17 @@ function AiTrader() {
   return (
     <div className="analyzer-container">
       {/* Navigation Header */}
-      <nav className="trader-nav">
-        <div className="nav-left">
-          <div className="nav-icons">
-            <i className="fa-regular fa-user" title="User" onClick={() => navigate('/user')}></i>
-            <i className="fa-solid fa-chart-simple" title="Autograph" onClick={() => navigate('/autograph')}></i>
-            <i className="fa-solid fa-chart-line nav-active" title="AI Trader" onClick={() => navigate('/aitrader')}></i>
-          </div>
-          <div className="nav-divider"></div>
-          <span className="nav-page-title">AI Trader</span>
+      <div className="header">
+        <div className="icons">
+          <i className="fa-regular fa-user" title="Użytkownik" onClick={() => navigate('/user')}></i>
+          <i className="fa-solid fa-chart-column" title="Rynek tradycyjny" onClick={() => navigate('/autograph')}></i>
+          <i className="fa-brands fa-bitcoin header-active" title="Kryptowaluty" onClick={() => navigate('/aitrader')}></i>
+          {isMaximum && (
+            <i className="fa-solid fa-chart-pie" title="Dywidendy" onClick={() => navigate('/aidividends')}></i>
+          )}
         </div>
-
-        <h1 className="nav-logo" onClick={() => navigate('/')}>Autograph</h1>
-      </nav>
+        <h1 onClick={() => navigate('/')}>Autograph</h1>
+      </div>
 
       {/* Favorites Bar */}
       {favorites.length > 0 && (
@@ -271,69 +270,83 @@ function AiTrader() {
 
       {/* Search Section */}
       <div className="search-section">
-        <div className="search-row">
-          <div className="search-field">
-            <label>🔍 Kryptowaluta</label>
-            <div className="search-wrapper">
-              <input
-                type="text"
-                value={searchTicker}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                onKeyPress={handleKeyPress}
-                onFocus={() => searchTicker.length > 0 && setShowSuggestions(true)}
-                placeholder="BTC, ETH, SOL..."
-                className="search-input"
-              />
-              <button
-                onClick={() => {
-                  setShowSuggestions(false);
-                  handleSearch(searchTicker);
-                }}
-                disabled={loading || searchTicker.length === 0}
-                className={`search-button ${loading ? 'loading' : ''}`}
-              >
-                {loading ? '⏳ Analizuję...' : '🚀 Analizuj'}
-              </button>
+        <div className="search-card">
+          <div className="search-card-bg"></div>
+          <div className="search-card-content">
+            <div className="search-hero-text">
+              <h2 className="search-title">Analizuj kryptowaluty w czasie rzeczywistym</h2>
+              <p className="search-subtitle">AI &bull; Wskaźniki techniczne &bull; Wiadomości &bull; Dane rynkowe</p>
+            </div>
 
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="suggestions-dropdown">
-                  {suggestions.map(crypto => (
-                    <div
-                      key={crypto}
-                      className="suggestion-item"
-                      onClick={() => selectCrypto(crypto)}
-                    >
-                      {crypto}
+            <div className="search-main-row">
+              <div className="search-input-group">
+                <div className="search-wrapper">
+                  <span className="search-icon-label">&#128270;</span>
+                  <input
+                    type="text"
+                    value={searchTicker}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    onFocus={() => searchTicker.length > 0 && setShowSuggestions(true)}
+                    placeholder="Wpisz symbol — BTC, ETH, SOL..."
+                    className="search-input"
+                  />
+                  <button
+                    onClick={() => {
+                      setShowSuggestions(false);
+                      handleSearch(searchTicker);
+                    }}
+                    disabled={loading || searchTicker.length === 0}
+                    className={`search-button ${loading ? 'loading' : ''}`}
+                  >
+                    {loading ? '⏳ Analizuję...' : '🚀 Analizuj'}
+                  </button>
+
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div className="suggestions-dropdown">
+                      {suggestions.map(crypto => (
+                        <div
+                          key={crypto}
+                          className="suggestion-item"
+                          onClick={() => selectCrypto(crypto)}
+                        >
+                          {crypto}
+                        </div>
+                      ))}
                     </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="search-options-row">
+              <div className="currency-field">
+                <span className="options-label">Waluta:</span>
+                <div className="currency-buttons">
+                  {currencyList.map(curr => (
+                    <button
+                      key={curr}
+                      onClick={() => handleCurrencyChange(curr)}
+                      className={`currency-btn ${currency === curr ? 'active' : ''}`}
+                    >
+                      {curr}
+                    </button>
                   ))}
                 </div>
-              )}
-            </div>
-          </div>
-
-          <div className="currency-field">
-            <label>💵 Waluta</label>
-            <div className="currency-buttons">
-              {currencyList.map(curr => (
-                <button
-                  key={curr}
-                  onClick={() => handleCurrencyChange(curr)}
-                  className={`currency-btn ${currency === curr ? 'active' : ''}`}
-                >
-                  {curr}
-                </button>
-              ))}
+              </div>
+              <div className="prompt-field">
+                <span className="options-label">Notatka:</span>
+                <textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Opcjonalnie: dodatkowe pytanie do AI..."
+                  rows={2}
+                  className="prompt-input"
+                />
+              </div>
             </div>
           </div>
         </div>
-
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Opcjonalnie: Dodaj pytanie lub notatkę do analizy..."
-          rows={2}
-          className="input-textarea"
-        />
       </div>
 
       {error && <div className="error-message">{error}</div>}

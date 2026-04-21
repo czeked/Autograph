@@ -18,7 +18,7 @@ function App() {
         
         {/* Zabezpieczone ścieżki */}
         <Route path="/autograph" element={<ProtectedRoute><AiAnalyzer /></ProtectedRoute>} />
-        <Route path="/aitrader" element={<ProtectedRoute><AiTrader /></ProtectedRoute>} />
+        <Route path="/aitrader" element={<AiTrader />} />
         <Route path="/aidividends" element={<ProtectedRoute requiredPlan="maximum"><AiDividends /></ProtectedRoute>} />
         
         <Route path="/checkout" element={<Checkout />} />

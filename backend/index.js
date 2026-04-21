@@ -39,7 +39,7 @@ async function generateWithFallback(prompt, systemPrompt) {
         contents: [{ role: 'user', parts: [{ text: systemPrompt + '\n\n' + prompt }] }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 1500,
+          maxOutputTokens: 4096,
         },
       });
       const text = result.response.text();
