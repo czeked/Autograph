@@ -89,7 +89,7 @@ app.post('/api/analyze', async (req, res) => {
     }
 
     try {
-        let allHistory = [], allNews = [], allEarnings = [], allMetric = {};
+        let allHistory = [], allNews = [], allEarnings = [], allMetric = {}, companyProfile = {};
 
         let baseData = analysisCache.get(`${symbol}_BASE`);
         if (!baseData) {
@@ -175,12 +175,14 @@ app.post('/api/analyze', async (req, res) => {
                     // ignoruj jeśli kolejne trzaśnięcia napotkały koniec limitów
                 }
 
-                // Pobieranie nazwy firmy z profilu by wykluczyć potem fałszywe newsy
+                // Pobieranie nazwy firmy z profilu by wykluczyć potem fałszywe newsy + fundamental data
                 let companyName = symbol;
+                let companyProfile = {};
                 try {
                     const prof = await axios.get(`https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${FINNHUB_KEY}`);
-                    if (prof.data && prof.data.name) {
-                        companyName = prof.data.name.split(' ')[0].toLowerCase(); // np. "Tesla Inc" -> "tesla"
+                    if (prof.data) {
+                        companyProfile = prof.data;
+                        if (prof.data.name) companyName = prof.data.name.split(' ')[0].toLowerCase();
                     }
                 } catch (e) { }
 
@@ -215,12 +217,13 @@ app.post('/api/analyze', async (req, res) => {
 
             allNews = allNewsArray;
 
-            analysisCache.set(`${symbol}_BASE`, { timestamp: Date.now(), allHistory, allNews, allEarnings, allMetric });
+            analysisCache.set(`${symbol}_BASE`, { timestamp: Date.now(), allHistory, allNews, allEarnings, allMetric, companyProfile });
         } else {
             allHistory = baseData.allHistory;
             allNews = baseData.allNews;
             allEarnings = baseData.allEarnings;
             allMetric = baseData.allMetric || {};
+            companyProfile = baseData.companyProfile || {};
         }
 
         if (!allHistory || allHistory.length === 0) throw new Error("Massive API nie zwróciło danych. Sprawdź MASSIVE_API_KEY lub symbol.");
@@ -290,6 +293,86 @@ app.post('/api/analyze', async (req, res) => {
         const epsGrowth = allMetric['epsGrowth3Y'] || allMetric['epsGrowth5Y'] || null;
         const revenueGrowth = allMetric['revenueGrowth3Y'] || null;
 
+        // Extended fundamentals from Finnhub metric endpoint
+        const fundamentals = {
+            // Valuation
+            pe_ttm: allMetric['peTTM'] ?? null,
+            pe_forward: allMetric['peExclExtraTTM'] ?? allMetric['peBasicExclExtraTTM'] ?? null,
+            pb: allMetric['pbAnnual'] ?? allMetric['pbQuarterly'] ?? null,
+            ps_ttm: allMetric['psTTM'] ?? null,
+            peg: (allMetric['peTTM'] && allMetric['epsGrowth5Y'] && allMetric['epsGrowth5Y'] > 0)
+                ? +(allMetric['peTTM'] / allMetric['epsGrowth5Y']).toFixed(2) : null,
+            ev_ebitda: allMetric['totalDebt/totalEquityAnnual'] != null ? null : null, // placeholder
+            ev_sales: null, // will compute below
+            // Profitability
+            roe_ttm: allMetric['roeTTM'] ?? allMetric['roeRfy'] ?? null,
+            roa_ttm: allMetric['roaTTM'] ?? allMetric['roaRfy'] ?? null,
+            net_margin: allMetric['netProfitMarginTTM'] ?? allMetric['netProfitMargin5Y'] ?? null,
+            gross_margin: allMetric['grossMarginTTM'] ?? allMetric['grossMargin5Y'] ?? null,
+            operating_margin: allMetric['operatingMarginTTM'] ?? allMetric['operatingMargin5Y'] ?? null,
+            // Financial health
+            current_ratio: allMetric['currentRatioAnnual'] ?? allMetric['currentRatioQuarterly'] ?? null,
+            debt_equity: allMetric['totalDebt/totalEquityAnnual'] ?? allMetric['totalDebt/totalEquityQuarterly'] ?? null,
+            // Growth
+            eps_growth_3y: allMetric['epsGrowth3Y'] ?? null,
+            eps_growth_5y: allMetric['epsGrowth5Y'] ?? null,
+            revenue_growth_3y: allMetric['revenueGrowth3Y'] ?? null,
+            revenue_growth_5y: allMetric['revenueGrowth5Y'] ?? null,
+            // Per-share
+            fcf_per_share: allMetric['freeCashFlowPerShareTTM'] ?? null,
+            book_value_per_share: allMetric['bookValuePerShareAnnual'] ?? allMetric['bookValuePerShareQuarterly'] ?? null,
+            revenue_per_share: allMetric['revenuePerShareTTM'] ?? null,
+            // Market
+            dividend_yield: allMetric['dividendYieldIndicatedAnnual'] ?? null,
+            beta: allMetric['beta'] ?? null,
+            // Company profile
+            market_cap: companyProfile.marketCapitalization ? +(companyProfile.marketCapitalization).toFixed(0) : null,
+            sector: companyProfile.finnhubIndustry || null,
+            company_name: companyProfile.name || symbol,
+            exchange: companyProfile.exchange || null,
+            ipo_date: companyProfile.ipo || null,
+        };
+
+        // EV/EBITDA & EV/Sales from Finnhub if available
+        if (allMetric['enterpriseValueEBITDATTM'] != null) fundamentals.ev_ebitda = allMetric['enterpriseValueEBITDATTM'];
+        else if (allMetric['enterpriseValue/ebitdaTTM'] != null) fundamentals.ev_ebitda = allMetric['enterpriseValue/ebitdaTTM'];
+        if (allMetric['psTTM'] != null && fundamentals.market_cap && fundamentals.revenue_per_share) {
+            // EV/Sales approximation
+            fundamentals.ev_sales = +(allMetric['psTTM'] * 1.1).toFixed(2); // rough EV/Sales ≈ P/S * (1 + D/E adj)
+        }
+
+        // Relative Strength vs SPY (using cache or fresh fetch)
+        let relativeStrength = {};
+        try {
+            let spyHistory = analysisCache.get('SPY_HISTORY');
+            if (!spyHistory) {
+                const spyFrom = new Date(); spyFrom.setFullYear(spyFrom.getFullYear() - 2);
+                const spyRes = await axios.get(
+                    `https://api.massive.com/v2/aggs/ticker/SPY/range/1/day/${spyFrom.toISOString().split('T')[0]}/${new Date().toISOString().split('T')[0]}?adjusted=true&limit=600&apiKey=${MASSIVE_KEY}`,
+                    { timeout: 8000 }
+                ).catch(() => null);
+                if (spyRes?.data?.results?.length) {
+                    spyHistory = spyRes.data.results.map(r => ({ t: r.t, c: r.c }));
+                    analysisCache.set('SPY_HISTORY', spyHistory);
+                    setTimeout(() => analysisCache.delete('SPY_HISTORY'), 3600000);
+                }
+            }
+            if (spyHistory?.length > 5) {
+                const calcRet = (hist, days) => {
+                    const sl = hist.slice(-days - 1);
+                    return sl.length >= 2 ? ((sl[sl.length - 1].c - sl[0].c) / sl[0].c * 100) : null;
+                };
+                const periods = [{ k: '1m', d: 21 }, { k: '3m', d: 63 }, { k: '6m', d: 126 }, { k: '1y', d: 252 }];
+                for (const { k, d } of periods) {
+                    const stockRet = calcRet(allHistory, d);
+                    const spyRet = calcRet(spyHistory, d);
+                    if (stockRet != null && spyRet != null) {
+                        relativeStrength[k] = { stock: +stockRet.toFixed(1), spy: +spyRet.toFixed(1), alpha: +(stockRet - spyRet).toFixed(1) };
+                    }
+                }
+            }
+        } catch (e) { /* SPY fetch failed, non-critical */ }
+
         // Ocena wyrównania sygnałów — system ważony
         const distFromHigh52w = high52w > 0 ? ((lastC - high52w) / high52w * 100).toFixed(1) : '0';
         const distFromLow52w  = low52w  > 0 ? ((lastC - low52w)  / low52w  * 100).toFixed(1) : '0';
@@ -314,38 +397,133 @@ app.post('/api/analyze', async (req, res) => {
         const sentBullPct = Math.round(sentBull / sentTotal * 100);
         const sentBearPct = Math.round(sentBear / sentTotal * 100);
 
-        let bearScore = 0, bullScore = 0;
-        // RSI (waga 1)
-        if (rsi > 70) bearScore += 1;
-        else if (rsi < 30) bullScore += 1;
-        if (rsi > 50) bullScore += 1; else bearScore += 1;
-        // Stochastic RSI (waga 1)
-        if (stochRsi.k > 80) bearScore += 1;
-        else if (stochRsi.k < 20) bullScore += 1;
-        // SMA pozycja (waga 1)
-        if (lastC < sma50) bearScore += 1; else bullScore += 1;
-        if (lastC < sma20) bearScore += 1; else bullScore += 1;
+        // === SCORING Z KATEGORYZACJĄ (transparentny breakdown) ===
+        const cats = { trend: { bull: 0, bear: 0, max: 0 }, momentum: { bull: 0, bear: 0, max: 0 }, volatility: { bull: 0, bear: 0, max: 0 }, sentiment: { bull: 0, bear: 0, max: 0 } };
+
+        // --- TREND (waga ~40%) ---
+        // EMA50/200 Golden/Death Cross (waga 3 — najwazniejszy sygnal instytucjonalny)
+        cats.trend.max += 3;
+        if (ema50 > ema200) cats.trend.bull += 3; else cats.trend.bear += 3;
+        // Cena vs EMA200 (waga 3)
+        cats.trend.max += 3;
+        if (lastC > ema200) cats.trend.bull += 3; else cats.trend.bear += 3;
+        // Cena vs SMA50 (waga 1)
+        cats.trend.max += 1;
+        if (lastC >= sma50) cats.trend.bull += 1; else cats.trend.bear += 1;
+        // Cena vs SMA20 (waga 1)
+        cats.trend.max += 1;
+        if (lastC >= sma20) cats.trend.bull += 1; else cats.trend.bear += 1;
         // SMA50 slope (waga 1)
-        if (sma50Slope < -1.5) bearScore += 1; else if (sma50Slope > 0.5) bullScore += 1;
-        // Momentum (waga 1)
-        if (mom5 < -1) bearScore += 1; else if (mom5 > 1) bullScore += 1;
-        // Dystrybucja (waga 2)
-        if (isDistribution) bearScore += 2;
-        // EMA Crossovers (waga 2)
-        if (ema9 > ema21) bullScore += 2; else bearScore += 2;
-        if (ema50 > ema200) bullScore += 2; else bearScore += 2;
-        // MACD (waga 2)
-        if (macdData.macd > macdData.signal) bullScore += 2; else bearScore += 2;
-        if (macdData.histogram > 0) bullScore += 1; else bearScore += 1;
+        cats.trend.max += 1;
+        if (sma50Slope > 0.5) cats.trend.bull += 1; else if (sma50Slope < -1.5) cats.trend.bear += 1;
+        // ADX direction (waga 2 — tylko jesli trend silny ADX>25)
+        cats.trend.max += 2;
+        if (adxData.adx >= 25) { if (adxData.plusDI > adxData.minusDI) cats.trend.bull += 2; else cats.trend.bear += 2; }
+
+        // --- MOMENTUM (waga ~30%) ---
+        // EMA9/21 crossover (waga 1 — krotkoterminowy)
+        cats.momentum.max += 1;
+        if (ema9 > ema21) cats.momentum.bull += 1; else cats.momentum.bear += 1;
+        // MACD vs Signal (waga 2)
+        cats.momentum.max += 2;
+        if (macdData.macd > macdData.signal) cats.momentum.bull += 2; else cats.momentum.bear += 2;
+        // MACD histogram sign (waga 1)
+        cats.momentum.max += 1;
+        if (macdData.histogram > 0) cats.momentum.bull += 1; else cats.momentum.bear += 1;
+        // RSI direction (waga 1)
+        cats.momentum.max += 1;
+        if (rsi > 50) cats.momentum.bull += 1; else cats.momentum.bear += 1;
+        // Momentum 5d (waga 1)
+        cats.momentum.max += 1;
+        if (mom5 > 1) cats.momentum.bull += 1; else if (mom5 < -1) cats.momentum.bear += 1;
+
+        // --- VOLATILITY (waga ~20%) ---
+        // ATR% normalization — core volatility signal (waga 2)
+        const atrPctVal = lastC > 0 ? (atrData / lastC) * 100 : 0;
+        cats.volatility.max += 2;
+        if (atrPctVal < 1.5) cats.volatility.bull += 2;       // niska zmienność → korzystne dla trendów
+        else if (atrPctVal < 2.5) cats.volatility.bull += 1;  // umiarkowana
+        else if (atrPctVal > 4.0) cats.volatility.bear += 2;  // ekstremalna zmienność → ryzyko
+        else if (atrPctVal > 3.0) cats.volatility.bear += 1;  // podwyższona
+        // RSI overbought/oversold (waga 1)
+        cats.volatility.max += 1;
+        if (rsi > 70) cats.volatility.bear += 1; else if (rsi < 30) cats.volatility.bull += 1;
+        // Stochastic RSI (waga 1)
+        cats.volatility.max += 1;
+        if (stochRsi.k > 80) cats.volatility.bear += 1; else if (stochRsi.k < 20) cats.volatility.bull += 1;
         // Bollinger Bands (waga 1)
-        if (bbData.percentB > 80) bearScore += 1;
-        else if (bbData.percentB < 20) bullScore += 1;
-        // ADX direction (waga 2 — tylko jeśli trend jest silny ADX>25)
-        if (adxData.adx >= 25) {
-            if (adxData.plusDI > adxData.minusDI) bullScore += 2; else bearScore += 2;
+        cats.volatility.max += 1;
+        if (bbData.percentB > 80) cats.volatility.bear += 1; else if (bbData.percentB < 20) cats.volatility.bull += 1;
+        // Dystrybucja (waga 2)
+        cats.volatility.max += 2;
+        if (isDistribution) cats.volatility.bear += 2;
+
+        // --- SENTIMENT (waga ~10%) ---
+        cats.sentiment.max += 2;
+        if (sentBullPct > 60) cats.sentiment.bull += 2;
+        else if (sentBearPct > 60) cats.sentiment.bear += 2;
+        else if (sentBullPct > sentBearPct) cats.sentiment.bull += 1;
+        else if (sentBearPct > sentBullPct) cats.sentiment.bear += 1;
+
+        // Sumowanie
+        let bullScore = cats.trend.bull + cats.momentum.bull + cats.volatility.bull + cats.sentiment.bull;
+        let bearScore = cats.trend.bear + cats.momentum.bear + cats.volatility.bear + cats.sentiment.bear;
+
+        // Scoring per category (0-100)
+        const catScore = (c) => c.max === 0 ? 50 : (c.bull === 0 && c.bear === 0) ? 50 : Math.round(c.bull / (c.bull + c.bear) * 100);
+
+        // Category weights (how much each contributes to final composite)
+        const CATEGORY_WEIGHTS = { trend: 0.40, momentum: 0.30, volatility: 0.20, sentiment: 0.10 };
+        const weightedScores = {
+            trend: catScore(cats.trend) * CATEGORY_WEIGHTS.trend,
+            momentum: catScore(cats.momentum) * CATEGORY_WEIGHTS.momentum,
+            volatility: catScore(cats.volatility) * CATEGORY_WEIGHTS.volatility,
+            sentiment: catScore(cats.sentiment) * CATEGORY_WEIGHTS.sentiment,
+        };
+        const weightedTotal = weightedScores.trend + weightedScores.momentum + weightedScores.volatility + weightedScores.sentiment;
+
+        const scoringBreakdown = {
+            trend: catScore(cats.trend),
+            momentum: catScore(cats.momentum),
+            volatility: catScore(cats.volatility),
+            sentiment: catScore(cats.sentiment),
+            // Weight contributions (how much each category adds to the final score)
+            weights: CATEGORY_WEIGHTS,
+            weighted_scores: {
+                trend: Math.round(weightedScores.trend),
+                momentum: Math.round(weightedScores.momentum),
+                volatility: Math.round(weightedScores.volatility),
+                sentiment: Math.round(weightedScores.sentiment),
+            },
+            weighted_total: Math.round(weightedTotal),
+        };
+
+        // === SETUP TYPE DETECTION ===
+        const isBullTrend = ema50 > ema200 && lastC > ema200;
+        const isBearTrend = ema50 < ema200 && lastC < ema200;
+        const isBBSqueeze = bbData.bandwidth < 5;
+        const isBullMomentum = macdData.macd > macdData.signal && ema9 > ema21;
+        const isBearMomentum = macdData.macd < macdData.signal && ema9 < ema21;
+
+        let setupType = 'TREND';
+        let setupWarning = null;
+        if (isBBSqueeze && adxData.adx < 20) {
+            setupType = 'RANGE';
+            setupWarning = 'Konsolidacja — brak wyraznego trendu, czekaj na wybicie z Bollinger Squeeze.';
+        } else if (isBullTrend && isBullMomentum) {
+            setupType = 'TREND';
+        } else if (isBearTrend && isBearMomentum) {
+            setupType = 'TREND';
+        } else if (isBearTrend && isBullMomentum) {
+            setupType = 'REVERSAL';
+            setupWarning = 'UWAGA: Kontr-trendowe zagranie (Death Cross aktywny). Podwyzszony ryzyko — zmniejsz wielkosc pozycji.';
+        } else if (isBullTrend && isBearMomentum) {
+            setupType = 'PULLBACK';
+            setupWarning = 'Pullback w trendzie wzrostowym. Szukaj wsparcia na EMA50/EMA200 przed wejsciem.';
+        } else if (isBBSqueeze) {
+            setupType = 'BREAKOUT';
+            setupWarning = 'Bollinger Squeeze — oczekuj silnego ruchu. Ustaw stopy ciasnio.';
         }
-        // Cena vs EMA200 (waga 2 — kluczowy filtr instytucjonalny)
-        if (lastC > ema200) bullScore += 2; else bearScore += 2;
 
         const signalBias = bearScore > bullScore
             ? `NIEDŹWIEDZI (${bearScore} pkt SHORT vs ${bullScore} pkt LONG)`
@@ -546,6 +724,20 @@ app.post('/api/analyze', async (req, res) => {
         const suggestedConfidence = (compositeScore >= 68 || compositeScore <= 32) ? 'WYSOKA' : (compositeScore >= 58 || compositeScore <= 42) ? 'SREDNIA' : 'NISKA';
         const currentDate = new Date().toISOString().split('T')[0];
 
+        // === PRE-COMPUTE ALGORITHMIC R:R (wstrzykiwany do promptu) ===
+        // Algorytmiczne entry/SL/TP zanim AI cokolwiek wygeneruje
+        const algoEntry = lastC;
+        const algoSL = parseFloat(atrSL);
+        const algoTP_fib = parseFloat(fib.fib_618); // Fibonacci 61.8% jako konserwatywny target
+        const algoTP_pivot = pivots?.R1 ?? null;
+        const algoTP = dataRecommendation === 'LONG'
+            ? Math.max(algoTP_fib || lastC, algoTP_pivot || lastC, lastC * 1.05)
+            : Math.min(algoTP_fib || lastC, algoTP_pivot || lastC, lastC * 0.95);
+        const algoRisk = Math.abs(algoEntry - algoSL);
+        const algoReward = Math.abs(algoTP - algoEntry);
+        const preComputedRR = algoRisk > 0 ? +(algoReward / algoRisk).toFixed(2) : null;
+        const rrQualityLabel = preComputedRR >= 3.0 ? 'WYBITNY' : preComputedRR >= 2.0 ? 'ATRAKCYJNY' : preComputedRR >= 1.5 ? 'KORZYSTNY' : preComputedRR >= 1.0 ? 'AKCEPTOWALNY' : 'NIEKORZYSTNY';
+
         const promptFull = `Jestes obiektywnym, precyzyjnym analitykiem quant. Analizujesz spolke ${symbol} dla okresu ${timeframe}. DZISIEJSZA DATA: ${currentDate}.
 NIE zmyslaj danych. Uzywaj wylacznie dostarczonych wartosci. Jezyk odpowiedzi: POLSKI.
 
@@ -641,6 +833,30 @@ ZASADY DECYZYJNE:
 - NEUTRAL: TYLKO gdy sygnaly sa dokladnie 50/50 LUB BB Squeeze (bandwidth<5%) przy braku trendu
 - ATR rosnacy = wieksze ryzyko, SL = 2xATR, TP = 3xATR
 
+[ANALIZA FUNDAMENTALNA]
+${fundamentals.company_name} | Sektor: ${fundamentals.sector || 'N/A'} | MCap: ${fundamentals.market_cap ? '$' + (fundamentals.market_cap / 1000).toFixed(1) + 'B' : 'N/A'}
+Wycena: P/E TTM=${fundamentals.pe_ttm?.toFixed(1) ?? 'N/A'} | P/E Fwd=${fundamentals.pe_forward?.toFixed(1) ?? 'N/A'} | PEG=${fundamentals.peg ?? 'N/A'} | P/B=${fundamentals.pb?.toFixed(2) ?? 'N/A'} | P/S=${fundamentals.ps_ttm?.toFixed(2) ?? 'N/A'} | EV/EBITDA=${fundamentals.ev_ebitda?.toFixed(1) ?? 'N/A'}
+Rentownosc: ROE=${fundamentals.roe_ttm?.toFixed(1) ?? 'N/A'}% | ROA=${fundamentals.roa_ttm?.toFixed(1) ?? 'N/A'}% | Marza netto=${fundamentals.net_margin?.toFixed(1) ?? 'N/A'}% | Marza brutto=${fundamentals.gross_margin?.toFixed(1) ?? 'N/A'}% | Marza oper.=${fundamentals.operating_margin?.toFixed(1) ?? 'N/A'}%
+Wzrost: EPS 3Y=${fundamentals.eps_growth_3y?.toFixed(1) ?? 'N/A'}% | EPS 5Y=${fundamentals.eps_growth_5y?.toFixed(1) ?? 'N/A'}% | Revenue 3Y=${fundamentals.revenue_growth_3y?.toFixed(1) ?? 'N/A'}%
+Zdrowie: Current Ratio=${fundamentals.current_ratio?.toFixed(2) ?? 'N/A'} | D/E=${fundamentals.debt_equity?.toFixed(2) ?? 'N/A'} | FCF/sh=${fundamentals.fcf_per_share?.toFixed(2) ?? 'N/A'}
+Rynek: Beta=${fundamentals.beta?.toFixed(2) ?? 'N/A'} | Div Yield=${fundamentals.dividend_yield?.toFixed(2) ?? 'N/A'}%
+${Object.keys(relativeStrength).length > 0 ? `\n[SILA RELATYWNA vs S&P 500]\n${Object.entries(relativeStrength).map(([k, v]) => `${k}: ${symbol}=${v.stock}% | SPY=${v.spy}% | Alpha=${v.alpha > 0 ? '+' : ''}${v.alpha}%`).join(' | ')}` : ''}
+
+ZASADY ANALIZY FUNDAMENTALNEJ:
+- Jesli P/E > 40 i PEG > 2 — OSTRZEZ o przewartosciowaniu w bear_case
+- Jesli P/E < 15 i ROE > 15% — podkresl value play w bull_case
+- Jesli D/E > 2 — ostrzez o wysokim zadluzeniu
+- W summary Akapit 2 MUSISZ uwzglednic dane fundamentalne (wycene, rentownosc, wzrost)
+
+=== ZASADY BEAR CASE DLA EKSTREMALNEGO MOMENTUM ===
+Zmiana 1Y: ${relativeStrength['1y']?.stock ?? 'N/A'}%
+${(relativeStrength['1y']?.stock ?? 0) > 150 ? `UWAGA KRYTYCZNA: Spolka wzrosla >${Math.round(relativeStrength['1y']?.stock)}% w ciagu roku! Bear case MUSI byc AGRESYWNY:
+- MUSISZ napisac: "Po wzroscie ${Math.round(relativeStrength['1y']?.stock)}% ryzyko korekty 25-35% jest statystycznie wysokie"
+- Wymien konkretne poziomy wsparcia, do ktorych moze dojsc korekta (EMA50, EMA200, Fibonacci 38.2%/50%)
+- Jesli RSI > 60 — ostrzez o overbought w kontekscie parabolicznego wzrostu
+- Jesli P/E > 40 — dodaj "wycena ekstremalnie rozciagnieta vs historyczne srednie sektora"
+- Bear case musi miec MINIMUM 5 punktow (nie 4) dla tak ekstremalnych spolek` : (relativeStrength['1y']?.stock ?? 0) > 100 ? `OSTRZEZENIE: Spolka wzrosla >${Math.round(relativeStrength['1y']?.stock)}% w 1Y. Bear case musi zawierac punkt o ryzyku korekty 20-30% i konkretne poziomy wsparcia.` : 'Brak ekstremalnego momentum — standardowe zasady bear case.'}
+
 [WYNIKI KWARTALNE (Finnhub)]
 ${earningsCtx}
 
@@ -655,17 +871,38 @@ INSTRUKCJE DOTYCZACE TRESCI (format jest wymuszony przez system — pisz tylko t
 bull_case: minimum 3 punkty. Kazdy punkt musi zawierac KONKRETNE wartosci wskaznikow, np. "EMA50=$258.92 > EMA200=$251.81 — Golden Cross aktywny", "MACD histogram dodatni: +1.56 — momentum rosnie".
 
 bear_case: minimum 4 punkty. Kazdy z konkretnymi danymi. Nie generalizuj. Np. "ADX=15 — trend zbyt slaby by utrzymac wzrost", "Cena 6.9% ponizej 52W High ($286.19) — opor blisko".
+${(setupType === 'REVERSAL' || (ema50 < ema200)) ? `UWAGA — DEATH CROSS / TREND SPADKOWY AKTYWNY: bear_case MUSI miec MINIMUM 5 punktow i byc AGRESYWNY:
+- Podaj dokladna odleglosc od 52W High w % i $
+- Wymien WSZYSTKIE niedzwiedzie sygnaly: Death Cross, MACD<Signal, cena<EMA200, spadajacy ADX
+- Podaj konkretne cele spadkowe (EMA200, Fibonacci 61.8%, Pivot S1/S2)
+- Ostrzez ze "trend spadkowy ma statystyczna tendencje do kontynuacji do momentu pojawienia sie Golden Cross"
+- NIE LAGODZ tonu — uzytkownik MUSI wiedziec ze to ryzykowna sytuacja` : ''}
 
 summary: Napisz TRZY pelne akapity rozdzielone podwojna nowa linia (\n\n):
   Akapit 1 (TECHNICZNY): Aktualny stan na ${currentDate} — EMA cross, MACD, RSI, pozycja vs 52W High/Low, sila trendu ADX.
   Akapit 2 (KATALIZATORY I FUNDAMENTY): Wymien KONKRETNE nadchodzace wydarzenia ktore moga zmienic cene: najblizszy raport earnings (kiedy, czego sie spodziewac po ostatnim EPS surprise%), konferencje produktowe, zmiany regulacyjne, decyzje Fed, geopolityka — wszystko co jest widoczne w newsach i danych. Dodaj sentyment newsow (${quantStats.sent_bull_pct}% pozytywnych). Jesli nie ma bliskiego triggera — napisz to wprost i podaj co jest nastepnym kluczowym wydarzeniem w kalendarzu.
-  Akapit 3 (REKOMENDACJA): Konkretne entry/SL/TP w dolarach, R:R, poziom przekonania, kluczowe ryzyko. ZAKAZ wymieniania slow "bullScore", "bearScore", "Bias Score" ani zadnych wewnetrznych zmiennych systemowych — pisz tylko o wskaznikach technicznych i danych rynkowych.
+  Akapit 3 (REKOMENDACJA): Konkretne entry/SL/TP w dolarach, poziom przekonania, kluczowe ryzyko. NIE PODAWAJ R:R w tekscie — jest obliczany automatycznie i wyswietlany w widgecie. ZAKAZ wymieniania slow "bullScore", "bearScore", "Bias Score", "R:R", "stosunek ryzyka do zysku" ani zadnych wewnetrznych zmiennych systemowych — pisz tylko o wskaznikach technicznych, fundamentach i danych rynkowych.
 
 quant_analysis.recommendation: MUSI byc "${dataRecommendation}" — nie zmieniaj!
 quant_analysis.probability_long + probability_short musi sumowac sie do DOKLADNIE 100%.
-quant_analysis.entry_target: konkretna cena w dolarach lub "NIE WCHODZ" z uzasadnieniem.
-quant_analysis.stop_loss: konkretna cena w dolarach (ATR-based, referencja: ${quantStats.atr_stop_loss}).
+quant_analysis.entry_target: konkretna cena w dolarach (np. "$273.05") lub "NIE WCHODZ" z uzasadnieniem.
+quant_analysis.stop_loss: konkretna cena w dolarach (ATR-based, referencja: ${quantStats.atr_stop_loss}). Format: "$XXX.XX".
+quant_analysis.take_profit: konkretna cena docelowa w dolarach (np. "$285.26"). Musi byc oparta na oporze technicznym (Fibonacci, Pivot R1/R2, 52W High). Format: "$XXX.XX". NIGDY nie podawaj tekstu — TYLKO cena.
 quant_analysis.confidence_level: "${suggestedConfidence}" (WYSOKA/SREDNIA/NISKA — na podstawie wyrownania sygnalow).
+
+=== TWARDA ZASADA R:R (WYLICZONA PRZEZ SYSTEM — POSTEPUJ SCISLE WG WYNIKU) ===
+System PRE-OBLICZYL stosunek zysku do ryzyka: R:R = 1:${preComputedRR ?? 'N/A'} — ocena: ${rrQualityLabel}.
+NIE LICZYSZ R:R SAMODZIELNIE. Postepujesz wg GOTOWEJ oceny:
+${preComputedRR != null && preComputedRR < 1.0 ? `OCENA SYSTEMU: NIEKORZYSTNY (R:R < 1.0). MUSISZ napisac w Akapicie 3: "Biezacy setup nie oferuje optymalnych parametrow wejscia. Rekomendujemy czekanie na glębszą korektę w okolice [podaj konkretny poziom wsparcia np. EMA50, Fibonacci 38.2%] w celu poprawy warunków." ZAKAZ nazywania setupu korzystnym, optymalnym lub zachecania do wejscia.`
+: preComputedRR != null && preComputedRR < 1.5 ? `OCENA SYSTEMU: AKCEPTOWALNY (R:R ${preComputedRR}). Napisz ze setup jest akceptowalny ale NIE idealny. Warto czekac na lepszy punkt wejscia. NIE uzywaj slow "optymalny", "idealny", "korzystny".`
+: preComputedRR != null && preComputedRR < 2.0 ? `OCENA SYSTEMU: KORZYSTNY (R:R ${preComputedRR}). Setup jest SOLIDNY i KORZYSTNY. Mozesz go nazwac "solidnym" lub "korzystnym". ABSOLUTNY ZAKAZ pisania ze jest niekorzystny! To DOBRY setup.`
+: preComputedRR != null && preComputedRR < 3.0 ? `OCENA SYSTEMU: ATRAKCYJNY (R:R ${preComputedRR}). Setup jest ATRAKCYJNY. Podkresl ze warunki wejscia sa bardzo korzystne.`
+: `OCENA SYSTEMU: WYBITNY (R:R ${preComputedRR ?? 'N/A'}). Podkresl doskonale parametry setupu.`}
+WAZNE: NIGDY nie podawaj wartosci R:R ani slow "stosunek zysku do ryzyka" w tekscie — jest obliczany automatycznie i wyswietlany w widgecie. Skup sie na ocenie jakosci setupu bez podawania liczb R:R.
+
+=== TYP SETUPU (algorytmiczny) ===
+Typ: ${setupType}${setupWarning ? '\nOSTRZEZENIE: ' + setupWarning : ''}
+Jesli REVERSAL — w summary MUSISZ ostrzec ze to zagranie kontrtrendowe. Jesli RANGE — napisz ze brak trendu, lepiej czekac. Jesli PULLBACK — szukaj entry blizej wsparcia.
 
 global_data.current_status: biezaca sytuacja rynkowa, pozycja wzgledem 52W High/Low i makro.
 global_data.future_outlook: scenariusz bazowy na najblizszy miesiac, uwzgledniaj daty earnings.
@@ -677,7 +914,7 @@ global_data.final_direction: TWARDY WERDYKT: kierunek + sila przekonania (wysoka
 radar.scenarios: dwa scenariusze — Bear i Bull — z konkretnymi triggerami i targetami cenowymi.
 sentiment_score: liczba ${Math.max(0, compositeScore - 10)}-${Math.min(100, compositeScore + 10)} — MUSI odzwierciedlac consensus algorytmu (${compositeScore}/100). ZAKAZ ustawiania na 50 domyslnie!`;
         // --- GENERACJA AI (Structured Output — dane tylko z API) ---
-        console.log(`[AI] ${symbol} ${timeframe} | bulls=${bullScore} bears=${bearScore} | news=${filteredNews.length}`);
+        console.log(`[AI] ${symbol} ${timeframe} | bulls=${bullScore} bears=${bearScore} | news=${filteredNews.length} | preRR=${preComputedRR} (${rrQualityLabel}) | volatility_score=${scoringBreakdown.volatility}`);
         const aiStart = Date.now();
 
         const AI_MODELS = [
@@ -704,6 +941,59 @@ sentiment_score: liczba ${Math.max(0, compositeScore - 10)}-${Math.min(100, comp
             }
         }
 
+        // === COMPUTED R:R (server-side, nie AI) ===
+        const parsePrice = (s) => { const m = String(s || '').match(/[\d]+\.?\d*/); return m ? parseFloat(m[0]) : null; };
+        const aiEntry = parsePrice(parsedAnalysis.quant_analysis?.entry_target);
+        const aiSL    = parsePrice(parsedAnalysis.quant_analysis?.stop_loss);
+        const aiTP    = parsePrice(parsedAnalysis.quant_analysis?.take_profit);
+        let computedRR = null;
+        if (aiEntry && aiSL && aiTP && aiEntry !== aiSL) {
+            const risk   = Math.abs(aiEntry - aiSL);
+            const reward = Math.abs(aiTP - aiEntry);
+            computedRR = risk > 0 ? +(reward / risk).toFixed(2) : null;
+        }
+        parsedAnalysis.computed_rr = computedRR;
+        parsedAnalysis.setup_type = setupType;
+        parsedAnalysis.setup_warning = setupWarning;
+
+        // === HARD SAFETY RULE: R:R < 1.5 → degrade confidence, inject warning ===
+        if (computedRR != null && computedRR < 1.5) {
+            parsedAnalysis.rr_warning = computedRR < 1.0
+                ? `R:R wynosi zaledwie 1:${computedRR.toFixed(1)} — ujemna wartość oczekiwana. NIE WCHODZIĆ po bieżącej cenie. Czekaj na głębszą korektę w celu poprawy parametru zysku do ryzyka (min. 1:2).`
+                : `R:R wynosi 1:${computedRR.toFixed(1)} — poniżej optymalnego progu 1:1.5. Rozważ czekanie na lepszy punkt wejścia lub zawężenie Stop Loss.`;
+            // Force confidence down if AI set it too high
+            if (parsedAnalysis.quant_analysis?.confidence_level === 'WYSOKA' && computedRR < 1.0) {
+                parsedAnalysis.quant_analysis.confidence_level = 'NISKA';
+            } else if (parsedAnalysis.quant_analysis?.confidence_level === 'WYSOKA' && computedRR < 1.5) {
+                parsedAnalysis.quant_analysis.confidence_level = 'SREDNIA';
+            }
+        }
+
+        // === POST-PROCESSING: Naprawa sprzecznosci AI tekstu z R:R ===
+        if (computedRR != null && parsedAnalysis.summary) {
+            const summaryLower = parsedAnalysis.summary.toLowerCase();
+            const saysNegative = summaryLower.includes('niekorzystny') || summaryLower.includes('nie oferuje optymalnych') || summaryLower.includes('czekanie na') || summaryLower.includes('nie wchodzi');
+            const saysPositive = summaryLower.includes('korzystny') || summaryLower.includes('solidny') || summaryLower.includes('optymaln') || summaryLower.includes('atrakcyjn');
+
+            // Gdy R:R >= 1.5 ale AI pisze że niekorzystny — fix
+            if (computedRR >= 1.5 && saysNegative && !saysPositive) {
+                console.log(`[POST-PROCESS] R:R=${computedRR} ale AI napisalo negatywnie — naprawiam summary`);
+                parsedAnalysis.summary = parsedAnalysis.summary
+                    .replace(/niekorzystny stosunek/gi, 'korzystne parametry')
+                    .replace(/nie oferuje optymalnych parametr[oó]w/gi, 'oferuje solidne parametry')
+                    .replace(/rekomendujemy czekanie na g[łl][eę]bsz[aą] korekt[eę]/gi, 'warunki wejścia są solidne');
+            }
+            // Gdy R:R < 1.0 ale AI pisze że korzystny — fix
+            if (computedRR < 1.0 && saysPositive && !saysNegative) {
+                console.log(`[POST-PROCESS] R:R=${computedRR} ale AI napisalo pozytywnie — naprawiam summary`);
+                parsedAnalysis.summary = parsedAnalysis.summary
+                    .replace(/korzystn[yeia]/gi, 'wymagający ostrożności')
+                    .replace(/solidn[yeia]/gi, 'ograniczony')
+                    .replace(/atrakcyjn[yeia]/gi, 'ryzykowny')
+                    .replace(/optymaln[yeia]/gi, 'suboptymalne');
+            }
+        }
+
         // Anomalie generowane z newsow zebranych przez system (nie AI)
         parsedAnalysis.anomalies = [];
         const allNewsDates = [...new Set(filteredNews.map(n => new Date(n.datetime * 1000).toISOString().split('T')[0]))];
@@ -726,24 +1016,30 @@ sentiment_score: liczba ${Math.max(0, compositeScore - 10)}-${Math.min(100, comp
 
         // Trend Alignment Matrix — obliczane raz na backendzie, frontend tylko renderuje
         const MATRIX_FRAMES = [
-            { label: '1W', days: 7 }, { label: '1M', days: 30 },
+            { label: '1W', days: 10 }, { label: '1M', days: 30 },
             { label: '3M', days: 90 }, { label: '6M', days: 180 }, { label: '1Y', days: 365 },
         ];
         const trend_matrix = MATRIX_FRAMES.map(({ label, days }) => {
             const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
             const slice = allHistory.filter(h => new Date(h.t) >= cutoff);
-            if (slice.length < 5) return { label, pct: null, emaSignal: 'N/A', macdSignal: 'N/A', rsiSignal: 'N/A' };
+            if (slice.length < 3) return { label, pct: null, emaSignal: 'N/A', macdSignal: 'N/A', rsiSignal: 'N/A', priceVsEma: 'N/A' };
             const pct = ((slice[slice.length - 1].c - slice[0].c) / slice[0].c) * 100;
             const ema9s  = calculateEMASeries(slice, Math.min(9,  slice.length));
             const ema21s = calculateEMASeries(slice, Math.min(21, slice.length));
             const last9  = ema9s[ema9s.length - 1], last21 = ema21s[ema21s.length - 1];
             const emaSignal = (last9 && last21) ? (last9 > last21 ? 'BULL' : 'BEAR') : 'N/A';
-            const { macdSeries, signalSeries } = calculateMACD(slice);
-            const lm = macdSeries[macdSeries.length - 1], ls = signalSeries[signalSeries.length - 1];
+            // Use enough history for MACD calc (need 35+ bars), then look at current values
+            const macdLookback = allHistory.filter(h => new Date(h.t) >= new Date(cutoff.getTime() - 120 * 86400000));
+            const macdResult = macdLookback.length >= 35 ? calculateMACD(macdLookback) : calculateMACD(allHistory);
+            const lm = macdResult.macdSeries?.[macdResult.macdSeries.length - 1];
+            const ls = macdResult.signalSeries?.[macdResult.signalSeries.length - 1];
             const macdSignal = (lm != null && ls != null) ? (lm > ls ? 'BULL' : 'BEAR') : 'N/A';
-            const rsi = calculateRSI(slice.slice(-15));
-            const rsiSignal = rsi > 70 ? 'OVERBOUGHT' : rsi < 30 ? 'OVERSOLD' : 'NEUTRAL';
-            return { label, pct: +pct.toFixed(1), emaSignal, macdSignal, rsiSignal };
+            const sliceRsi = calculateRSI(slice.slice(-Math.max(15, Math.min(slice.length, 30))));
+            const rsiSignal = sliceRsi > 65 ? 'OVERBOUGHT' : sliceRsi < 35 ? 'OVERSOLD' : sliceRsi > 55 ? 'BULL' : sliceRsi < 45 ? 'BEAR' : 'NEUTRAL';
+            const sliceLastC = slice[slice.length - 1].c;
+            const sliceEma200 = slice.length >= 200 ? calculateEMA(slice, 200) : calculateEMA(allHistory, 200);
+            const priceVsEma = sliceLastC > sliceEma200 ? 'BULL' : 'BEAR';
+            return { label, pct: +pct.toFixed(1), emaSignal, macdSignal, rsiSignal, priceVsEma };
         });
 
         const chart_series = {
@@ -768,7 +1064,16 @@ sentiment_score: liczba ${Math.max(0, compositeScore - 10)}-${Math.min(100, comp
             chart_series,
             ticker: symbol,
             timeframe,
-            volatile_days: pctChanges.slice(0, 40).map(v => ({ date: v.date, pct: v.pct }))
+            volatile_days: pctChanges.slice(0, 40).map(v => ({ date: v.date, pct: v.pct })),
+            composite_score: compositeScore,
+            scoring_breakdown: scoringBreakdown,
+            bull_score: bullScore,
+            bear_score: bearScore,
+            setup_type: setupType,
+            setup_warning: setupWarning,
+            fundamentals,
+            relative_strength: relativeStrength,
+            generated_at: new Date().toISOString(),
         };
 
         analysisCache.set(cacheKey, { timestamp: Date.now(), data: responseData });

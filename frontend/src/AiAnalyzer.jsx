@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import {
-  Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Filler, Legend as ChartLegend
+  Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, BarController, Title, Tooltip, Filler, Legend as ChartLegend
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import {
@@ -12,11 +12,12 @@ import LegendModal from './components/Legend.jsx';
 import IndicatorsGrid from './components/IndicatorsGrid.jsx';
 import TrendMatrix from './components/TrendMatrix.jsx';
 import Watchlist from './components/Watchlist.jsx';
+import FundamentalsPanel from './components/FundamentalsPanel.jsx';
 import Header from './Header.jsx';
 import Footer from './Footer.jsx';
 import zoomPlugin from 'chartjs-plugin-zoom';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Filler, ChartLegend, zoomPlugin);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, BarController, Title, Tooltip, Filler, ChartLegend, zoomPlugin);
 
 // --- KOMPONENTY POMOCNICZE UI ---
 
@@ -210,7 +211,7 @@ export default function AiAnalyzer() {
     fetchAnalysis(ticker);
   };
 
-  const getFilteredHistory = () => {
+  const filteredHistory = useMemo(() => {
     if (!data?.history) return [];
     let days = 365;
     if (timeframe === '1D') days = 2;
@@ -223,11 +224,11 @@ export default function AiAnalyzer() {
     const limitDate = new Date();
     limitDate.setDate(limitDate.getDate() - days);
     return data.history.filter(h => new Date(h.t).getTime() >= limitDate.getTime());
-  };
+  }, [data, timeframe]);
 
-  const getChartData = () => {
-    const historySlice = getFilteredHistory();
-    if (!historySlice.length) return null;
+  const chartData = useMemo(() => {
+    if (!filteredHistory.length) return null;
+    const historySlice = filteredHistory;
 
     const anomalyDates = new Set(data.analysis?.anomalies?.map(a => a.date) || []);
     // volatile_days = top 40 dni z największym ruchem cenowym (z backendu, pure matematyka)
@@ -291,29 +292,7 @@ export default function AiAnalyzer() {
         ] : [])
       ]
     };
-  };
-
-  const getMACDChartData = () => {
-    const historySlice = getFilteredHistory();
-    if (historySlice.length < 30 || !data?.chart_series?.macd) return null;
-    const startIdx = data.history.findIndex(h => h.t === historySlice[0].t);
-    const sliceArr = (arr) => arr ? arr.slice(startIdx, startIdx + historySlice.length) : [];
-    const labels = historySlice.map(h => new Date(h.t).toLocaleDateString());
-    const macd = sliceArr(data.chart_series.macd);
-    const signalLine = sliceArr(data.chart_series.macd_signal);
-    const histogram = sliceArr(data.chart_series.macd_hist);
-    const histPos = histogram.map(v => (v !== null && v > 0) ? v : null);
-    const histNeg = histogram.map(v => (v !== null && v < 0) ? v : null);
-    return {
-      labels,
-      datasets: [
-        { label: '+Hist', data: histPos, borderColor: 'rgba(16,185,129,0.4)', backgroundColor: 'rgba(16,185,129,0.35)', borderWidth: 0, fill: 'origin', tension: 0.1, pointRadius: 0 },
-        { label: '-Hist', data: histNeg, borderColor: 'rgba(239,68,68,0.4)', backgroundColor: 'rgba(239,68,68,0.35)', borderWidth: 0, fill: 'origin', tension: 0.1, pointRadius: 0 },
-        { label: 'MACD', data: macd, borderColor: 'rgba(0,229,255,0.9)', borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: false },
-        { label: 'Signal', data: signalLine, borderColor: 'rgba(255,165,0,0.9)', borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: false }
-      ]
-    };
-  };
+  }, [filteredHistory, data, showEMA, showBB]);
 
   const chartOptions = {
     responsive: true,
@@ -322,7 +301,7 @@ export default function AiAnalyzer() {
     onClick: (event, elements) => {
       if (elements && elements.length > 0) {
         const idx = elements[0].index;
-        const h = getFilteredHistory()[idx];
+        const h = filteredHistory[idx];
         const dStr = new Date(h.t).toISOString().split('T')[0];
         expandDay(dStr); // Zawsze otwieraj dzień, niezależnie czy to anomalia
       }
@@ -348,7 +327,7 @@ export default function AiAnalyzer() {
         callbacks: {
           afterBody: (context) => {
             const idx = context[0].dataIndex;
-            const h = getFilteredHistory()[idx];
+            const h = filteredHistory[idx];
             const dStr = new Date(h.t).toISOString().split('T')[0];
             const anom = data.analysis?.anomalies?.find(a => a.date === dStr);
             const vol = (data.volatile_days || []).find(v => v.date === dStr);
@@ -459,7 +438,7 @@ export default function AiAnalyzer() {
                   <h2 className="asset-title">{data.ticker}</h2>
                   <div className="asset-price-row">
                     {(() => {
-                      const filtered = getFilteredHistory();
+                      const filtered = filteredHistory;
                       const first = filtered[0];
                       const last = filtered[filtered.length - 1];
                       if (!first || !last) return null;
@@ -494,11 +473,11 @@ export default function AiAnalyzer() {
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '8px', marginTop: '-4px' }}>
                 <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>OVERLAY:</span>
                 <button onClick={() => setShowEMA(p => !p)} className={`tf-btn ${showEMA ? 'active' : ''}`} style={{ fontSize: '0.7rem', padding: '3px 10px', opacity: showEMA ? 1 : 0.55 }}>EMA 50/200</button>
-                <button onClick={() => setShowMACD(p => !p)} className="tf-btn" style={{ fontSize: '0.7rem', padding: '3px 10px', opacity: showMACD ? 1 : 0.5 }}>MACD</button>
+                <button onClick={() => setShowMACD(p => !p)} className="tf-btn" style={{ fontSize: '0.7rem', padding: '3px 10px', opacity: showMACD ? 1 : 0.5 }}>Volume</button>
                 <button onClick={() => setShowBB(p => !p)} className={`tf-btn ${showBB ? 'active' : ''}`} style={{ fontSize: '0.7rem', padding: '3px 10px', opacity: showBB ? 1 : 0.55 }}>Bollinger Bands</button>
               </div>
               <GlassCard className="chart-container">
-                {(() => { const cd = getChartData(); return cd ? <Line data={cd} options={chartOptions} /> : null; })()}
+                {chartData ? <Line data={chartData} options={chartOptions} /> : null}
               </GlassCard>
 
               {data.quant_stats && (
@@ -506,25 +485,38 @@ export default function AiAnalyzer() {
               )}
 
               {showMACD && (() => {
-                const macdData = getMACDChartData();
-                if (!macdData) return null;
-                const macdArr = macdData.datasets[2]?.data || [];
-                const sigArr  = macdData.datasets[3]?.data || [];
-                const lastMacd = [...macdArr].reverse().find(v => v != null);
-                const lastSig  = [...sigArr].reverse().find(v => v != null);
-                const isBull = lastMacd != null && lastSig != null && lastMacd > lastSig;
+                if (!filteredHistory.length) return null;
+                const labels = filteredHistory.map(h => new Date(h.t).toLocaleDateString());
+                const volumes = filteredHistory.map(h => h.v || 0);
+                const volColors = filteredHistory.map((h, i) => {
+                  if (i === 0) return 'rgba(100,116,139,0.5)';
+                  return h.c >= filteredHistory[i - 1].c ? 'rgba(16,185,129,0.55)' : 'rgba(239,68,68,0.55)';
+                });
+                const avg20 = volumes.length >= 20
+                  ? volumes.map((_, i) => i >= 19 ? volumes.slice(i - 19, i + 1).reduce((s, v) => s + v, 0) / 20 : null)
+                  : volumes.map(() => null);
+                const lastVol = volumes[volumes.length - 1];
+                const lastAvg = avg20.filter(v => v != null).pop();
+                const volRatio = lastAvg ? (lastVol / lastAvg).toFixed(2) : null;
+                const volData = {
+                  labels,
+                  datasets: [
+                    { type: 'bar', label: 'Volume', data: volumes, backgroundColor: volColors, borderWidth: 0, borderRadius: 1, barPercentage: 0.85 },
+                    { type: 'line', label: 'Avg 20d', data: avg20, borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false }
+                  ]
+                };
                 return (
                   <GlassCard style={{ marginTop: '1rem', marginBottom: '1.5rem', padding: '1rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff', letterSpacing: '0.08em' }}>MACD (12 / 26 / 9)</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff', letterSpacing: '0.08em' }}>WOLUMEN</span>
                       <div style={{ display: 'flex', gap: '16px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                        <span>MACD: <strong style={{ color: 'rgba(0,229,255,0.9)' }}>{lastMacd?.toFixed(4) ?? '—'}</strong></span>
-                        <span>Signal: <strong style={{ color: 'rgba(255,165,0,0.9)' }}>{lastSig?.toFixed(4) ?? '—'}</strong></span>
-                        <span>Status: <strong style={{ color: isBull ? 'var(--accent-green)' : 'var(--accent-red)' }}>{isBull ? 'POWYŻEJ SYGNAŁU (bullish)' : 'PONIŻEJ SYGNAŁU (bearish)'}</strong></span>
+                        <span>Last: <strong style={{ color: '#fff' }}>{lastVol ? (lastVol / 1e6).toFixed(1) + 'M' : '—'}</strong></span>
+                        <span>Avg 20d: <strong style={{ color: '#f59e0b' }}>{lastAvg ? (lastAvg / 1e6).toFixed(1) + 'M' : '—'}</strong></span>
+                        {volRatio && <span>Ratio: <strong style={{ color: parseFloat(volRatio) > 1.5 ? 'var(--accent-green)' : parseFloat(volRatio) < 0.7 ? 'var(--accent-red)' : '#fff' }}>{volRatio}x</strong></span>}
                       </div>
                     </div>
-                    <div style={{ height: '150px' }}>
-                      <Line data={macdData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, backgroundColor: 'rgba(11,15,25,0.95)', titleFont: { size: 12 }, bodyFont: { size: 11 }, padding: 10 } }, scales: { x: { display: false }, y: { position: 'right', grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }, ticks: { color: '#64748b', font: { size: 10 } }, border: { display: false } } } }} />
+                    <div style={{ height: '120px' }}>
+                      <Line data={volData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, backgroundColor: 'rgba(11,15,25,0.95)', callbacks: { label: ctx => ctx.dataset.type === 'bar' ? `Vol: ${(ctx.raw / 1e6).toFixed(2)}M` : `Avg: ${(ctx.raw / 1e6).toFixed(2)}M` } } }, scales: { x: { display: false }, y: { position: 'right', grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false }, ticks: { color: '#64748b', font: { size: 9 }, callback: v => (v / 1e6).toFixed(0) + 'M' }, border: { display: false } } } }} />
                     </div>
                   </GlassCard>
                 );
@@ -533,16 +525,39 @@ export default function AiAnalyzer() {
               {/* === CONSENSUS BANNER === */}
               {data.analysis?.quant_analysis?.recommendation && (() => {
                 const rec = data.analysis.quant_analysis.recommendation;
-                const score = data.composite_score ?? data.analysis?.sentiment_score ?? 50;
+                const score = data.composite_score ?? 50;
                 const conf = data.analysis.quant_analysis.confidence_level || '';
                 const recColor = rec === 'LONG' ? 'var(--accent-green)' : rec === 'SHORT' ? 'var(--accent-red)' : '#f59e0b';
                 const recBg = rec === 'LONG' ? 'rgba(16,185,129,0.06)' : rec === 'SHORT' ? 'rgba(239,68,68,0.06)' : 'rgba(245,158,11,0.06)';
                 const recBorder = rec === 'LONG' ? 'rgba(16,185,129,0.25)' : rec === 'SHORT' ? 'rgba(239,68,68,0.25)' : 'rgba(245,158,11,0.25)';
                 const recIcon = rec === 'LONG' ? '↑' : rec === 'SHORT' ? '↓' : '→';
                 const scoreBarWidth = Math.max(5, Math.min(100, score));
+                const bd = data.scoring_breakdown || {};
+                const setupColors = { TREND: 'var(--accent-blue)', REVERSAL: 'var(--accent-red)', PULLBACK: '#f59e0b', RANGE: '#94a3b8', BREAKOUT: 'var(--accent-purple)' };
+                const setupCol = setupColors[data.setup_type] || 'var(--text-muted)';
+                const ScoreBar = ({ label, value }) => {
+                  const barCol = value > 60 ? '#00e5a0' : value > 40 ? '#ffb020' : '#ff4d6a';
+                  const glowCol = value > 60 ? 'rgba(0,229,160,0.4)' : value > 40 ? 'rgba(255,176,32,0.4)' : 'rgba(255,77,106,0.4)';
+                  return (
+                    <div style={{ flex: 1, minWidth: '90px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.55)', letterSpacing: '0.06em', fontWeight: 600 }}>{label}</span>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 800, color: barCol }}>{value ?? '—'}</span>
+                      </div>
+                      <div style={{ height: '6px', background: 'rgba(255,255,255,0.12)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: `${value ?? 0}%`, height: '100%', background: barCol, borderRadius: '3px', transition: 'width 0.6s ease', boxShadow: `0 0 8px ${glowCol}` }} />
+                      </div>
+                    </div>
+                  );
+                };
                 return (
                   <div className="consensus-banner" style={{ background: recBg, border: `1px solid ${recBorder}`, borderRadius: '16px', padding: '1.5rem 2rem', marginTop: '2.5rem', marginBottom: '1.5rem', position: 'relative', overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: recColor }} />
+                    {data.generated_at && (
+                      <div style={{ position: 'absolute', top: '8px', right: '12px', fontSize: '0.55rem', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+                        {new Date(data.generated_at).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    )}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -559,6 +574,11 @@ export default function AiAnalyzer() {
                           <div style={{ width: '80px', height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', marginTop: '6px', overflow: 'hidden' }}>
                             <div style={{ width: `${scoreBarWidth}%`, height: '100%', background: recColor, borderRadius: '2px', transition: 'width 0.8s ease' }} />
                           </div>
+                          {data.bull_score != null && data.bear_score != null && (
+                            <div style={{ fontSize: '0.55rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                              <span style={{ color: 'var(--accent-green)' }}>{data.bull_score}</span> vs <span style={{ color: 'var(--accent-red)' }}>{data.bear_score}</span> pkt
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
@@ -567,15 +587,62 @@ export default function AiAnalyzer() {
                           <div style={{ fontSize: '0.9rem', color: conf === 'WYSOKA' ? 'var(--accent-green)' : conf === 'NISKA' ? 'var(--accent-red)' : '#f59e0b', fontWeight: 700 }}>{conf || '—'}</div>
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: '3px' }}>TREND</div>
-                          <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 600 }}>{data.quant_stats?.trend || '—'}</div>
+                          <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: '3px' }}>TYP SETUPU</div>
+                          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: setupCol }}>{data.setup_type || '—'}</div>
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: '3px' }}>SIGNAL BIAS</div>
-                          <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 600 }}>{data.quant_stats?.signal_bias || '—'}</div>
+                          <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: '3px' }}>TREND</div>
+                          <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 600 }}>{data.quant_stats?.trend || '—'}</div>
                         </div>
                       </div>
                     </div>
+                    {data.setup_warning && (
+                      <div style={{ marginTop: '0.8rem', padding: '6px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', fontSize: '0.72rem', color: 'var(--accent-red)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <AlertTriangle size={14} /> {data.setup_warning}
+                      </div>
+                    )}
+                    {Object.keys(bd).length > 0 && (
+                      <div style={{ marginTop: '1rem' }}>
+                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                          <ScoreBar label="TREND" value={bd.trend} />
+                          <ScoreBar label="MOMENTUM" value={bd.momentum} />
+                          <ScoreBar label="VOLATILITY" value={bd.volatility} />
+                          <ScoreBar label="SENTIMENT" value={bd.sentiment} />
+                        </div>
+                        {bd.weighted_scores && (
+                          <div style={{ marginTop: '10px', padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                            <div style={{ fontSize: '0.55rem', color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: '6px', fontWeight: 600 }}>SCORE BREAKDOWN — skąd pochodzi {score}/100</div>
+                            <div style={{ display: 'flex', gap: '0', height: '14px', borderRadius: '7px', overflow: 'hidden' }}>
+                              {[
+                                { key: 'trend', label: 'Trend', color: '#3b82f6' },
+                                { key: 'momentum', label: 'Momentum', color: '#00e5a0' },
+                                { key: 'volatility', label: 'Volatility', color: '#f59e0b' },
+                                { key: 'sentiment', label: 'Sentyment', color: '#a78bfa' },
+                              ].map(({ key, color }) => {
+                                const w = bd.weighted_scores[key] || 0;
+                                const pct = bd.weighted_total > 0 ? (w / bd.weighted_total * 100) : 25;
+                                return <div key={key} style={{ width: `${pct}%`, background: color, minWidth: pct > 0 ? '4px' : 0, transition: 'width 0.6s ease' }} title={`${key}: ${w}pts`} />;
+                              })}
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px', marginTop: '5px', flexWrap: 'wrap' }}>
+                              {[
+                                { key: 'trend', label: 'Trend', color: '#3b82f6', weight: '40%' },
+                                { key: 'momentum', label: 'Momentum', color: '#00e5a0', weight: '30%' },
+                                { key: 'volatility', label: 'Volatility', color: '#f59e0b', weight: '20%' },
+                                { key: 'sentiment', label: 'Sentyment', color: '#a78bfa', weight: '10%' },
+                              ].map(({ key, label, color, weight }) => (
+                                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: color }} />
+                                  <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.5)' }}>{label}</span>
+                                  <span style={{ fontSize: '0.62rem', fontWeight: 700, color }}>{bd.weighted_scores[key] ?? 0}</span>
+                                  <span style={{ fontSize: '0.5rem', color: 'var(--text-muted)' }}>({weight})</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -608,8 +675,15 @@ export default function AiAnalyzer() {
                         </div>
                       </div>
                       <div style={{ background: 'rgba(139,92,246,0.06)', padding: '0.85rem', borderRadius: '8px', border: '1px solid rgba(139,92,246,0.18)', marginBottom: '0.8rem' }}>
-                        <div style={{ fontSize: '0.62rem', color: 'var(--accent-purple)', marginBottom: '0.5rem', fontWeight: 700, letterSpacing: '0.08em' }}>TRADE SETUP</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <div style={{ fontSize: '0.62rem', color: 'var(--accent-purple)', fontWeight: 700, letterSpacing: '0.08em' }}>TRADE SETUP</div>
+                          {data.analysis.computed_rr != null && (
+                            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: data.analysis.computed_rr >= 2 ? 'var(--accent-green)' : data.analysis.computed_rr >= 1 ? '#f59e0b' : 'var(--accent-red)', background: data.analysis.computed_rr >= 2 ? 'rgba(16,185,129,0.12)' : data.analysis.computed_rr >= 1 ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)', padding: '2px 8px', borderRadius: '4px' }}>
+                              R:R 1:{Number(data.analysis.computed_rr).toFixed(1)}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
                           <div>
                             <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '2px' }}>ENTRY</div>
                             <div style={{ fontSize: '0.88rem', color: 'var(--accent-green)', fontWeight: 700 }}>{data.analysis.quant_analysis.entry_target}</div>
@@ -618,11 +692,49 @@ export default function AiAnalyzer() {
                             <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '2px' }}>STOP LOSS</div>
                             <div style={{ fontSize: '0.88rem', color: 'var(--accent-red)', fontWeight: 700 }}>{data.analysis.quant_analysis.stop_loss}</div>
                           </div>
+                          <div>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '2px' }}>TAKE PROFIT</div>
+                            <div style={{ fontSize: '0.88rem', color: 'var(--accent-blue)', fontWeight: 700 }}>{data.analysis.quant_analysis.take_profit}</div>
+                          </div>
                         </div>
+                        {(data.analysis.computed_rr != null || data.analysis.quant_analysis.probability_long) && (
+                          <div style={{ display: 'flex', gap: '1rem', marginTop: '0.6rem', padding: '0.5rem 0.7rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', alignItems: 'center' }}>
+                            {data.analysis.computed_rr != null && (() => {
+                              const rr = Number(data.analysis.computed_rr);
+                              const rrColor = rr >= 2.0 ? 'var(--accent-green)' : rr >= 1.5 ? '#00e5a0' : rr >= 1.0 ? '#f59e0b' : 'var(--accent-red)';
+                              const rrLabel = rr >= 3.0 ? 'WYBITNY' : rr >= 2.0 ? 'ATRAKCYJNY' : rr >= 1.5 ? 'KORZYSTNY' : rr >= 1.0 ? 'AKCEPTOWALNY' : 'NIEKORZYSTNY';
+                              return (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{ fontSize: '0.55rem', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>R:R</div>
+                                  <div style={{ fontSize: '1rem', fontWeight: 800, color: rrColor }}>1:{rr.toFixed(1)}</div>
+                                  <div style={{ fontSize: '0.55rem', color: rrColor, fontWeight: 600, background: `${rrColor}15`, padding: '1px 6px', borderRadius: '3px' }}>{rrLabel}</div>
+                                </div>
+                              );
+                            })()}
+                            {data.analysis.quant_analysis.probability_long != null && data.analysis.quant_analysis.probability_short != null && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+                                <div style={{ fontSize: '0.55rem', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>PROB</div>
+                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent-green)' }}>▲{data.analysis.quant_analysis.probability_long}%</span>
+                                  <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>/</span>
+                                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent-red)' }}>▼{data.analysis.quant_analysis.probability_short}%</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>
                         {data.analysis.quant_analysis.take_profit_analysis}
                       </p>
+                      {data.analysis.rr_warning && (
+                        <div style={{ marginTop: '10px', padding: '8px 12px', background: data.analysis.computed_rr < 1.0 ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${data.analysis.computed_rr < 1.0 ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`, borderRadius: '8px', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                          <AlertTriangle size={16} color={data.analysis.computed_rr < 1.0 ? 'var(--accent-red)' : '#f59e0b'} style={{ flexShrink: 0, marginTop: '1px' }} />
+                          <span style={{ fontSize: '0.75rem', color: data.analysis.computed_rr < 1.0 ? 'var(--accent-red)' : '#f59e0b', lineHeight: 1.45, fontWeight: 600 }}>
+                            {data.analysis.rr_warning}
+                          </span>
+                        </div>
+                      )}
                     </GlassCard>
                     );
                   })()}
@@ -651,6 +763,10 @@ export default function AiAnalyzer() {
                         </div>
                       </div>
                     </GlassCard>
+                  )}
+
+                  {data.fundamentals && (
+                    <FundamentalsPanel fundamentals={data.fundamentals} relativeStrength={data.relative_strength} />
                   )}
                 </div>
 
@@ -737,8 +853,22 @@ export default function AiAnalyzer() {
 
               <div className="anomalies-list" style={{ display: 'flex', justifyContent: 'center' }}>
                 {!expandedDay ? (
-                  <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '12px', width: '100%' }}>
-                    <p>Kliknij na dany dzień na wykresie powyżej, aby wygenerować raport dla tamtego dnia.</p>
+                  <div style={{ width: '100%' }}>
+                    {data.volatile_days?.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Top 5 dni o największej zmienności — kliknij wykres, by zobaczyć szczegóły dowolnego dnia:</div>
+                        {data.volatile_days.slice(0, 5).map((v, i) => (
+                          <div key={i} onClick={() => expandDay(v.date)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.05)', transition: 'border-color 0.2s' }}>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{v.date}</span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: v.pct >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{v.pct >= 0 ? '+' : ''}{v.pct.toFixed(2)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+                        <p>Kliknij na dany dzień na wykresie powyżej, aby wygenerować raport dla tamtego dnia.</p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   (() => {

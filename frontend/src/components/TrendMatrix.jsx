@@ -10,21 +10,15 @@ const SignalBadge = ({ signal }) => (
   <span style={{ fontSize: '0.68rem', fontWeight: 700, color: sigColor(signal), background: sigBg(signal), padding: '3px 10px', borderRadius: '6px', letterSpacing: '0.03em', display: 'inline-block' }}>{sigLabel(signal)}</span>
 );
 
+const isBullish = s => s === 'BULL' || s === 'OVERSOLD';
+const isBearish = s => s === 'BEAR' || s === 'OVERBOUGHT';
+
 export default function TrendMatrix({ matrix }) {
   if (!matrix?.length) return null;
 
-  const bullCount = matrix.reduce((c, m) => {
-    if (m.emaSignal === 'BULL') c++;
-    if (m.macdSignal === 'BULL') c++;
-    if (m.rsiSignal === 'OVERSOLD') c++;
-    return c;
-  }, 0);
-  const bearCount = matrix.reduce((c, m) => {
-    if (m.emaSignal === 'BEAR') c++;
-    if (m.macdSignal === 'BEAR') c++;
-    if (m.rsiSignal === 'OVERBOUGHT') c++;
-    return c;
-  }, 0);
+  const indicators = ['emaSignal', 'macdSignal', 'rsiSignal', 'priceVsEma'];
+  const bullCount = matrix.reduce((c, m) => indicators.reduce((cc, k) => cc + (isBullish(m[k]) ? 1 : 0), c), 0);
+  const bearCount = matrix.reduce((c, m) => indicators.reduce((cc, k) => cc + (isBearish(m[k]) ? 1 : 0), c), 0);
   const total = bullCount + bearCount || 1;
   const alignmentPct = Math.round(Math.max(bullCount, bearCount) / total * 100);
   const dominant = bullCount >= bearCount ? 'BULL' : 'BEAR';
@@ -59,9 +53,13 @@ export default function TrendMatrix({ matrix }) {
               <td style={{ padding: '10px 10px', color: 'var(--text-secondary)', fontWeight: 500 }}>MACD</td>
               {matrix.map(m => <td key={m.label} style={{ textAlign: 'center', padding: '8px 12px' }}><SignalBadge signal={m.macdSignal} /></td>)}
             </tr>
-            <tr>
+            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
               <td style={{ padding: '10px 10px', color: 'var(--text-secondary)', fontWeight: 500 }}>RSI Zone</td>
               {matrix.map(m => <td key={m.label} style={{ textAlign: 'center', padding: '8px 12px' }}><SignalBadge signal={m.rsiSignal} /></td>)}
+            </tr>
+            <tr>
+              <td style={{ padding: '10px 10px', color: 'var(--text-secondary)', fontWeight: 500 }}>Price vs EMA200</td>
+              {matrix.map(m => <td key={m.label} style={{ textAlign: 'center', padding: '8px 12px' }}><SignalBadge signal={m.priceVsEma || 'N/A'} /></td>)}
             </tr>
           </tbody>
         </table>

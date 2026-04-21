@@ -82,6 +82,7 @@ export default function IndicatorsGrid({ qs }) {
         </Card>
 
         <Card title="FIBONACCI (52W)" titleColor="#a78bfa">
+          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px' }}>High: <span style={{ color: 'var(--accent-green)' }}>${qs.high52w}</span> | Low: <span style={{ color: 'var(--accent-red)' }}>${qs.low52w}</span></div>
           <Row label="23.6%" value={`$${qs.fib_236}`} />
           <Row label="38.2%" value={`$${qs.fib_382}`} />
           <Row label="50.0%" value={`$${qs.fib_500}`} />
