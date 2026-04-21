@@ -158,7 +158,7 @@ export default function UserPage() {
                 <div className="content">
 
                     {activeSection === "dashboard" && <Dashboard />}
-                    {activeSection === "notifications" && <Notifications notifications={notifications} setNotifications={setNotifications} setHasChanges={setHasChanges} />}
+                    {activeSection === "notifications" && <Notifications notifications={notifications} setNotifications={setNotifications} setHasChanges={setHasChanges} currentPlan={localStorage.getItem("autograph_plan")}/>}
                     {activeSection === "profile" && (
                         <Profile
                             setHasChanges={setHasChanges}
