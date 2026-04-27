@@ -9,8 +9,9 @@ export default function FilterBar({
     resultCount,
 }) {
     const sortOptions = [
+        { value: "score", label: "⭐ Opłacalność" },
         { value: "yield", label: "Stopa dywidendy" },
-        { value: "streak", label: "Streak (lata)" },
+        { value: "pe", label: "P/E (najniższe)" },
         { value: "price", label: "Cena" },
         { value: "payout", label: "Payout Ratio" },
     ];

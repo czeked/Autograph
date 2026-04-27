@@ -679,62 +679,112 @@ async function getFearAndGreed() {
   return { value: 50, classification: 'Neutral' };
 }
 
-// ======================== COMPOSITE SCORING ========================
+// ======================== COMPOSITE SCORING (DYNAMIC WEIGHTS) ========================
+
+function getMarketRegime(adxValue) {
+  if (adxValue > 25) return { name: 'TRENDOWY', weights: { trend: 50, momentum: 20, volume: 18, sentiment: 12 } };
+  if (adxValue > 20) return { name: 'SŁABY TREND', weights: { trend: 40, momentum: 25, volume: 20, sentiment: 15 } };
+  return { name: 'BOCZNY', weights: { trend: 25, momentum: 35, volume: 25, sentiment: 15 } };
+}
 
 function calculateCompositeScore(data) {
-  let score = 0;
+  const regime = getMarketRegime(data.adx?.adx || 20);
+  const weights = regime.weights;
   let signals = { bullish: 0, bearish: 0, neutral: 0 };
-  const details = [];
 
-  // RSI (waga 15%)
-  if (data.rsi < 30) { score += 15; signals.bullish++; details.push('RSI wyprzedany → KUPUJ'); }
-  else if (data.rsi > 70) { score -= 15; signals.bearish++; details.push('RSI wykupiony → SPRZEDAJ'); }
-  else if (data.rsi > 50) { score += 5; signals.bullish++; }
-  else { score -= 5; signals.bearish++; }
+  // ── TREND CATEGORY (EMA, SMA, ADX, SAR) ──
+  let trendRaw = 0;
+  const trendSignals = [];
 
-  // MACD (waga 15%)
-  if (data.macd.signal === 'BYCZY') { score += 15; signals.bullish++; details.push('MACD byczy crossover'); }
-  else { score -= 15; signals.bearish++; details.push('MACD niedźwiedzi'); }
+  if (data.ema12 > data.ema26) { trendRaw += 25; signals.bullish++; trendSignals.push('EMA12 > EMA26 (byczy cross)'); }
+  else { trendRaw -= 25; signals.bearish++; trendSignals.push('EMA12 < EMA26 (niedźwiedzi cross)'); }
 
-  // ADX + DI (waga 15%)
-  if (data.adx.adx > 25) {
-    if (data.adx.plusDI > data.adx.minusDI) { score += 15; signals.bullish++; details.push(`ADX ${data.adx.adx} silny trend wzrostowy`); }
-    else { score -= 15; signals.bearish++; details.push(`ADX ${data.adx.adx} silny trend spadkowy`); }
-  } else { signals.neutral++; details.push(`ADX ${data.adx.adx} brak silnego trendu`); }
+  if (data.sma20 > data.sma50) { trendRaw += 25; signals.bullish++; trendSignals.push('SMA20 > SMA50 (złoty krzyż)'); }
+  else { trendRaw -= 25; signals.bearish++; trendSignals.push('SMA20 < SMA50 (krzyż śmierci)'); }
 
-  // Stochastic RSI (waga 10%)
-  if (data.stochRsi.signal === 'WYPRZEDANY') { score += 10; signals.bullish++; }
-  else if (data.stochRsi.signal === 'WYKUPIONY') { score -= 10; signals.bearish++; }
-  else if (data.stochRsi.signal === 'BYCZY') { score += 5; signals.bullish++; }
-  else if (data.stochRsi.signal === 'NIEDŹWIEDZI') { score -= 5; signals.bearish++; }
+  if (data.adx?.adx > 25) {
+    if (data.adx.plusDI > data.adx.minusDI) { trendRaw += 30; signals.bullish++; trendSignals.push(`ADX ${data.adx.adx} silny wzrost`); }
+    else { trendRaw -= 30; signals.bearish++; trendSignals.push(`ADX ${data.adx.adx} silny spadek`); }
+  } else { signals.neutral++; trendSignals.push(`ADX ${data.adx?.adx || '?'} brak silnego trendu`); }
 
-  // SAR (waga 10%)
-  if (data.sar.signal === 'BYCZY') { score += 10; signals.bullish++; }
-  else { score -= 10; signals.bearish++; }
+  if (data.sar?.signal === 'BYCZY') { trendRaw += 20; signals.bullish++; trendSignals.push('SAR byczy'); }
+  else { trendRaw -= 20; signals.bearish++; trendSignals.push('SAR niedźwiedzi'); }
 
-  // Bollinger position (waga 10%)
-  if (data.price < data.bb.lower) { score += 10; signals.bullish++; details.push('Cena pod dolnym Bollingerem'); }
-  else if (data.price > data.bb.upper) { score -= 10; signals.bearish++; details.push('Cena nad górnym Bollingerem'); }
+  trendRaw = Math.max(-100, Math.min(100, trendRaw));
 
-  // OBV divergence (waga 10%)
-  if (data.obv.divergence) {
-    if (data.obv.divergenceType === 'BYCZA') { score += 10; signals.bullish++; details.push('Dywergencja OBV bycza'); }
-    else { score -= 10; signals.bearish++; details.push('Dywergencja OBV niedźwiedzia'); }
+  // ── MOMENTUM CATEGORY (RSI, MACD, StochRSI) ──
+  let momentumRaw = 0;
+  const momentumSignals = [];
+
+  if (data.rsi < 30) { momentumRaw += 35; signals.bullish++; momentumSignals.push(`RSI ${data.rsi?.toFixed(0)} wyprzedany → KUPUJ`); }
+  else if (data.rsi > 70) { momentumRaw -= 35; signals.bearish++; momentumSignals.push(`RSI ${data.rsi?.toFixed(0)} wykupiony → SPRZEDAJ`); }
+  else if (data.rsi > 50) { momentumRaw += 10; signals.bullish++; momentumSignals.push(`RSI ${data.rsi?.toFixed(0)} lekko byczy`); }
+  else { momentumRaw -= 10; signals.bearish++; momentumSignals.push(`RSI ${data.rsi?.toFixed(0)} lekko niedźwiedzi`); }
+
+  if (data.macd?.signal === 'BYCZY') { momentumRaw += 35; signals.bullish++; momentumSignals.push('MACD byczy crossover'); }
+  else { momentumRaw -= 35; signals.bearish++; momentumSignals.push('MACD niedźwiedzi'); }
+
+  if (data.stochRsi?.signal === 'WYPRZEDANY') { momentumRaw += 30; signals.bullish++; momentumSignals.push('StochRSI wyprzedany'); }
+  else if (data.stochRsi?.signal === 'WYKUPIONY') { momentumRaw -= 30; signals.bearish++; momentumSignals.push('StochRSI wykupiony'); }
+  else if (data.stochRsi?.signal === 'BYCZY') { momentumRaw += 15; signals.bullish++; momentumSignals.push('StochRSI byczy'); }
+  else if (data.stochRsi?.signal === 'NIEDŹWIEDZI') { momentumRaw -= 15; signals.bearish++; momentumSignals.push('StochRSI niedźwiedzi'); }
+
+  momentumRaw = Math.max(-100, Math.min(100, momentumRaw));
+
+  // ── VOLUME CATEGORY (OBV, BB, Volume) ──
+  let volumeRaw = 0;
+  const volumeSignals = [];
+
+  if (data.obv?.divergence) {
+    if (data.obv.divergenceType === 'BYCZA') { volumeRaw += 35; signals.bullish++; volumeSignals.push('Dywergencja OBV bycza'); }
+    else { volumeRaw -= 35; signals.bearish++; volumeSignals.push('Dywergencja OBV niedźwiedzia'); }
+  } else { volumeSignals.push('OBV brak dywergencji'); }
+
+  if (data.rsiDivergence?.detected) {
+    if (data.rsiDivergence.type.includes('BYCZA')) { volumeRaw += 30; signals.bullish++; volumeSignals.push('⚠️ Dywergencja RSI BYCZA'); }
+    else { volumeRaw -= 30; signals.bearish++; volumeSignals.push('⚠️ Dywergencja RSI NIEDŹWIEDZIA'); }
   }
 
-  // RSI divergence (waga 10%)
-  if (data.rsiDivergence.detected) {
-    if (data.rsiDivergence.type.includes('BYCZA')) { score += 10; signals.bullish++; details.push('⚠️ Dywergencja RSI BYCZA'); }
-    else { score -= 10; signals.bearish++; details.push('⚠️ Dywergencja RSI NIEDŹWIEDZIA'); }
+  if (data.price < data.bb?.lower) { volumeRaw += 25; signals.bullish++; volumeSignals.push('Cena pod dolnym Bollingerem'); }
+  else if (data.price > data.bb?.upper) { volumeRaw -= 25; signals.bearish++; volumeSignals.push('Cena nad górnym Bollingerem'); }
+  else { volumeSignals.push('Cena w Bollinger Bands'); }
+
+  if (data.volume > data.avgVolume * 1.5) { volumeRaw += 10; volumeSignals.push('Wolumen podwyższony'); }
+  else if (data.volume < data.avgVolume * 0.5) { volumeRaw -= 10; volumeSignals.push('Wolumen niski'); }
+
+  volumeRaw = Math.max(-100, Math.min(100, volumeRaw));
+
+  // ── SENTIMENT CATEGORY (Fear & Greed, News) ──
+  let sentimentRaw = 0;
+  const sentimentSignals = [];
+
+  if (data.fearGreed?.value < 25) { sentimentRaw += 40; sentimentSignals.push(`Fear & Greed: ${data.fearGreed.value} (Extreme Fear → szansa)`); }
+  else if (data.fearGreed?.value < 40) { sentimentRaw += 15; sentimentSignals.push(`Fear & Greed: ${data.fearGreed.value} (Fear)`); }
+  else if (data.fearGreed?.value > 75) { sentimentRaw -= 40; sentimentSignals.push(`Fear & Greed: ${data.fearGreed.value} (Extreme Greed → ryzyko)`); }
+  else if (data.fearGreed?.value > 60) { sentimentRaw -= 15; sentimentSignals.push(`Fear & Greed: ${data.fearGreed.value} (Greed)`); }
+  else { sentimentSignals.push(`Fear & Greed: ${data.fearGreed?.value || '?'} (Neutral)`); }
+
+  // News sentiment aggregate
+  if (data.news && data.news.length > 0) {
+    const posNews = data.news.filter(n => n.sentiment?.includes('POZYTYWNA')).length;
+    const negNews = data.news.filter(n => n.sentiment?.includes('NEGATYWNA')).length;
+    const newsBias = posNews - negNews;
+    if (newsBias >= 2) { sentimentRaw += 30; sentimentSignals.push(`Newsy: ${posNews} pozytywnych vs ${negNews} negatywnych`); }
+    else if (newsBias <= -2) { sentimentRaw -= 30; sentimentSignals.push(`Newsy: ${negNews} negatywnych vs ${posNews} pozytywnych`); }
+    else { sentimentSignals.push(`Newsy: mieszane (${posNews}+ / ${negNews}-)`); }
   }
 
-  // Fear & Greed (waga 5%)
-  if (data.fearGreed.value < 25) { score += 5; details.push(`Fear & Greed: ${data.fearGreed.value} (Extreme Fear)`); }
-  else if (data.fearGreed.value > 75) { score -= 5; details.push(`Fear & Greed: ${data.fearGreed.value} (Extreme Greed)`); }
+  sentimentRaw = Math.max(-100, Math.min(100, sentimentRaw));
 
-  // Normalize to -100..+100
-  const normalized = Math.max(-100, Math.min(100, score));
-  
+  // ── FINAL COMPOSITE (weighted sum) ──
+  const trendContrib = +(trendRaw * weights.trend / 100).toFixed(1);
+  const momentumContrib = +(momentumRaw * weights.momentum / 100).toFixed(1);
+  const volumeContrib = +(volumeRaw * weights.volume / 100).toFixed(1);
+  const sentimentContrib = +(sentimentRaw * weights.sentiment / 100).toFixed(1);
+
+  const finalScore = Math.round(trendContrib + momentumContrib + volumeContrib + sentimentContrib);
+  const normalized = Math.max(-100, Math.min(100, finalScore));
+
   let decision;
   if (normalized > 30) decision = 'KUPUJ';
   else if (normalized > 10) decision = 'LEKKI KUPUJ';
@@ -745,13 +795,28 @@ function calculateCompositeScore(data) {
   const confidence = Math.min(95, Math.abs(normalized) + Math.max(signals.bullish, signals.bearish) * 5);
   const risk = Math.abs(normalized) < 20 ? 'wysokie' : Math.abs(normalized) < 50 ? 'średnie' : 'niskie';
 
+  const allDetails = [];
+  if (Math.abs(trendContrib) > 5) allDetails.push(trendSignals[0]);
+  if (Math.abs(momentumContrib) > 5) allDetails.push(momentumSignals[0]);
+  if (Math.abs(volumeContrib) > 5) allDetails.push(volumeSignals[0]);
+  if (Math.abs(sentimentContrib) > 3) allDetails.push(sentimentSignals[0]);
+
   return {
     score: normalized,
     decision,
     confidence,
     risk,
     signals,
-    details
+    details: allDetails,
+    regime: regime.name,
+    weights,
+    breakdown: {
+      trend: { raw: trendRaw, weight: weights.trend, contribution: trendContrib, signals: trendSignals },
+      momentum: { raw: momentumRaw, weight: weights.momentum, contribution: momentumContrib, signals: momentumSignals },
+      volume: { raw: volumeRaw, weight: weights.volume, contribution: volumeContrib, signals: volumeSignals },
+      sentiment: { raw: sentimentRaw, weight: weights.sentiment, contribution: sentimentContrib, signals: sentimentSignals }
+    },
+    formula: `Score = T(${trendRaw})×${weights.trend}% + M(${momentumRaw})×${weights.momentum}% + V(${volumeRaw})×${weights.volume}% + S(${sentimentRaw})×${weights.sentiment}% = ${normalized}`
   };
 }
 
@@ -768,6 +833,308 @@ function calculateFibonacci(high, low) {
     { level: 0.786, price: +(low + diff * 0.786).toFixed(2), label: '78.6%' },
     { level: 1, price: +high.toFixed(2), label: '100%' }
   ];
+}
+
+// ======================== BACKTEST (ROLLING WINDOW — NO LEAKAGE) ========================
+
+function calculateBacktest(candles) {
+  if (!candles || candles.length < 16) return { accuracy: 0, totalTrades: 0, avgReturnPerSignal: 0, equityCurve: [100], disclaimer: 'Za mało danych na backtest.' };
+
+  const results = [];
+  // Start from day 14 (need 14+ candles for RSI) to day n-1 (need next day for result)
+  for (let i = 14; i < candles.length - 1; i++) {
+    const slice = candles.slice(0, i + 1); // ONLY data up to this day — NO leakage
+    const closes = slice.map(c => c.close);
+    const price = closes[closes.length - 1];
+
+    // Calculate indicators on LIMITED dataset
+    const rsi = calculateRSI(closes);
+    const macd = calculateMACD(closes);
+    const sar = calculateSAR(slice);
+    const adx = calculateADX(slice);
+    const stochRsi = calculateStochRSI(closes);
+    const obv = calculateOBV(slice);
+    const bb = calculateBollingerBands(closes);
+    const ema12 = calculateEMA(closes, 12);
+    const ema26 = calculateEMA(closes, 26);
+    const sma20 = calculateSMA(closes, 20);
+    const sma50 = calculateSMA(closes, 50);
+    const rsiDiv = detectRSIDivergence(closes);
+
+    // Composite score from limited data (no Fear&Greed or news — those are real-time only)
+    const miniData = {
+      rsi, macd, sar, adx, stochRsi, obv, bb, ema12, ema26, sma20, sma50,
+      rsiDivergence: rsiDiv, price,
+      fearGreed: { value: 50 }, // neutral placeholder
+      volume: slice[slice.length - 1]?.volume || 0,
+      avgVolume: slice.reduce((s, c) => s + (c.volume || 0), 0) / slice.length,
+      news: []
+    };
+    const composite = calculateCompositeScore(miniData);
+
+    // Result: what happened NEXT day
+    const nextDayReturn = (candles[i + 1].close - candles[i].close) / candles[i].close * 100;
+    const isTrade = Math.abs(composite.score) > 10; // only clear signals count
+    const signalCorrect = isTrade
+      ? (composite.score > 10 && nextDayReturn > 0) || (composite.score < -10 && nextDayReturn < 0)
+      : true; // HOLD = not a trade
+
+    results.push({
+      day: i,
+      signal: composite.decision,
+      score: composite.score,
+      nextDayReturn: +nextDayReturn.toFixed(3),
+      correct: signalCorrect,
+      isTrade
+    });
+  }
+
+  const trades = results.filter(r => r.isTrade);
+  const correct = trades.filter(r => r.correct);
+  const avgReturn = trades.length > 0
+    ? trades.reduce((sum, r) => sum + (r.score > 0 ? r.nextDayReturn : -r.nextDayReturn), 0) / trades.length
+    : 0;
+
+  // Mini equity curve (cumulative returns)
+  let equity = 100;
+  let maxEquity = 100;
+  let maxDrawdown = 0;
+  const equityCurve = [100];
+  trades.forEach(t => {
+    const ret = t.score > 0 ? t.nextDayReturn : -t.nextDayReturn;
+    equity *= (1 + ret / 100);
+    equityCurve.push(+equity.toFixed(2));
+    
+    if (equity > maxEquity) {
+      maxEquity = equity;
+    }
+    const currentDrawdown = ((maxEquity - equity) / maxEquity) * 100;
+    if (currentDrawdown > maxDrawdown) {
+      maxDrawdown = currentDrawdown;
+    }
+  });
+
+  return {
+    accuracy: trades.length > 0 ? +(correct.length / trades.length * 100).toFixed(1) : 0,
+    totalTrades: trades.length,
+    correctTrades: correct.length,
+    avgReturnPerSignal: +avgReturn.toFixed(2),
+    maxDrawdown: -Number(maxDrawdown.toFixed(1)),
+    equityCurve,
+    disclaimer: 'Backtest na danych historycznych 30D. Wyniki przeszłe nie gwarantują przyszłych.'
+  };
+}
+
+// ======================== SCENARIOS (DATA-DRIVEN PROBABILITIES) ========================
+
+function generateScenarios(data) {
+  const { price, atr, composite, resistance1, support1, support2, resistance2, currency } = data;
+  const normalizedScore = composite.score;
+
+  // Base probability = transformation of composite score
+  // Score +50 → ~65% bullish, Score 0 → ~50/50, Score -50 → ~65% bearish
+  const bullishProb = Math.round(50 + normalizedScore * 0.3);
+
+  // Volatility factor (ATR% of price)
+  const atrPercent = price > 0 ? (atr / price) * 100 : 2;
+  const extremeProb = Math.round(Math.min(20, Math.max(5, atrPercent * 3)));
+
+  const isBullish = normalizedScore > 0;
+
+  // Normalize: base + alt + extreme = 100%
+  const rawBase = isBullish ? bullishProb : (100 - bullishProb);
+  const baseProb = Math.max(30, Math.min(70, rawBase - Math.floor(extremeProb / 2)));
+  const altProb = Math.max(10, 100 - baseProb - extremeProb);
+
+  return {
+    base: {
+      label: 'Scenariusz bazowy',
+      probability: baseProb,
+      target: isBullish ? +(price + atr * 1.5).toFixed(2) : +(price - atr * 1.5).toFixed(2),
+      invalidation: isBullish ? +support1.toFixed(2) : +resistance1.toFixed(2),
+      condition: isBullish
+        ? `Utrzymanie powyżej ${support1.toFixed(0)} ${currency}`
+        : `Utrzymanie poniżej ${resistance1.toFixed(0)} ${currency}`,
+      direction: isBullish ? 'bullish' : 'bearish'
+    },
+    alternative: {
+      label: 'Scenariusz alternatywny',
+      probability: altProb,
+      target: isBullish ? +(price - atr * 1.5).toFixed(2) : +(price + atr * 1.5).toFixed(2),
+      invalidation: isBullish ? +resistance1.toFixed(2) : +support1.toFixed(2),
+      condition: isBullish
+        ? `Przełamanie ${support1.toFixed(0)} w dół`
+        : `Przełamanie ${resistance1.toFixed(0)} w górę`,
+      direction: isBullish ? 'bearish' : 'bullish'
+    },
+    extreme: {
+      label: 'Scenariusz ekstremalny',
+      probability: extremeProb,
+      target: +(price - atr * 3).toFixed(2),
+      condition: `Przełamanie ${support2.toFixed(0)} (S2)`,
+      direction: 'bearish'
+    },
+    methodology: `Prawdopodobieństwa: composite score (${normalizedScore}) + zmienność ATR (${atrPercent.toFixed(1)}%). Reżim: ${composite.regime}.`
+  };
+}
+
+// ======================== RISK MANAGEMENT (LINKED TO SCENARIOS) ========================
+
+function calculateRiskManagement(data, scenarios) {
+  const { price, atr } = data;
+  const base = scenarios.base;
+
+  // SL = invalidation of base scenario (NOT random)
+  const stopLoss = +base.invalidation;
+
+  // TP = target of base scenario
+  const takeProfit1 = +base.target;
+
+  // TP2 = extended target (3x ATR)
+  const takeProfit2 = base.direction === 'bullish'
+    ? +(price + atr * 3).toFixed(2)
+    : +(price - atr * 3).toFixed(2);
+
+  // R:R = |TP - Entry| / |Entry - SL|
+  const risk = Math.abs(price - stopLoss);
+  const reward1 = Math.abs(takeProfit1 - price);
+  const reward2 = Math.abs(takeProfit2 - price);
+  const rrRatio1 = risk > 0 ? +(reward1 / risk).toFixed(2) : 0;
+  const rrRatio2 = risk > 0 ? +(reward2 / risk).toFixed(2) : 0;
+
+  // Max loss %
+  const maxLossPercent = price > 0 ? +((risk / price) * 100).toFixed(2) : 0;
+
+  // Position size recommendation
+  let positionSize;
+  if (maxLossPercent < 3) positionSize = '2-5% portfela';
+  else if (maxLossPercent < 5) positionSize = '1-3% portfela';
+  else positionSize = '0.5-1% portfela (wysokie ryzyko)';
+
+  return {
+    entry: +price.toFixed(2),
+    stopLoss,
+    takeProfit1,
+    takeProfit2,
+    riskRewardRatio1: rrRatio1,
+    riskRewardRatio2: rrRatio2,
+    maxLossPercent,
+    positionSize,
+    direction: base.direction,
+    methodology: 'SL = invalidacja scenariusza bazowego. TP1 = target bazowy. TP2 = 3×ATR.'
+  };
+}
+
+// ======================== MACRO CONTEXT ========================
+
+let macroCache = { data: null, timestamp: 0 };
+const MACRO_CACHE_TTL = 15 * 60 * 1000;
+
+async function getMarketContext() {
+  if (macroCache.data && (Date.now() - macroCache.timestamp) < MACRO_CACHE_TTL) {
+    return macroCache.data;
+  }
+  try {
+    const globalRes = await axios.get('https://api.coingecko.com/api/v3/global', { timeout: 5000 });
+    const gd = globalRes.data?.data;
+    const result = {
+      btcDominance: gd?.market_cap_percentage?.btc ? +gd.market_cap_percentage.btc.toFixed(1) : null,
+      ethDominance: gd?.market_cap_percentage?.eth ? +gd.market_cap_percentage.eth.toFixed(1) : null,
+      totalMarketCap: gd?.total_market_cap?.usd || null,
+      marketCapChange24h: gd?.market_cap_change_percentage_24h_usd ? +gd.market_cap_change_percentage_24h_usd.toFixed(2) : null,
+      activeCryptocurrencies: gd?.active_cryptocurrencies || null,
+      fedRate: '5.25-5.50%',
+      fedRateUpdated: '2024-07-31',
+      disclaimer: 'Dane makro: CoinGecko Global. FED rate aktualizowany ręcznie.'
+    };
+    macroCache = { data: result, timestamp: Date.now() };
+    return result;
+  } catch (e) {
+    console.log('⚠️ Macro context niedostępny');
+    return { btcDominance: null, totalMarketCap: null, fedRate: '5.25-5.50%', disclaimer: 'Makro niedostępne' };
+  }
+}
+
+// ======================== NEWS IMPACT ENRICHMENT (DETERMINISTIC) ========================
+
+function enrichNewsWithImpact(newsArray) {
+  return newsArray.map(n => {
+    const direction = n.sentiment?.includes('POZYTYWNA') ? 'bullish'
+      : n.sentiment?.includes('NEGATYWNA') ? 'bearish'
+      : 'neutral';
+    const directionConfidence = Math.min(70, 30 + (n.importance || 0) * 5); // CAPPED at 70%
+    const impact = n.importance >= 6 ? 'HIGH' : n.importance >= 3 ? 'MEDIUM' : 'LOW';
+    const dirLabel = direction === 'bullish' ? '📈 wzrostowy' : direction === 'bearish' ? '📉 spadkowy' : '➡️ neutralny';
+    const shortSummary = `${n.title.substring(0, 60)}${n.title.length > 60 ? '...' : ''} → ${dirLabel} (${directionConfidence}%)`;
+
+    return {
+      ...n,
+      impact,
+      direction,
+      directionConfidence,
+      shortSummary
+    };
+  });
+}
+
+// ======================== NEWS AGGREGATION SCORE ========================
+
+function calculateNewsAggregation(enrichedNews) {
+  if (!enrichedNews || enrichedNews.length === 0) {
+    return { score: 0, label: 'Brak danych', direction: 'neutral', totalNews: 0, bullishCount: 0, bearishCount: 0, neutralCount: 0, avgConfidence: 0, topImpact: [] };
+  }
+
+  let weightedSum = 0;
+  let totalWeight = 0;
+  let bullishCount = 0;
+  let bearishCount = 0;
+  let neutralCount = 0;
+  const confidences = [];
+
+  enrichedNews.forEach(n => {
+    // Weight by importance (higher importance = more weight)
+    const weight = (n.importance || 1);
+    const dirValue = n.direction === 'bullish' ? 1 : n.direction === 'bearish' ? -1 : 0;
+    weightedSum += dirValue * weight;
+    totalWeight += weight;
+
+    if (n.direction === 'bullish') bullishCount++;
+    else if (n.direction === 'bearish') bearishCount++;
+    else neutralCount++;
+
+    if (n.directionConfidence) confidences.push(n.directionConfidence);
+  });
+
+  // Normalize to -100..+100
+  const rawScore = totalWeight > 0 ? (weightedSum / totalWeight) * 100 : 0;
+  const score = Math.round(Math.max(-100, Math.min(100, rawScore)));
+  const avgConfidence = confidences.length > 0 ? Math.round(confidences.reduce((a, b) => a + b) / confidences.length) : 0;
+
+  let label;
+  if (score > 30) label = 'Silnie pozytywne';
+  else if (score > 10) label = 'Pozytywne';
+  else if (score < -30) label = 'Silnie negatywne';
+  else if (score < -10) label = 'Negatywne';
+  else label = 'Neutralne';
+
+  // Top impact news (HIGH only)
+  const topImpact = enrichedNews.filter(n => n.impact === 'HIGH').slice(0, 3).map(n => ({
+    title: n.title.substring(0, 80),
+    direction: n.direction,
+    confidence: n.directionConfidence
+  }));
+
+  return {
+    score,
+    label,
+    direction: score > 10 ? 'bullish' : score < -10 ? 'bearish' : 'neutral',
+    totalNews: enrichedNews.length,
+    bullishCount,
+    bearishCount,
+    neutralCount,
+    avgConfidence,
+    topImpact
+  };
 }
 
 // ======================== OVERLAY SERIES ========================
@@ -994,7 +1361,14 @@ async function getMarketData(ticker, currency = 'USD') {
     }
 
     const geckoData = await getCoinGeckoData(symbol, currency);
-    const news = await getCryptoNews(symbol);
+    const [newsRaw, fearGreed, macroContext] = await Promise.all([
+      getCryptoNews(symbol),
+      getFearAndGreed(),
+      getMarketContext()
+    ]);
+
+    // Enrich news with deterministic impact/direction
+    const news = enrichNewsWithImpact(newsRaw);
 
     const closes = geckoData.closes;
     const high = geckoData.high;
@@ -1011,7 +1385,6 @@ async function getMarketData(ticker, currency = 'USD') {
     const stochRsiData = calculateStochRSI(closes);
     const obvData = calculateOBV(geckoData.candles);
     const rsiDivData = detectRSIDivergence(closes);
-    const fearGreed = await getFearAndGreed();
     const patterns = detectCandlePatterns(geckoData.candles);
     const fibonacci = calculateFibonacci(high, low);
     const rsiSeries = calculateRSISeries(closes);
@@ -1064,17 +1437,24 @@ async function getMarketData(ticker, currency = 'USD') {
       days: geckoData.chartData.length
     };
 
-    // Composite scoring
+    // Composite scoring (dynamic weights)
     data.composite = calculateCompositeScore(data);
     data.microTrend = analyzeMicroTrend(data);
     data.macroTrend = analyzeMacroTrend(data);
+
+    // NEW: Backtest, Scenarios, Risk Management, Macro
+    data.backtest = calculateBacktest(geckoData.candles);
+    data.scenarios = generateScenarios(data);
+    data.riskManagement = calculateRiskManagement(data, data.scenarios);
+    data.macroContext = macroContext;
+    data.newsAggregation = calculateNewsAggregation(news);
 
     dataCache[cacheKey] = {
       data,
       timestamp: Date.now()
     };
 
-    console.log(`✅ ${symbol}: ${currency} ${geckoData.currentPrice.toFixed(2)} | Score: ${data.composite.score} → ${data.composite.decision}`);
+    console.log(`✅ ${symbol}: ${currency} ${geckoData.currentPrice.toFixed(2)} | Score: ${data.composite.score} → ${data.composite.decision} | Backtest: ${data.backtest.accuracy}%`);
     return data;
   } catch (err) {
     console.error(`❌ Error: ${err.message}`);
@@ -1231,7 +1611,12 @@ Uzasadnienie: dlaczego zgadzasz się lub nie z composite score.`;
         fibonacci: data.fibonacci,
         overlays: data.overlays,
         microTrend: data.microTrend,
-        macroTrend: data.macroTrend
+        macroTrend: data.macroTrend,
+        backtest: data.backtest,
+        scenarios: data.scenarios,
+        riskManagement: data.riskManagement,
+        macroContext: data.macroContext,
+        newsAggregation: data.newsAggregation
       },
       chartData: data.chartData,
       days: data.days

@@ -185,7 +185,11 @@ function AiTrader() {
                  body: n.body,
                  publishedString: timeStr,
                  url: n.url,
-                 isImportant: n.isImportant
+                 isImportant: n.isImportant,
+                 impact: n.impact,
+                 direction: n.direction,
+                 directionConfidence: n.directionConfidence,
+                 shortSummary: n.shortSummary
              });
           });
           
@@ -509,43 +513,133 @@ function AiTrader() {
             </div>
           </div>
 
-          {/* Composite Score Card */}
-          {marketData.composite && (
-            <div className={`composite-score-card ${marketData.composite.score > 10 ? 'score-bullish' : marketData.composite.score < -10 ? 'score-bearish' : 'score-neutral'}`}>
-              <div className="composite-header">
-                <span className="composite-label">🤖 COMPOSITE SCORE</span>
-                <span className={`composite-decision ${marketData.composite.decision.includes('KUPUJ') ? 'decision-buy' : marketData.composite.decision.includes('SPRZEDAJ') ? 'decision-sell' : 'decision-hold'}`}>
-                  {marketData.composite.decision}
-                </span>
-              </div>
-              <div className="composite-body">
-                <div className="score-meter">
-                  <div className="score-bar">
-                    <div className="score-fill" style={{ width: `${Math.abs(marketData.composite.score)}%`, background: marketData.composite.score > 0 ? '#3fb950' : '#f85149' }}></div>
+          {/* Top Dashboard Grid (Decision & Backtest) */}
+          <div className="top-dashboard-grid">
+            {/* Composite Score Card — EXPANDED */}
+            {marketData.composite && (
+              <div className={`composite-score-card ${marketData.composite.score > 10 ? 'score-bullish' : marketData.composite.score < -10 ? 'score-bearish' : 'score-neutral'}`}>
+                <div className="composite-header">
+                  <div className="composite-header-left">
+                    <span className="composite-label">🤖 COMPOSITE SCORE</span>
+                    {marketData.adx && (
+                      <span className={`regime-badge ${marketData.adx.adx > 25 ? 'badge-trending' : 'badge-ranging'}`}>
+                        REGIME: {marketData.composite.regime} (ADX {Math.round(marketData.adx.adx)})
+                      </span>
+                    )}
                   </div>
-                  <span className="score-value">{marketData.composite.score > 0 ? '+' : ''}{marketData.composite.score}</span>
+                  <span className={`composite-decision ${marketData.composite.decision.includes('KUPUJ') ? 'decision-buy' : marketData.composite.decision.includes('SPRZEDAJ') ? 'decision-sell' : 'decision-hold'}`}>
+                    {marketData.composite.decision}
+                  </span>
                 </div>
-                <div className="composite-metrics">
-                  <span>Pewność: <strong>{marketData.composite.confidence}%</strong></span>
-                  <span>Ryzyko: <strong className={`risk-${marketData.composite.risk}`}>{marketData.composite.risk}</strong></span>
-                  <span>Sygnały: <strong style={{ color: '#3fb950' }}>{marketData.composite.signals?.bullish}🟢</strong> <strong style={{ color: '#f85149' }}>{marketData.composite.signals?.bearish}🔴</strong></span>
+                <div className="composite-body">
+                  <div className="score-meter-explicit">
+                    <div className="score-main-values">
+                      <span className="explicit-score-label">Score:</span>
+                      <span className={`explicit-score-value ${marketData.composite.score > 0 ? 'pos' : marketData.composite.score < 0 ? 'neg' : ''}`}>
+                        {marketData.composite.score > 0 ? '+' : ''}{marketData.composite.score}
+                      </span>
+                      <span className="explicit-conf-label">Confidence:</span>
+                      <span className="explicit-conf-value">{marketData.composite.confidence}%</span>
+                    </div>
+                  </div>
+
+                  {/* MATHEMATICAL BREAKDOWN PER CATEGORY */}
+                  {marketData.composite.breakdown && (
+                    <div className="math-breakdown-section">
+                      <div className="math-breakdown-list">
+                        {[
+                          { key: 'trend', label: 'Trend' },
+                          { key: 'momentum', label: 'Momentum' },
+                          { key: 'volume', label: 'Volume' },
+                          { key: 'sentiment', label: 'Sentiment' }
+                        ].map(cat => {
+                          const b = marketData.composite.breakdown[cat.key];
+                          if (!b) return null;
+                          return (
+                            <div key={cat.key} className="math-breakdown-row">
+                              <span className="math-lbl">{cat.label}:</span>
+                              <span className="math-calc">
+                                {(b.raw / 100).toFixed(2)} × {(b.weight / 100).toFixed(2)} = 
+                              </span>
+                              <span className={`math-result ${b.contribution > 0 ? 'pos' : b.contribution < 0 ? 'neg' : ''}`}>
+                                {b.contribution > 0 ? '+' : ''}{b.contribution}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="math-breakdown-final">
+                        <span className="math-final-lbl">Final:</span>
+                        <span className={`math-final-val ${marketData.composite.score > 0 ? 'pos' : marketData.composite.score < 0 ? 'neg' : ''}`}>
+                          {marketData.composite.score > 0 ? '+' : ''}{marketData.composite.score}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {marketData.composite.details?.length > 0 && (
+                    <div className="composite-details">
+                      {marketData.composite.details.map((d, i) => (
+                        <span key={i} className="detail-tag">{d}</span>
+                      ))}
+                    </div>
+                  )}
+                  {marketData.composite.decision === 'TRZYMAJ' && (
+                    <div className="trzymaj-info" style={{ marginTop: '12px' }}>
+                      <span className="trzymaj-icon">ℹ️</span>
+                      <span><strong>TRZYMAJ</strong> oznacza utrzymanie obecnej pozycji. Sygnały rynkowe są mieszane — nie ma wyraźnej przewagi kupujących ani sprzedających. Nie otwieraj nowych pozycji. Czekaj na silniejszy sygnał kierunkowy przed podjęciem decyzji.</span>
+                    </div>
+                  )}
                 </div>
-                {marketData.composite.details?.length > 0 && (
-                  <div className="composite-details">
-                    {marketData.composite.details.map((d, i) => (
-                      <span key={i} className="detail-tag">{d}</span>
-                    ))}
-                  </div>
-                )}
-                {marketData.composite.decision === 'TRZYMAJ' && (
-                  <div className="trzymaj-info" style={{ marginTop: '12px' }}>
-                    <span className="trzymaj-icon">ℹ️</span>
-                    <span><strong>TRZYMAJ</strong> oznacza utrzymanie obecnej pozycji. Sygnały rynkowe są mieszane — nie ma wyraźnej przewagi kupujących ani sprzedających. Nie otwieraj nowych pozycji. Czekaj na silniejszy sygnał kierunkowy przed podjęciem decyzji.</span>
-                  </div>
-                )}
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Backtest Card (Moved next to Decision) */}
+            {marketData.backtest && marketData.backtest.totalTrades > 0 && (
+              <div className="backtest-card">
+                <h3>📈 Skuteczność (30D)</h3>
+                <div className="backtest-body">
+                  <div className="backtest-stats-list">
+                    <div className="backtest-stat-row">
+                      <span className="bt-check">✔</span>
+                      <span className="bt-lbl">Accuracy:</span>
+                      <span className="bt-val">{marketData.backtest.accuracy}%</span>
+                    </div>
+                    <div className="backtest-stat-row">
+                      <span className="bt-check">✔</span>
+                      <span className="bt-lbl">Avg return:</span>
+                      <span className={`bt-val ${marketData.backtest.avgReturnPerSignal > 0 ? 'pos' : 'neg'}`}>
+                        {marketData.backtest.avgReturnPerSignal > 0 ? '+' : ''}{marketData.backtest.avgReturnPerSignal}%
+                      </span>
+                    </div>
+                    {marketData.backtest.maxDrawdown !== undefined && (
+                      <div className="backtest-stat-row">
+                        <span className="bt-check">✔</span>
+                        <span className="bt-lbl">Max DD:</span>
+                        <span className="bt-val neg">{marketData.backtest.maxDrawdown}%</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* Mini equity curve */}
+                  {marketData.backtest.equityCurve && marketData.backtest.equityCurve.length > 2 && (
+                    <div className="equity-sparkline">
+                      <svg viewBox={`0 0 ${marketData.backtest.equityCurve.length * 10} 40`} className="sparkline-svg" preserveAspectRatio="none">
+                        {(() => {
+                          const pts = marketData.backtest.equityCurve;
+                          const min = Math.min(...pts);
+                          const max = Math.max(...pts);
+                          const range = max - min || 1;
+                          const path = pts.map((v, i) => `${i === 0 ? 'M' : 'L'} ${i * 10} ${38 - ((v - min) / range) * 36}`).join(' ');
+                          const lastVal = pts[pts.length - 1];
+                          return <path d={path} fill="none" stroke={lastVal >= 100 ? '#3fb950' : '#f85149'} strokeWidth="2" />;
+                        })()}
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Micro/Macro Trend Recommendations */}
           {(marketData.microTrend || marketData.macroTrend) && (
@@ -636,6 +730,141 @@ function AiTrader() {
             </div>
           )}
 
+          {/* Macro Context */}
+          {marketData.macroContext && (
+            <div className="macro-section">
+              <h3>🌍 Kontekst Makro</h3>
+              <div className="macro-cards">
+                {marketData.macroContext.btcDominance && (
+                  <div className="macro-card">
+                    <span className="macro-card-label">BTC Dominance</span>
+                    <span className="macro-card-value">{marketData.macroContext.btcDominance}%</span>
+                    <div className="macro-bar">
+                      <div className="macro-bar-fill" style={{ width: `${marketData.macroContext.btcDominance}%`, background: '#f7931a' }}></div>
+                    </div>
+                  </div>
+                )}
+                {marketData.macroContext.totalMarketCap && (
+                  <div className="macro-card">
+                    <span className="macro-card-label">Total Market Cap</span>
+                    <span className="macro-card-value">${(marketData.macroContext.totalMarketCap / 1e12).toFixed(2)}T</span>
+                    {marketData.macroContext.marketCapChange24h !== null && (
+                      <span className={`macro-change ${marketData.macroContext.marketCapChange24h > 0 ? 'positive' : 'negative'}`}>
+                        {marketData.macroContext.marketCapChange24h > 0 ? '▲' : '▼'} {Math.abs(marketData.macroContext.marketCapChange24h)}% (24h)
+                      </span>
+                    )}
+                  </div>
+                )}
+                {marketData.macroContext.ethDominance && (
+                  <div className="macro-card">
+                    <span className="macro-card-label">ETH Dominance</span>
+                    <span className="macro-card-value">{marketData.macroContext.ethDominance}%</span>
+                    <div className="macro-bar">
+                      <div className="macro-bar-fill" style={{ width: `${marketData.macroContext.ethDominance * 2}%`, background: '#627eea' }}></div>
+                    </div>
+                  </div>
+                )}
+                <div className="macro-card">
+                  <span className="macro-card-label">FED Rate</span>
+                  <span className="macro-card-value">{marketData.macroContext.fedRate}</span>
+                  <span className="macro-card-note">Akt. {marketData.macroContext.fedRateUpdated}</span>
+                </div>
+              </div>
+              <div className="macro-disclaimer">{marketData.macroContext.disclaimer}</div>
+            </div>
+          )}
+
+          {/* Trading Scenarios */}
+          {marketData.scenarios && (
+            <div className="scenarios-section">
+              <h3>🎯 Scenariusze tradingowe</h3>
+              <div className="scenario-cards">
+                {[marketData.scenarios.base, marketData.scenarios.alternative, marketData.scenarios.extreme].filter(Boolean).map((sc, i) => (
+                  <div key={i} className={`scenario-card scenario-${sc.direction}`}>
+                    <div className="scenario-card-header">
+                      <span className="scenario-label">{sc.label}</span>
+                      <span className={`scenario-dir-badge ${sc.direction}`}>
+                        {sc.direction === 'bullish' ? '🟢 Wzrostowy' : '🔴 Spadkowy'}
+                      </span>
+                    </div>
+                    <div className="scenario-prob-row">
+                      <div className="scenario-prob-bar">
+                        <div className="scenario-prob-fill" style={{
+                          width: `${sc.probability}%`,
+                          background: sc.direction === 'bullish' ? '#3fb950' : '#f85149'
+                        }}></div>
+                      </div>
+                      <span className="scenario-prob-value">{sc.probability}%</span>
+                    </div>
+                    <div className="scenario-details">
+                      <div className="scenario-detail">
+                        <span className="sd-label">Target:</span>
+                        <span className="sd-value">{formatPrice(sc.target)} {currency}</span>
+                      </div>
+                      <div className="scenario-detail">
+                        <span className="sd-label">Warunek:</span>
+                        <span className="sd-value">{sc.condition}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {marketData.scenarios.methodology && (
+                <div className="scenario-methodology">📐 {marketData.scenarios.methodology}</div>
+              )}
+            </div>
+          )}
+
+          {/* Risk Management */}
+          {marketData.riskManagement && (
+            <div className="risk-section">
+              <h3>🛡️ Risk Management</h3>
+              <div className="risk-body">
+                <div className="risk-badges-row">
+                  <div className="risk-badge badge-sl">
+                    <span className="rb-lbl">Stop Loss</span>
+                    <span className="rb-val">{formatPrice(marketData.riskManagement.stopLoss)}</span>
+                  </div>
+                  <div className="risk-badge badge-entry">
+                    <span className="rb-lbl">Entry</span>
+                    <span className="rb-val">{formatPrice(marketData.riskManagement.entry)}</span>
+                  </div>
+                  <div className="risk-badge badge-tp">
+                    <span className="rb-lbl">Take Profit (TP1)</span>
+                    <span className="rb-val">{formatPrice(marketData.riskManagement.takeProfit1)}</span>
+                  </div>
+                  <div className="risk-badge badge-tp">
+                    <span className="rb-lbl">Take Profit (TP2)</span>
+                    <span className="rb-val">{formatPrice(marketData.riskManagement.takeProfit2)}</span>
+                  </div>
+                </div>
+
+                <div className="rr-bar-section">
+                  <div className="rr-labels">
+                    <span className="rr-risk-lbl">Ryzyko (1)</span>
+                    <span className="rr-reward-lbl">Potencjał Zysku ({marketData.riskManagement.riskRewardRatio1})</span>
+                  </div>
+                  <div className="rr-visual-bar">
+                    <div className="rr-risk-fill" style={{ flex: 1 }}></div>
+                    <div className="rr-reward-fill" style={{ flex: marketData.riskManagement.riskRewardRatio1 }}></div>
+                  </div>
+                </div>
+
+                <div className="risk-stats">
+                  <div className="risk-stat">
+                    <span className="rs-label">Max Loss</span>
+                    <span className="rs-value negative">-{marketData.riskManagement.maxLossPercent}%</span>
+                  </div>
+                  <div className="risk-stat">
+                    <span className="rs-label">Pozycja</span>
+                    <span className="rs-value">{marketData.riskManagement.positionSize}</span>
+                  </div>
+                </div>
+                <div className="risk-methodology">📐 {marketData.riskManagement.methodology}</div>
+              </div>
+            </div>
+          )}
+
           {/* Chart with type switcher */}
           {chartData.length > 0 && (
             <div className="chart-section">
@@ -678,7 +907,7 @@ function AiTrader() {
 
       {/* News Section */}
       {marketData && marketData.newsData && (
-        <NewsSlider newsData={marketData.newsData} ticker={ticker} />
+        <NewsSlider newsData={marketData.newsData} ticker={ticker} newsAggregation={marketData.newsAggregation} />
       )}
 
       {/* AI Analysis */}
@@ -1397,7 +1626,7 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
 
 /* ======================== NEWS SLIDER ======================== */
 
-function NewsSlider({ newsData, ticker }) {
+function NewsSlider({ newsData, ticker, newsAggregation }) {
   const [selectedDay, setActiveDay] = useState(null);
   const [expandedNews, setExpandedNews] = useState(null);
   const [filterImportance, setFilterImportance] = useState('all');
@@ -1440,6 +1669,35 @@ function NewsSlider({ newsData, ticker }) {
           <div className="new-articles-badge">✨ {newsData.newArticlesCount} nowych</div>
         )}
       </div>
+
+      {newsAggregation && (
+        <div className="news-aggregation-card">
+          <div className="nag-header">
+            <span className="nag-title">🤖 AI Sentiment Aggregation</span>
+            <span className={`nag-badge nag-${newsAggregation.direction}`}>{newsAggregation.label}</span>
+          </div>
+          <div className="nag-body">
+            <div className="nag-score-container">
+              <span className={`nag-score score-${newsAggregation.direction}`}>{newsAggregation.score > 0 ? '+' : ''}{newsAggregation.score}</span>
+              <span className="nag-score-label">Global Score</span>
+            </div>
+            <div className="nag-stats">
+              <div className="nag-stat">
+                <span className="nag-stat-val" style={{color: '#3fb950'}}>{newsAggregation.bullishCount} 🟢</span>
+                <span className="nag-stat-lbl">Pozytywne</span>
+              </div>
+              <div className="nag-stat">
+                <span className="nag-stat-val" style={{color: '#f85149'}}>{newsAggregation.bearishCount} 🔴</span>
+                <span className="nag-stat-lbl">Negatywne</span>
+              </div>
+              <div className="nag-stat">
+                <span className="nag-stat-val">{newsAggregation.neutralCount} ⚪</span>
+                <span className="nag-stat-lbl">Neutralne</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="news-filters">
         {[
@@ -1493,10 +1751,23 @@ function NewsSlider({ newsData, ticker }) {
                     <span className={`badge sentiment ${article.sentiment.includes('POZYTYWNA') ? 'pos' : article.sentiment.includes('NEGATYWNA') ? 'neg' : 'neu'}`}>
                       {article.sentiment}
                     </span>
+                    {article.impact && (
+                      <span className={`badge impact-badge impact-${article.impact.toLowerCase()}`}>
+                        {article.impact}
+                      </span>
+                    )}
+                    {article.direction && article.direction !== 'neutral' && (
+                      <span className={`badge direction-badge dir-${article.direction}`}>
+                        {article.direction === 'bullish' ? '🟢 Wzrostowy' : '🔴 Spadkowy'} ({article.directionConfidence}%)
+                      </span>
+                    )}
                     <span className="badge source">{article.source}</span>
                   </div>
 
                   <h4>{article.title}</h4>
+                  {article.shortSummary && (
+                    <div className="news-summary-line">{article.shortSummary}</div>
+                  )}
 
                   <p className={`article-body ${expandedNews === article.id ? 'expanded' : ''}`}>
                     {article.body}
