@@ -24,8 +24,16 @@ function AiTrader() {
     try { return JSON.parse(localStorage.getItem('favorites')) || []; } catch { return []; }
   });
   const isMaximum = localStorage.getItem('autograph_plan') === 'maximum';
+  const [theme, setTheme] = useState(() => localStorage.getItem('ai_trader_theme') || 'dark');
+  const [focusMode, setFocusMode] = useState(false);
+  const [showWhy, setShowWhy] = useState(false);
+  const [riskCapital, setRiskCapital] = useState('');
   const wsRef = useRef(null);
   const prevPriceRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem('ai_trader_theme', theme);
+  }, [theme]);
 
   const toggleFavorite = (crypto) => {
     setFavorites(prev => {
@@ -243,7 +251,7 @@ function AiTrader() {
   };
 
   return (
-    <div className="analyzer-container">
+    <div className={`analyzer-container theme-${theme} ${focusMode ? 'focus-mode' : ''}`}>
       {/* Navigation Header */}
       <div className="header">
         <div className="icons">
@@ -255,6 +263,24 @@ function AiTrader() {
           )}
         </div>
         <h1 onClick={() => navigate('/')}>Autograph</h1>
+      </div>
+
+      {/* Toolbar: Theme Switcher + Focus Mode */}
+      <div className="trader-toolbar">
+        <div className="toolbar-left">
+          <button className={`toolbar-btn ${focusMode ? 'active' : ''}`} onClick={() => setFocusMode(!focusMode)} title="Tryb Focus — pokaż tylko wykres i decyzję">
+            {focusMode ? '🔍 Focus ON' : '👁️ Focus'}
+          </button>
+        </div>
+        <div className="toolbar-right">
+          <div className="theme-switcher">
+            {[{key: 'dark', icon: '🌙', label: 'Dark'}, {key: 'light', icon: '☀️', label: 'Light'}, {key: 'oled', icon: '⬛', label: 'OLED'}].map(t => (
+              <button key={t.key} className={`theme-btn ${theme === t.key ? 'active' : ''}`} onClick={() => setTheme(t.key)}>
+                {t.icon} {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Favorites Bar */}
@@ -513,6 +539,27 @@ function AiTrader() {
             </div>
           </div>
 
+          {/* Sentiment Thermometer */}
+          {marketData.fearGreed && (
+            <div className="sentiment-thermo-section">
+              <div className="thermo-header">
+                <span className="thermo-title">🌡️ Termometr Emocji Rynku</span>
+                <span className={`thermo-value-badge ${marketData.fearGreed.value < 35 ? 'thermo-fear' : marketData.fearGreed.value > 65 ? 'thermo-greed' : 'thermo-neutral'}`}>
+                  {marketData.fearGreed.value}
+                </span>
+              </div>
+              <div className="thermo-bar-wrapper">
+                <div className="thermo-marker" style={{ left: `${Math.min(Math.max(marketData.fearGreed.value, 2), 98)}%` }}></div>
+              </div>
+              <div className="thermo-labels">
+                <span className="thermo-label-fear">😱 Ekstremalny Strach</span>
+                <span className="thermo-label-neutral">😐 Neutralny</span>
+                <span className="thermo-label-greed">🤑 Ekstremalny Chciwość</span>
+              </div>
+              <div className="thermo-classification">{marketData.fearGreed.classification}</div>
+            </div>
+          )}
+
           {/* Top Dashboard Grid (Decision & Backtest) */}
           <div className="top-dashboard-grid">
             {/* Composite Score Card — EXPANDED */}
@@ -588,6 +635,38 @@ function AiTrader() {
                     <div className="trzymaj-info" style={{ marginTop: '12px' }}>
                       <span className="trzymaj-icon">ℹ️</span>
                       <span><strong>TRZYMAJ</strong> oznacza utrzymanie obecnej pozycji. Sygnały rynkowe są mieszane — nie ma wyraźnej przewagi kupujących ani sprzedających. Nie otwieraj nowych pozycji. Czekaj na silniejszy sygnał kierunkowy przed podjęciem decyzji.</span>
+                    </div>
+                  )}
+
+                  {/* Explainable AI — "Dlaczego?" */}
+                  {marketData.composite.breakdown && (
+                    <div className="why-section">
+                      <button className="why-btn" onClick={() => setShowWhy(!showWhy)}>
+                        {showWhy ? '🔽 Ukryj wyjaśnienie' : '❓ Dlaczego?'}
+                      </button>
+                      {showWhy && (
+                        <div className="why-content">
+                          <div className="why-header">3 kluczowe argumenty za decyzją:</div>
+                          {Object.entries(marketData.composite.breakdown)
+                            .filter(([, cat]) => cat && cat.contribution !== undefined)
+                            .sort(([, a], [, b]) => Math.abs(b.contribution) - Math.abs(a.contribution))
+                            .slice(0, 3)
+                            .map(([key, cat], i) => (
+                              <div key={key} className="why-item">
+                                <span className="why-num">{i + 1}</span>
+                                <div className="why-detail">
+                                  <span className="why-title">{key}</span>
+                                  <span className="why-desc">
+                                    Raw: {(cat.raw / 100).toFixed(2)} × Waga: {(cat.weight / 100).toFixed(2)}
+                                  </span>
+                                  <span className={`why-impact ${cat.contribution > 0 ? 'positive' : 'negative'}`}>
+                                    Wpływ: {cat.contribution > 0 ? '+' : ''}{cat.contribution}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -861,6 +940,49 @@ function AiTrader() {
                   </div>
                 </div>
                 <div className="risk-methodology">📐 {marketData.riskManagement.methodology}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Risk Calculator */}
+          {marketData.riskManagement && (
+            <div className="risk-calc-section">
+              <h3>💰 Kalkulator Pozycji</h3>
+              <div className="risk-calc-body">
+                <div className="risk-calc-input-row">
+                  <label>Twój kapitał ({currency}):</label>
+                  <input
+                    type="number"
+                    value={riskCapital}
+                    onChange={(e) => setRiskCapital(e.target.value)}
+                    placeholder="np. 10000"
+                    min="0"
+                  />
+                </div>
+                {riskCapital > 0 && (() => {
+                  const capital = parseFloat(riskCapital);
+                  const stopDist = Math.abs(marketData.price - marketData.riskManagement.stopLoss);
+                  const riskAmount = capital * 0.015;
+                  const positionUnits = stopDist > 0 ? riskAmount / stopDist : 0;
+                  const positionValue = positionUnits * marketData.price;
+                  return (
+                    <div className="risk-calc-results">
+                      <div className="calc-result-card">
+                        <span className="calc-result-label">Maks. Ryzyko (1.5%)</span>
+                        <span className="calc-result-value highlight-red">{riskAmount.toFixed(2)} {currency}</span>
+                      </div>
+                      <div className="calc-result-card">
+                        <span className="calc-result-label">Wielkość Pozycji</span>
+                        <span className="calc-result-value highlight-blue">{positionUnits.toFixed(6)} {ticker}</span>
+                      </div>
+                      <div className="calc-result-card">
+                        <span className="calc-result-label">Wartość Pozycji</span>
+                        <span className="calc-result-value highlight-green">{positionValue.toFixed(2)} {currency}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+                <span className="calc-result-note">Obliczenia oparte o SL: {formatPrice(marketData.riskManagement.stopLoss)} {currency} | Ryzyko na trade: 1.5% kapitału</span>
               </div>
             </div>
           )}
