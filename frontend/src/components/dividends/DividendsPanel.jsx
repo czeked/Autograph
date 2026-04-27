@@ -1,40 +1,62 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import StockCard from "./StockCard";
 import FilterBar from "./FilterBar";
 import StatsOverview from "./StatsOverview";
 import StockModal from "./StockModal";
+import TopPick from "./TopPick";
+import { enrichStock } from "./dividendUtils";
+
+const STRATEGY_TABS = [
+    { key: "all",       label: "Wszystkie",      icon: "fa-solid fa-layer-group" },
+    { key: "okazje",    label: "Okazje",         icon: "fa-solid fa-fire" },
+    { key: "arystokraci", label: "Arystokraci",  icon: "fa-solid fa-crown" },
+    { key: "wzrostowe", label: "Wzrostowe",      icon: "fa-solid fa-arrow-trend-up" },
+    { key: "bezpieczne", label: "Najbezpieczniejsze", icon: "fa-solid fa-shield-halved" },
+];
 
 export default function DividendsPanel() {
-    const [stocks, setStocks] = useState([]);
+    const [rawStocks, setRawStocks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
     const [selectedSector, setSelectedSector] = useState("Wszystkie");
     const [sortBy, setSortBy] = useState("score");
+    const [smartFilter, setSmartFilter] = useState("");
     const [selectedStock, setSelectedStock] = useState(null);
     const [aiAnalysis, setAiAnalysis] = useState("");
     const [aiLoading, setAiLoading] = useState(false);
     const [stockNews, setStockNews] = useState([]);
     const [marketNews, setMarketNews] = useState([]);
     const [lastRefresh, setLastRefresh] = useState("");
+    const [activeTab, setActiveTab] = useState("all");
+    const [watchlist, setWatchlist] = useState(() => {
+        try { return JSON.parse(localStorage.getItem("div-watchlist") || "[]"); } catch { return []; }
+    });
+
+    const toggleWatchlist = useCallback((ticker) => {
+        setWatchlist(prev => {
+            const next = prev.includes(ticker) ? prev.filter(t => t !== ticker) : [...prev, ticker];
+            localStorage.setItem("div-watchlist", JSON.stringify(next));
+            return next;
+        });
+    }, []);
 
     useEffect(() => {
         fetchDividends();
     }, []);
 
+    /* ---- Enrich stocks with computed scores ---- */
+    const stocks = useMemo(() => rawStocks.map(enrichStock), [rawStocks]);
+
     const fetchDividends = async () => {
-        console.log("🔄 DividendsPanel: fetching from API...");
         setLoading(true);
         setError("");
         try {
             const res = await fetch("http://localhost:3001/api/dividends");
-            console.log("📡 Response status:", res.status);
             const data = await res.json();
-            console.log("📊 Data received:", data.success, "stocks:", data.stocks?.length);
             if (data.success) {
-                setStocks(data.stocks);
+                setRawStocks(data.stocks);
                 if (data.lastRefresh) setLastRefresh(data.lastRefresh);
-                // Pobierz zbiorcze newsy
                 fetch("http://localhost:3001/api/dividends/news")
                     .then(r => r.json())
                     .then(nd => { if (nd.success) setMarketNews(nd.news); })
@@ -43,7 +65,6 @@ export default function DividendsPanel() {
                 setError(data.error || "Błąd pobierania danych");
             }
         } catch (err) {
-            console.error("❌ Fetch error:", err);
             setError("Nie można połączyć z serwerem: " + err.message);
         } finally {
             setLoading(false);
@@ -92,18 +113,52 @@ export default function DividendsPanel() {
             s.name.toLowerCase().includes(search.toLowerCase());
         const matchSector =
             selectedSector === "Wszystkie" || s.sectorPl === selectedSector;
-        return matchSearch && matchSector;
+
+        // Smart filters
+        let matchSmart = true;
+        if (smartFilter === "very-safe") matchSmart = s.safetyLabel === "B. BEZPIECZNA";
+        else if (smartFilter === "high-yield-safe") matchSmart = s.dividendYield >= 4 && s.safetyLabel !== "RYZYKOWNA";
+        else if (smartFilter === "buy-only") matchSmart = s.verdict === "KUPUJ";
+        else if (smartFilter === "risky") matchSmart = s.safetyLabel === "RYZYKOWNA";
+
+        return matchSearch && matchSector && matchSmart;
     });
 
     /* ---- Sortowanie ---- */
     const sorted = [...filtered].sort((a, b) => {
-        if (sortBy === "score") return (b.score || 0) - (a.score || 0);
+        if (sortBy === "score") return (b.finalScore || 0) - (a.finalScore || 0);
         if (sortBy === "yield") return b.dividendYield - a.dividendYield;
         if (sortBy === "price") return b.price - a.price;
         if (sortBy === "payout") return a.payoutRatio - b.payoutRatio;
         if (sortBy === "pe") return a.peRatio - b.peRatio;
         return 0;
     });
+
+    /* ---- Okazje count for tabs ---- */
+    const okazje = sorted.filter(s => s.verdict === "KUPUJ");
+
+    /* ---- Strategy tab filtering ---- */
+    const tabStocks = useMemo(() => {
+        if (activeTab === "okazje") return sorted.filter(s => s.verdict === "KUPUJ");
+        if (activeTab === "arystokraci") return sorted.filter(s => s.divScore >= 8 && s.payoutRatio < 70);
+        if (activeTab === "wzrostowe") return sorted.filter(s => s.earningsGrowth > 5 && s.dividendYield >= 2);
+        if (activeTab === "bezpieczne") return [...sorted].sort((a, b) => b.divScore - a.divScore).slice(0, 8);
+        return sorted;
+    }, [sorted, activeTab]);
+
+    /* ---- Top 3 newsy ---- */
+    const topNews = marketNews.slice(0, 3);
+
+    /* ---- Kalendarz dywidend (najbliższe ex-div daty) ---- */
+    const calendarStocks = [...stocks]
+        .filter(s => s.exDivDate && s.exDivDate !== "N/A" && s.exDivDate !== "—")
+        .sort((a, b) => new Date(a.exDivDate) - new Date(b.exDivDate))
+        .slice(0, 5);
+
+    /* ---- Market sentiment ---- */
+    const buyCount = stocks.filter(s => s.verdict === "KUPUJ").length;
+    const sentimentLabel = buyCount >= stocks.length * 0.5 ? "POZYTYWNY" : buyCount >= stocks.length * 0.25 ? "NEUTRALNY" : "NEGATYWNY";
+    const sentimentClass = sentimentLabel === "POZYTYWNY" ? "div-sentiment-pos" : sentimentLabel === "NEUTRALNY" ? "div-sentiment-neu" : "div-sentiment-neg";
 
     return (
         <div className="div-panel">
@@ -114,7 +169,7 @@ export default function DividendsPanel() {
                     <div>
                         <h1>Rynki Dywidendowe</h1>
                         <p className="div-panel-subtitle">
-                            TOP 15 najbardziej opłacalnych spółek — AI scoring codzienny
+                            TOP {stocks.length} najbardziej opłacalnych spółek — AI scoring codzienny
                             {lastRefresh && ` | Aktualizacja: ${new Date(lastRefresh).toLocaleString('pl-PL')}`}
                         </p>
                     </div>
@@ -150,46 +205,67 @@ export default function DividendsPanel() {
 
             {!loading && !error && stocks.length > 0 && (
                 <>
+                    {/* ===== TOP PICK BANNER ===== */}
+                    <TopPick stocks={stocks} onAnalyze={analyzeStock} />
+
                     {/* ===== STATYSTYKI OGÓLNE ===== */}
                     <StatsOverview stocks={stocks} />
 
-                    {/* ===== WIADOMOŚCI RYNKOWE ===== */}
-                    {marketNews.length > 0 && (
-                        <div className="div-market-news">
-                            <h3 className="div-news-title">
-                                <i className="fa-solid fa-newspaper"></i>
-                                Aktualne wiadomości dywidendowe
-                            </h3>
-                            <div className="div-news-grid">
-                                {marketNews.map((n, i) => (
-                                    <a
-                                        key={i}
-                                        className="div-news-card"
-                                        href={n.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                    >
-                                        {n.image && (
-                                            <img
-                                                src={n.image}
-                                                alt=""
-                                                className="div-news-card-img"
-                                                onError={(e) => { e.target.style.display = 'none'; }}
-                                            />
-                                        )}
-                                        <div className="div-news-card-body">
-                                            <span className="div-news-card-ticker">{n.ticker}</span>
-                                            <span className="div-news-card-headline">{n.headline}</span>
-                                            <div className="div-news-card-meta">
-                                                <span className="div-news-source">{n.source}</span>
-                                                {n.datetime && (
-                                                    <span className="div-news-date">
-                                                        {new Date(n.datetime).toLocaleDateString('pl-PL')}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </a>
+                    {/* ===== MARQUEE INDEX BAR ===== */}
+                    <div className="div-index-bar">
+                        <div className="div-index-card">
+                            <span className="div-index-label">S&P 500</span>
+                            <span className="div-index-val">5,525.21</span>
+                            <span className="div-index-change div-change-up">+0.74%</span>
+                        </div>
+                        <div className="div-index-card">
+                            <span className="div-index-label">NASDAQ</span>
+                            <span className="div-index-val">17,382.94</span>
+                            <span className="div-index-change div-change-up">+1.12%</span>
+                        </div>
+                        <div className="div-index-card">
+                            <span className="div-index-label">WIG20</span>
+                            <span className="div-index-val">2,512.30</span>
+                            <span className="div-index-change div-change-down">-0.31%</span>
+                        </div>
+                        <div className="div-index-card">
+                            <span className="div-index-label">Sentyment</span>
+                            <span className={`div-index-val ${sentimentClass}`}>{sentimentLabel}</span>
+                            <span className="div-index-detail">{buyCount}/{stocks.length} KUPUJ</span>
+                        </div>
+                        {topNews.length > 0 && (
+                            <div className="div-index-news-marquee">
+                                <div className="div-marquee-track">
+                                    {[...topNews, ...topNews].map((n, i) => (
+                                        <a key={i} className="div-marquee-item" href={n.url} target="_blank" rel="noopener noreferrer">
+                                            <span className="div-marquee-ticker">{n.ticker}</span>
+                                            <span className="div-marquee-text">{n.headline}</span>
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ===== KALENDARZ DYWIDEND ===== */}
+                    {calendarStocks.length > 0 && (
+                        <div className="div-calendar-widget">
+                            <div className="div-calendar-header">
+                                <i className="fa-regular fa-calendar-check"></i>
+                                <span>Nadchodzące daty Ex-Dividend</span>
+                                <span className="div-calendar-hint">Aby otrzymać dywidendę, kup przed tą datą</span>
+                            </div>
+                            <div className="div-calendar-list">
+                                {calendarStocks.map((s) => (
+                                    <div key={s.ticker} className="div-calendar-item">
+                                        <span className={`div-cal-verdict div-verdict-badge ${s.verdict === "KUPUJ" ? "div-verdict-buy" : s.verdict === "TRZYMAJ" ? "div-verdict-hold" : "div-verdict-avoid"}`}>
+                                            {s.verdict}
+                                        </span>
+                                        <span className="div-cal-ticker">{s.ticker}</span>
+                                        <span className="div-cal-date">{s.exDivDate}</span>
+                                        <span className="div-cal-yield">{s.dividendYield.toFixed(2)}%</span>
+                                        <span className="div-cal-name">{s.name}</span>
+                                    </div>
                                 ))}
                             </div>
                         </div>
@@ -204,17 +280,46 @@ export default function DividendsPanel() {
                         setSelectedSector={setSelectedSector}
                         sortBy={sortBy}
                         setSortBy={setSortBy}
-                        resultCount={sorted.length}
+                        smartFilter={smartFilter}
+                        setSmartFilter={setSmartFilter}
+                        resultCount={tabStocks.length}
                     />
 
-                    {/* ===== LISTA SPÓŁEK ===== */}
+                    {/* ===== STRATEGY TABS ===== */}
+                    <div className="div-strategy-tabs">
+                        {STRATEGY_TABS.map(tab => (
+                            <button
+                                key={tab.key}
+                                className={`div-strategy-tab ${activeTab === tab.key ? "active" : ""}`}
+                                onClick={() => setActiveTab(tab.key)}
+                            >
+                                <i className={tab.icon}></i>
+                                {tab.label}
+                                {tab.key !== "all" && (
+                                    <span className="div-tab-count">
+                                        {tab.key === "okazje" ? okazje.length
+                                            : tab.key === "arystokraci" ? sorted.filter(s => s.divScore >= 8 && s.payoutRatio < 70).length
+                                            : tab.key === "wzrostowe" ? sorted.filter(s => s.earningsGrowth > 5 && s.dividendYield >= 2).length
+                                            : tab.key === "bezpieczne" ? Math.min(sorted.length, 8)
+                                            : sorted.length
+                                        }
+                                    </span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* ===== STOCK GRID ===== */}
                     <div className="div-stocks-grid">
-                        {sorted.length > 0 ? (
-                            sorted.map((stock) => (
+                        {tabStocks.length > 0 ? (
+                            tabStocks.map((stock, i) => (
                                 <StockCard
                                     key={stock.ticker}
                                     stock={stock}
+                                    index={i}
                                     onAnalyze={() => analyzeStock(stock)}
+                                    isWatchlisted={watchlist.includes(stock.ticker)}
+                                    onToggleWatchlist={() => toggleWatchlist(stock.ticker)}
                                 />
                             ))
                         ) : (
@@ -226,6 +331,32 @@ export default function DividendsPanel() {
                     </div>
                 </>
             )}
+
+            {/* ===== PROFESSIONAL FOOTER ===== */}
+            <footer className="div-footer">
+                <div className="div-footer-top">
+                    <div className="div-footer-col">
+                        <h4>Dane</h4>
+                        <span><i className="fa-solid fa-database"></i> Financial Modeling Prep (FMP)</span>
+                        <span><i className="fa-solid fa-robot"></i> AI: Gemma 4 / Gemini</span>
+                        <span><i className="fa-solid fa-chart-line"></i> NYSE, NASDAQ</span>
+                    </div>
+                    <div className="div-footer-col">
+                        <h4>Informacje</h4>
+                        <span>Polityka prywatności</span>
+                        <span>Regulamin</span>
+                        <span>Metodologia AI</span>
+                    </div>
+                    <div className="div-footer-col">
+                        <h4>Kontakt</h4>
+                        <span>kontakt@autograph.pl</span>
+                    </div>
+                </div>
+                <div className="div-footer-disclaimer">
+                    <i className="fa-solid fa-scale-balanced"></i>
+                    <p>Informacje prezentowane na tej stronie mają wyłącznie charakter edukacyjny i informacyjny. <strong>Nie stanowią porady inwestycyjnej</strong> w rozumieniu przepisów prawa. Przed podjęciem decyzji inwestycyjnych skonsultuj się z licencjonowanym doradcą finansowym. Inwestowanie wiąże się z ryzykiem utraty kapitału.</p>
+                </div>
+            </footer>
 
             {/* ===== MODAL ANALIZY ===== */}
             {selectedStock && (

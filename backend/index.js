@@ -192,7 +192,7 @@ function calculateEMA(prices, period) {
 }
 
 function calculateMACD(prices) {
-  if (prices.length < 26) return { macdLine: '0', signalLine: '0', histogram: '0', signal: 'NEUTRALNY' };
+  if (prices.length < 27) return { macdLine: '0', signalLine: '0', histogram: '0', signal: 'NEUTRALNY' };
   // Iteracyjne EMA12 i EMA26
   const k12 = 2 / 13, k26 = 2 / 27;
   let ema12 = prices.slice(0, 12).reduce((a, b) => a + b) / 12;
@@ -256,12 +256,12 @@ function calculateATR(candles, period = 14) {
 // ADX — siła trendu (0-100, >25 = silny trend)
 function calculateADX(candles, period = 14) {
   if (candles.length < period + 1) return { adx: 25, plusDI: 50, minusDI: 50, trend: 'BRAK DANYCH' };
-  
+
   const trueRanges = [], plusDMs = [], minusDMs = [];
   for (let i = 1; i < candles.length; i++) {
     const high = candles[i].high, low = candles[i].low;
     const prevHigh = candles[i - 1].high, prevLow = candles[i - 1].low, prevClose = candles[i - 1].close;
-    
+
     trueRanges.push(Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose)));
     const plusDM = (high - prevHigh) > (prevLow - low) && (high - prevHigh) > 0 ? high - prevHigh : 0;
     const minusDM = (prevLow - low) > (high - prevHigh) && (prevLow - low) > 0 ? prevLow - low : 0;
@@ -273,42 +273,42 @@ function calculateADX(candles, period = 14) {
   let smoothTR = trueRanges.slice(0, period).reduce((a, b) => a + b);
   let smoothPlusDM = plusDMs.slice(0, period).reduce((a, b) => a + b);
   let smoothMinusDM = minusDMs.slice(0, period).reduce((a, b) => a + b);
-  
+
   const dxValues = [];
   for (let i = period; i < trueRanges.length; i++) {
     smoothTR = smoothTR - (smoothTR / period) + trueRanges[i];
     smoothPlusDM = smoothPlusDM - (smoothPlusDM / period) + plusDMs[i];
     smoothMinusDM = smoothMinusDM - (smoothMinusDM / period) + minusDMs[i];
-    
+
     const plusDI = smoothTR > 0 ? (smoothPlusDM / smoothTR) * 100 : 0;
     const minusDI = smoothTR > 0 ? (smoothMinusDM / smoothTR) * 100 : 0;
     const diSum = plusDI + minusDI;
     const dx = diSum > 0 ? (Math.abs(plusDI - minusDI) / diSum) * 100 : 0;
     dxValues.push({ dx, plusDI, minusDI });
   }
-  
+
   if (dxValues.length < period) {
     const last = dxValues[dxValues.length - 1] || { dx: 25, plusDI: 50, minusDI: 50 };
     return { adx: last.dx, plusDI: last.plusDI, minusDI: last.minusDI, trend: last.dx > 25 ? (last.plusDI > last.minusDI ? 'SILNY WZROST' : 'SILNY SPADEK') : 'BOCZNY' };
   }
-  
+
   let adx = dxValues.slice(0, period).reduce((a, b) => a + b.dx, 0) / period;
   for (let i = period; i < dxValues.length; i++) {
     adx = (adx * (period - 1) + dxValues[i].dx) / period;
   }
-  
+
   const last = dxValues[dxValues.length - 1];
   let trend = 'BOCZNY';
   if (adx > 25) trend = last.plusDI > last.minusDI ? 'SILNY WZROST' : 'SILNY SPADEK';
   else if (adx > 20) trend = 'SŁABY TREND';
-  
+
   return { adx: parseFloat(adx.toFixed(1)), plusDI: parseFloat(last.plusDI.toFixed(1)), minusDI: parseFloat(last.minusDI.toFixed(1)), trend };
 }
 
 // Stochastic RSI — lepszy overbought/oversold
 function calculateStochRSI(closes, rsiPeriod = 14, stochPeriod = 14) {
   if (closes.length < rsiPeriod + stochPeriod + 1) return { k: 50, d: 50, signal: 'NEUTRALNY' };
-  
+
   // Oblicz serię RSI
   const rsiValues = [];
   let avgGain = 0, avgLoss = 0;
@@ -319,16 +319,16 @@ function calculateStochRSI(closes, rsiPeriod = 14, stochPeriod = 14) {
   avgGain /= rsiPeriod;
   avgLoss /= rsiPeriod;
   rsiValues.push(avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss)));
-  
+
   for (let i = rsiPeriod + 1; i < closes.length; i++) {
     const diff = closes[i] - closes[i - 1];
     avgGain = (avgGain * (rsiPeriod - 1) + (diff > 0 ? diff : 0)) / rsiPeriod;
     avgLoss = (avgLoss * (rsiPeriod - 1) + (diff < 0 ? Math.abs(diff) : 0)) / rsiPeriod;
     rsiValues.push(avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss)));
   }
-  
+
   if (rsiValues.length < stochPeriod) return { k: 50, d: 50, signal: 'NEUTRALNY' };
-  
+
   // Stochastic on RSI values
   const kValues = [];
   for (let i = stochPeriod - 1; i < rsiValues.length; i++) {
@@ -337,23 +337,23 @@ function calculateStochRSI(closes, rsiPeriod = 14, stochPeriod = 14) {
     const maxRSI = Math.max(...window);
     kValues.push(maxRSI === minRSI ? 50 : ((rsiValues[i] - minRSI) / (maxRSI - minRSI)) * 100);
   }
-  
+
   const k = kValues[kValues.length - 1];
   const d = kValues.length >= 3 ? kValues.slice(-3).reduce((a, b) => a + b) / 3 : k;
-  
+
   let signal = 'NEUTRALNY';
   if (k > 80 && d > 80) signal = 'WYKUPIONY';
   else if (k < 20 && d < 20) signal = 'WYPRZEDANY';
   else if (k > d && k < 80) signal = 'BYCZY';
   else if (k < d && k > 20) signal = 'NIEDŹWIEDZI';
-  
+
   return { k: parseFloat(k.toFixed(1)), d: parseFloat(d.toFixed(1)), signal };
 }
 
 // OBV — On-Balance Volume (potwierdza trend wolumenem)
 function calculateOBV(candles) {
   if (candles.length < 2) return { obv: 0, trend: 'BRAK DANYCH', divergence: false };
-  
+
   let obv = 0;
   const obvValues = [0];
   for (let i = 1; i < candles.length; i++) {
@@ -361,16 +361,16 @@ function calculateOBV(candles) {
     else if (candles[i].close < candles[i - 1].close) obv -= candles[i].volume;
     obvValues.push(obv);
   }
-  
+
   // OBV trend (last 10 candles)
   const recent = obvValues.slice(-10);
   const obvTrend = recent[recent.length - 1] > recent[0] ? 'WZROSTOWY' : 'SPADKOWY';
-  
+
   // Dywergencja: cena rośnie ale OBV spada = bearish divergence
   const priceUp = candles[candles.length - 1].close > candles[Math.max(0, candles.length - 10)].close;
   const obvUp = obvValues[obvValues.length - 1] > obvValues[Math.max(0, obvValues.length - 10)];
   const divergence = priceUp !== obvUp;
-  
+
   return {
     obv: obv,
     trend: obvTrend,
@@ -382,7 +382,7 @@ function calculateOBV(candles) {
 // Dywergencja RSI — najsilniejszy sygnał reversal
 function detectRSIDivergence(closes, period = 14) {
   if (closes.length < period + 20) return { detected: false, type: 'BRAK' };
-  
+
   // Oblicz RSI dla ostatnich 20 punktów
   const rsiValues = [];
   let avgGain = 0, avgLoss = 0;
@@ -391,39 +391,39 @@ function detectRSIDivergence(closes, period = 14) {
     if (diff > 0) avgGain += diff; else avgLoss += Math.abs(diff);
   }
   avgGain /= period; avgLoss /= period;
-  
+
   for (let i = period + 1; i < closes.length; i++) {
     const diff = closes[i] - closes[i - 1];
     avgGain = (avgGain * (period - 1) + (diff > 0 ? diff : 0)) / period;
     avgLoss = (avgLoss * (period - 1) + (diff < 0 ? Math.abs(diff) : 0)) / period;
     rsiValues.push({ rsi: avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss)), price: closes[i] });
   }
-  
+
   if (rsiValues.length < 10) return { detected: false, type: 'BRAK' };
-  
+
   const recent = rsiValues.slice(-10);
   const mid = Math.floor(recent.length / 2);
-  
+
   // Bearish: cena robi wyższy szczyt, RSI niższy szczyt
   const priceHigher = recent[recent.length - 1].price > recent[mid].price;
   const rsiLower = recent[recent.length - 1].rsi < recent[mid].rsi;
   if (priceHigher && rsiLower && recent[recent.length - 1].rsi > 50) {
     return { detected: true, type: 'NIEDŹWIEDZIA (cena ↑ RSI ↓)' };
   }
-  
+
   // Bullish: cena robi niższy dół, RSI wyższy dół
   const priceLower = recent[recent.length - 1].price < recent[mid].price;
   const rsiHigher = recent[recent.length - 1].rsi > recent[mid].rsi;
   if (priceLower && rsiHigher && recent[recent.length - 1].rsi < 50) {
     return { detected: true, type: 'BYCZA (cena ↓ RSI ↑)' };
   }
-  
+
   return { detected: false, type: 'BRAK' };
 }
 
 function calculateSAR(candles) {
   if (candles.length < 2) return { sar: 0, trend: 'N/A' };
-  
+
   let sar = candles[0].low;
   let trend = 'UP';
   let af = 0.02;
@@ -478,7 +478,7 @@ function calculateSAR(candles) {
 
 function detectCandlePatterns(candles) {
   if (candles.length < 3) return [];
-  
+
   const patterns = [];
   const lastCandle = candles[candles.length - 1];
   const prevCandle = candles[candles.length - 2];
@@ -502,13 +502,13 @@ function detectCandlePatterns(candles) {
     patterns.push('✝️ DOJI - Indecisja rynkowa');
   }
 
-  if (isGreen(lastCandle) && !isGreen(prevCandle) && 
-      lastCandle.close > prevCandle.open && lastCandle.open < prevCandle.close) {
+  if (isGreen(lastCandle) && !isGreen(prevCandle) &&
+    lastCandle.close > prevCandle.open && lastCandle.open < prevCandle.close) {
     patterns.push('📈 BULLISH ENGULFING - Silny sygnał wzrostowy');
   }
 
-  if (!isGreen(lastCandle) && isGreen(prevCandle) && 
-      lastCandle.close < prevCandle.open && lastCandle.open > prevCandle.close) {
+  if (!isGreen(lastCandle) && isGreen(prevCandle) &&
+    lastCandle.close < prevCandle.open && lastCandle.open > prevCandle.close) {
     patterns.push('📉 BEARISH ENGULFING - Silny sygnał spadkowy');
   }
 
@@ -593,7 +593,7 @@ async function getCryptoNews(ticker) {
 
     // Filtruj wiadomości po słowach kluczowych tickera
     const keywords = TICKER_KEYWORDS[ticker.toUpperCase()] || [ticker.toLowerCase()];
-    
+
     const filtered = allArticles.filter(article => {
       const text = (article.headline + ' ' + (article.summary || '')).toLowerCase();
       return keywords.some(kw => text.includes(kw));
@@ -606,7 +606,7 @@ async function getCryptoNews(ticker) {
       const fullText = article.headline + ' ' + (article.summary || '');
       const importance = calculateImportanceScore(fullText);
       const importanceLevel = getImportanceLevel(importance);
-      
+
       return {
         title: article.headline,
         body: (article.summary || '').substring(0, 150) + '...',
@@ -648,11 +648,11 @@ async function getCryptoNews(ticker) {
 function analyzeSentiment(text) {
   const positiveWords = ['moon', 'pump', 'bull', 'surge', 'gain', 'rally', 'partnership', 'launch', 'bullish', 'up', 'positive', 'approved', 'success'];
   const negativeWords = ['crash', 'dump', 'bear', 'drop', 'loss', 'bearish', 'down', 'hack', 'scam', 'fraud', 'negative', 'rejected', 'failure'];
-  
+
   const lower = text.toLowerCase();
   let positive = positiveWords.filter(word => lower.includes(word)).length;
   let negative = negativeWords.filter(word => lower.includes(word)).length;
-  
+
   if (positive > negative) return 'POZYTYWNA 📈';
   if (negative > positive) return 'NEGATYWNA 📉';
   return 'NEUTRALNA ➡️';
@@ -904,7 +904,7 @@ function calculateBacktest(candles) {
     const ret = t.score > 0 ? t.nextDayReturn : -t.nextDayReturn;
     equity *= (1 + ret / 100);
     equityCurve.push(+equity.toFixed(2));
-    
+
     if (equity > maxEquity) {
       maxEquity = equity;
     }
@@ -1061,7 +1061,7 @@ function enrichNewsWithImpact(newsArray) {
   return newsArray.map(n => {
     const direction = n.sentiment?.includes('POZYTYWNA') ? 'bullish'
       : n.sentiment?.includes('NEGATYWNA') ? 'bearish'
-      : 'neutral';
+        : 'neutral';
     const directionConfidence = Math.min(70, 30 + (n.importance || 0) * 5); // CAPPED at 70%
     const impact = n.importance >= 6 ? 'HIGH' : n.importance >= 3 ? 'MEDIUM' : 'LOW';
     const dirLabel = direction === 'bullish' ? '📈 wzrostowy' : direction === 'bearish' ? '📉 spadkowy' : '➡️ neutralny';
@@ -1354,7 +1354,7 @@ async function getMarketData(ticker, currency = 'USD') {
   try {
     const symbol = ticker.toUpperCase();
     const cacheKey = `${symbol}-${currency}`;
-    
+
     if (dataCache[cacheKey] && (Date.now() - dataCache[cacheKey].timestamp) < CACHE_TTL) {
       console.log(`⚡ Cache hit: ${cacheKey}`);
       return dataCache[cacheKey].data;
@@ -1492,10 +1492,10 @@ app.post('/api/analyze', async (req, res) => {
     }
 
     console.log(`📊 Analizuję: ${ticker}/${currency}`);
-    
+
     const data = await getMarketData(ticker, currency);
 
-    const newsText = data.news.length > 0 
+    const newsText = data.news.length > 0
       ? `\n📰 WIADOMOŚCI:\n${data.news.slice(0, 3).map(n => `- ${n.importanceLevel} ${n.title} (${n.sentiment})`).join('\n')}`
       : '';
 
@@ -1653,7 +1653,7 @@ const server = app.listen(PORT, () => {
   console.log(`📊 CoinGecko API - OHLC 30 dni`);
   console.log(`🤖 AI Engine: Gemma 4 (gemma-4-31b-it) + Gemini fallback`);
   console.log(`📰 Finnhub News - Real Time Crypto Monitoring\n`);
-  
+
   // Uruchom monitoring wiadomości
   startNewsMonitoring();
 });

@@ -452,109 +452,105 @@ ROE: ${stock.roe}% | Debt/Equity: ${stock.debtToEquity} | Profit Margin: ${stock
 RYZYKO:
 Beta: ${stock.beta} | 52W Low: $${stock.fiftyTwoWeekLow} | 52W High: $${stock.fiftyTwoWeekHigh}${newsSection}`;
 
-    const systemPrompt = `Rola: Analityk dywidendowy (income-first, NIE growth). TYLKO po polsku. ZERO markdown (brak formatowania). Emoji dozwolone ale oszczędnie.
+    const systemPrompt = `Rola: Analityk dywidendowy (income-first, NIE growth). TYLKO po polsku. ZERO markdown. Emoji tylko tam gdzie wskazane.
 
-ZASADY BEZWZGLĘDNE:
-- NIE powtarzaj danych liczbowych z UI (price, yield, P/E, payout, ROE itd.)
-- Fokus TYLKO na dywidendzie i decyzji inwestycyjnej
-- Każda linia musi wnosić wartość decyzyjną — zero ogólników typu "solidne fundamenty" czy "dobra spółka"
-- Oceniaj ZAWSZE przez cash flow (nie tylko earnings)
-- Ignoruj newsy niezwiązane bezpośrednio ze spółką
+ZASADY:
+- NIE powtarzaj danych liczbowych z UI (price, yield, P/E, payout, ROE)
+- Fokus na dywidendzie i decyzji inwestycyjnej
+- Każda linia = wartość decyzyjna. Zero ogólników
+- Oceniaj przez cash flow (nie tylko earnings)
 - Newsy interpretuj TYLKO przez wpływ na dywidendę i cash flow
-- Wykrywaj yield trap — jeśli yield podejrzanie wysoki, oznacz to
-- Wykrywaj anomalie danych — jeśli Debt/Equity=0 lub brak danych → zaznacz ⚠️
-- Język analityczny: "stabilny cash flow operacyjny", "presja na marże", "ryzyko erozji przychodów", "ograniczony margines bezpieczeństwa" — NIE "solidne fundamenty"
+- Wykrywaj yield trap i anomalie danych
+- Język analityczny: "presja na marże", "erozja przychodów" NIE "solidne fundamenty"
+- Każdy wniosek MUSI zawierać KONKRETNY POWÓD np. NIE "dywidenda bezpieczna" ale "dywidenda bezpieczna, bo firma zredukowała dług o 15%, uwalniając gotówkę"
+- Unikaj stwierdzeń oczywistych z tabelki — dawaj insight którego inwestor sam nie wydedukuje
 
-CONFIDENCE SCORE:
-Oblicz Confidence (0-100%) na podstawie:
-- spójność danych finansowych (czy się zgadzają)
-- brak anomalii (Debt/Equity=0, ujemne ROE, brak danych = obniża)
-- jakość i ilość newsów (więcej relevantnych = wyższy)
-- kompletność danych (brak earnings growth, brak PEG = obniża)
-
-MODEL DECYZYJNY (oblicz w tle, NIE pokazuj obliczeń):
-Dividend Quality (0-10): safety (FCF coverage), growth (czy rośnie), consistency (brak cięć)
-Valuation (0-10): yield vs średnia historyczna, wycena vs sektor
-Risk to Dividend (-5 do 0): co zagraża cash flow i dywidendzie, uwzględnij news impact
-Final Score = (Dividend * 0.5) + (Valuation * 0.3) + ((10 + Risk) * 0.2)
+MODEL (oblicz w tle, NIE pokazuj obliczeń):
+Dividend Quality (0-10) | Valuation (0-10) | Risk (-5 do 0)
+Final = (Div*0.5) + (Val*0.3) + ((10+Risk)*0.2)
 8.0+ = KUPUJ | 6.0-8.0 = TRZYMAJ | <6.0 = UNIKAJ
 
-OUTPUT (DOKŁADNIE ten format, NIC więcej, NIC przed nim):
+OUTPUT (DOKŁADNIE ten format, NIC przed nim):
 
+[HEADER]
 Score: X.X / 10
 Confidence: XX%
-✅ KUPUJ / ⚠️ TRZYMAJ / ❌ UNIKAJ
-Dywidenda: VERY SAFE / SAFE / RISKY
-Powód: (1 zdanie z konkretnym powodem, język analityczny)
+Rekomendacja: KUPUJ / TRZYMAJ / UNIKAJ
+Dywidenda: Bardzo bezpieczna / Bezpieczna / Ryzykowna
+Powód: 1 zdanie analityczne
 
-– dywidenda: opisz FCF coverage słownie np. "pokryta gotówką z dużym zapasem" lub "ograniczony margines bezpieczeństwa"
-– historia: stabilność/wzrost wypłat, czy były cięcia
-– wycena: yield vs średnia historyczna → "atrakcyjny punkt wejścia" / "neutralny" / "drogi"
-– ryzyko: największe zagrożenie dla dywidendy (1 zdanie, konkret)
+[CONFIDENCE_REASON]
+1 zdanie wyjaśniające co wpływa na pewność AI (np. "Niska pewność wynika z rozbieżnych sygnałów w newsach i braku danych o FCF za ostatni kwartał")
 
-News impact: POSITIVE (+X) / NEUTRAL (0) / NEGATIVE (–X)
-– 1 zdanie: konkretny wpływ newsów na cash flow i dywidendę (lub "Brak istotnych newsów" jeśli nie ma)
+[PROS]
+✅ (1 zdanie o bezpieczeństwie dywidendy — FCF coverage + KONKRETNA LICZBA lub fakt dlaczego)
+✅ (1 zdanie o historii wypłat z konkretnym faktem np. "nieprzerwane wypłaty od 25 lat" lub "wzrost o X% rocznie")
+✅ (1 zdanie o wycenie jeśli atrakcyjna — z porównaniem np. "yield 40% powyżej średniej 5-letniej")
 
+[CONS]
+❌ (1 zdanie o KONKRETNYM ryzyku dla dywidendy z podaniem co dokładnie zagraża cash flow)
+❌ (1 zdanie o drugim ryzyku jeśli istnieje — z danymi np. "Debt/EBITDA wzrósł z 2.1 do 3.4")
+
+[NEUTRAL]
+⚖️ (1 zdanie o wycenie vs historia — jeśli neutralna)
+⚖️ (1 zdanie o pozycji vs sektor)
+
+[NEWS]
+Sentyment: POSITIVE / NEUTRAL / NEGATIVE
+Siła: X (skala -3 do +3, np. -1.2)
+Powód: 1 zdanie o wpływie newsów na cash flow i dywidendę
+
+[SCORES]
 Dividend Score: X/10
 Valuation: X/10
 Risk: -X
 
-Trend:
-– FCF: ↑/↓/→ + 1 krótkie zdanie interpretacji
-– dywidenda: ↑/→/↓ + 1 krótkie zdanie interpretacji
+[TREND]
+FCF: ↑/↓/→ 1 zdanie
+Dywidenda: ↑/→/↓ 1 zdanie
 
-Relative (vs sektor):
-– konkretne porównanie np. "wyższa stabilność niż spółki wzrostowe" lub "niższy potencjał wzrostu niż konkurenci"
+[SCENARIO_BULL]
+Warunek: co musi się stać (1 zdanie z KONKRETEM np. "Jeśli cena spadnie poniżej $24, stopa dywidendy przekroczy 5%")
+Efekt: jaka zmiana oceny/rekomendacji
 
-Trigger:
-– co musi się stać żeby podnieść ocenę (1 linia)
-– co może obniżyć ocenę (1 linia)
+[SCENARIO_BEAR]
+Warunek: co może się pogorszyć (1 zdanie z KONKRETEM np. "Jeśli FCF spadnie <$2B, payout przekroczy 90%")
+Efekt: jaka zmiana oceny/rekomendacji
 
-⚠️ jeśli wykryto anomalie danych, dodaj na końcu: "Dane: opis anomalii (wymaga weryfikacji)"`;
+[ALERT]
+1 linia: co obserwować w najbliższym raporcie kwartalnym (konkretny wskaźnik)
+
+[ANOMALY]
+⚠️ tylko jeśli wykryto anomalie danych — opisz (wymaga weryfikacji). Jeśli brak anomalii, pomiń tę sekcję.`;
 
     let aiAnalysis = await generateWithFallback(prompt, systemPrompt);
     
-    // Wyczyść chain-of-thought — znajdź OSTATNIĄ linię "Score:" (nie "Dividend Score:")
     const lines = aiAnalysis.split('\n');
+    
+    // Znajdź [HEADER] lub fallback do "Score:" jako start
     let cleanStart = -1;
-    for (let i = lines.length - 1; i >= 0; i--) {
+    for (let i = 0; i < lines.length; i++) {
       const t = lines[i].trim();
-      if (/^Score:\s/i.test(t)) {
+      if (t === '[HEADER]' || /^Score:\s/i.test(t)) {
         cleanStart = i;
         break;
       }
     }
+    
     if (cleanStart >= 0) {
-      // Znajdź koniec — po Trigger + 2 linie, lub po ⚠️ Dane:, lub po Relative + 1
+      // Znajdź koniec — po [ANOMALY] content, [ALERT] content, lub ostatnia sekcja
       let cleanEnd = lines.length;
-      let foundEnd = false;
-      for (let i = cleanStart; i < lines.length; i++) {
+      for (let i = lines.length - 1; i >= cleanStart; i--) {
         const t = lines[i].trim();
-        // ⚠️ Dane: to absolutny koniec
-        if (/^⚠️.*[Dd]ane/i.test(t) || /^Dane:/i.test(t)) {
+        if (t && !t.startsWith('[')) {
           cleanEnd = i + 1;
-          foundEnd = true;
           break;
-        }
-        // Trigger + 2 linie
-        if (/^Trigger/i.test(t)) {
-          cleanEnd = Math.min(i + 3, lines.length);
-          foundEnd = true;
-          break;
-        }
-      }
-      // Fallback: Relative + 2
-      if (!foundEnd) {
-        for (let i = cleanStart; i < lines.length; i++) {
-          if (/^Relative/i.test(lines[i].trim())) {
-            cleanEnd = Math.min(i + 2, lines.length);
-            break;
-          }
         }
       }
       aiAnalysis = lines.slice(cleanStart, cleanEnd).join('\n');
     }
-    // Usuń * _ # i inne artefakty markdown
+    
+    // Usuń markdown artefakty, zachowaj section markers [HEADER] etc.
     aiAnalysis = aiAnalysis.replace(/\*/g, '').replace(/_{2,}/g, '').replace(/#{1,}/g, '').trim();
     
     console.log(`  📰 Uwzględniono ${news.length} newsów w analizie ${ticker}`);

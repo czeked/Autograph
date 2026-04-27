@@ -6,6 +6,8 @@ export default function FilterBar({
     setSelectedSector,
     sortBy,
     setSortBy,
+    smartFilter,
+    setSmartFilter,
     resultCount,
 }) {
     const sortOptions = [
@@ -14,6 +16,14 @@ export default function FilterBar({
         { value: "pe", label: "P/E (najniższe)" },
         { value: "price", label: "Cena" },
         { value: "payout", label: "Payout Ratio" },
+    ];
+
+    const smartFilters = [
+        { value: "", label: "Wszystkie" },
+        { value: "very-safe", label: "🛡️ Bardzo bezpieczne" },
+        { value: "high-yield-safe", label: "💰 Stopa >4% + bezpieczne" },
+        { value: "buy-only", label: "✅ Tylko Kupuj" },
+        { value: "risky", label: "⚠️ Ryzykowne" },
     ];
 
     return (
@@ -27,6 +37,20 @@ export default function FilterBar({
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
+            </div>
+
+            {/* Smart filtry */}
+            <div className="div-smart-filters">
+                <span className="div-sort-label">🎯 Filtr:</span>
+                {smartFilters.map((f) => (
+                    <button
+                        key={f.value}
+                        className={`div-smart-btn ${smartFilter === f.value ? "active" : ""}`}
+                        onClick={() => setSmartFilter(f.value)}
+                    >
+                        {f.label}
+                    </button>
+                ))}
             </div>
 
             {/* Sektory */}

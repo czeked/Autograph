@@ -10,7 +10,7 @@ export default function StatsOverview({ stocks }) {
     const avgPayout = (stocks.reduce((s, st) => s + st.payoutRatio, 0) / stocks.length).toFixed(1);
     const avgPE = (stocks.filter(s => s.peRatio > 0).reduce((s, st) => s + st.peRatio, 0) / stocks.filter(s => s.peRatio > 0).length).toFixed(1);
     const totalStocks = stocks.length;
-    const avgScore = (stocks.reduce((s, st) => s + (st.score || 0), 0) / stocks.length).toFixed(0);
+    const avgScore = (stocks.reduce((s, st) => s + (st.finalScore || 0), 0) / stocks.length).toFixed(0);
 
     // Sektory z liczbą spółek
     const sectorMap = {};
