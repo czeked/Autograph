@@ -1,51 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import './AiTrader.css';
-import { 
-  Search, TrendingUp, TrendingDown, Activity, Bot, BrainCircuit, Target, 
-  AlertTriangle, Calendar, ExternalLink, HelpCircle, Printer, SlidersHorizontal,
-  Star, Layout, Maximize2, Moon, Sun, Monitor, Zap, ShieldAlert, BadgeInfo
-} from 'lucide-react';
 import Header from './Header.jsx';
 import Footer from './Footer.jsx';
-import GlassCardComponent from './components/GlassCard.jsx';
-
-const GlassCard = ({ children, className = "", style = {} }) => (
-  <GlassCardComponent className={className} style={style}>{children}</GlassCardComponent>
-);
-
-const SentimentGauge = ({ score }) => {
-  const rotation = (score / 100) * 180 - 90;
-  let color = 'var(--accent-red)';
-  let text = 'EXTREME FEAR';
-  if (score > 40) { color = 'var(--accent-amber)'; text = 'NEUTRAL'; }
-  if (score > 60) { color = 'var(--accent-green)'; text = 'GREED'; }
-
-  return (
-    <div className="gauge-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div className="gauge-wrapper" style={{ position: 'relative', width: '160px', height: '80px', overflow: 'hidden' }}>
-        <div className="gauge-bg" style={{ position: 'absolute', top: 0, left: 0, width: '160px', height: '160px', borderRadius: '50%', border: '10px solid rgba(255,255,255,0.05)' }} />
-        <div
-          className="gauge-fill"
-          style={{
-            position: 'absolute', top: 0, left: 0, width: '160px', height: '160px', borderRadius: '50%',
-            border: '10px solid transparent', borderTopColor: color, borderRightColor: color,
-            transform: `rotate(${rotation}deg)`, transition: 'transform 1.5s cubic-bezier(0.4, 0, 0.2, 1)'
-          }}
-        />
-        <div className="gauge-score" style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', fontSize: '1.8rem', fontWeight: 800, color }}>{score}</div>
-      </div>
-      <span className="gauge-label" style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', marginTop: '8px', color: 'var(--text-muted)' }}>{text}</span>
-    </div>
-  );
-};
+import GlassCard from './components/GlassCard.jsx';
+import './AiTrader.css';
 
 function AiTrader() {
   const navigate = useNavigate();
   const [searchTicker, setSearchTicker] = useState('BTC');
-  const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
   const [currency, setCurrency] = useState('USD');
   const [prompt, setPrompt] = useState('');
   const [analysis, setAnalysis] = useState('');
@@ -54,38 +16,44 @@ function AiTrader() {
   const [marketData, setMarketData] = useState(null);
   const [ticker, setTicker] = useState('');
   const [chartData, setChartData] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [livePrice, setLivePrice] = useState(null);
   const [priceFlash, setPriceFlash] = useState(null);
   const [alerts, setAlerts] = useState([]);
-  const [focusMode, setFocusMode] = useState(false);
-  const [showWhy, setShowWhy] = useState(false);
+  const [chartType, setChartType] = useState('candlestick');
+  const [activeOverlays, setActiveOverlays] = useState(new Set(['fibonacci']));
   const [favorites, setFavorites] = useState(() => {
     try { return JSON.parse(localStorage.getItem('favorites')) || []; } catch { return []; }
   });
-  
+  const isMaximum = localStorage.getItem('autograph_plan') === 'maximum';
+  const [theme, setTheme] = useState(() => localStorage.getItem('ai_trader_theme') || 'dark');
+  const [focusMode, setFocusMode] = useState(false);
+  const [showWhy, setShowWhy] = useState(false);
+  const [riskCapital, setRiskCapital] = useState('');
   const wsRef = useRef(null);
   const prevPriceRef = useRef(null);
 
-  const cryptoList = [
-    'BTC', 'ETH', 'ADA', 'DOGE', 'SOL', 'XRP', 'BNB', 'LTC', 
-    'BCH', 'LINK', 'AVAX', 'MATIC', 'UNI', 'SHIB', 'ATOM', 'NEAR',
-    'DOT', 'ICP', 'ARB', 'OP', 'PEPE', 'FLOKI', 'MEME',
-    'WIF', 'BONK', 'JUP', 'SAGA', 'GMX', 'BLUR'
-  ];
-
-  const currencyList = ['USD', 'EUR', 'GBP'];
-
-  // Handle Search Input Change (Local suggestions)
   useEffect(() => {
-    if (query.length > 0) {
-      const filtered = cryptoList.filter(crypto => 
-        crypto.startsWith(query.toUpperCase())
-      ).slice(0, 8);
-      setSuggestions(filtered);
-    } else {
-      setSuggestions([]);
-    }
-  }, [query]);
+    localStorage.setItem('ai_trader_theme', theme);
+  }, [theme]);
+
+  const toggleFavorite = (crypto) => {
+    setFavorites(prev => {
+      const next = prev.includes(crypto) ? prev.filter(f => f !== crypto) : [...prev, crypto];
+      localStorage.setItem('favorites', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const toggleOverlay = (name) => {
+    setActiveOverlays(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
 
   // Binance WebSocket for live price
   useEffect(() => {
@@ -109,53 +77,167 @@ function AiTrader() {
       setTimeout(() => setPriceFlash(null), 800);
     };
 
-    return () => { if (ws && ws.readyState === WebSocket.OPEN) ws.close(); };
+    ws.onerror = () => console.log('WebSocket: Binance niedostępny');
+
+    return () => { if (ws.readyState === WebSocket.OPEN) ws.close(); };
   }, [ticker]);
 
-  // Alerts logic
+  // Alerts system
   useEffect(() => {
     if (!marketData) return;
     const newAlerts = [];
-    if (marketData.rsi < 30) newAlerts.push({ type: 'oversold', text: `⚠️ RSI ${marketData.rsi.toFixed(1)} — Wyprzedanie!`, color: 'var(--accent-green)' });
-    if (marketData.rsi > 70) newAlerts.push({ type: 'overbought', text: `⚠️ RSI ${marketData.rsi.toFixed(1)} — Wykupienie!`, color: 'var(--accent-red)' });
-    if (marketData.composite?.decision === 'KUPUJ') newAlerts.push({ type: 'bullish', text: '🟢 Silny sygnał byczy wykryty przez algorytm', color: 'var(--accent-green)' });
-    if (marketData.composite?.decision === 'SPRZEDAJ') newAlerts.push({ type: 'bearish', text: '🔴 Silny sygnał niedźwiedzi wykryty przez algorytm', color: 'var(--accent-red)' });
+    if (marketData.rsi < 30) {
+      newAlerts.push({ type: 'oversold', text: `⚠️ RSI ${marketData.rsi.toFixed(1)} — Wyprzedanie! Szansa na odbicie.`, color: '#3fb950' });
+    }
+    if (marketData.rsi > 70) {
+      newAlerts.push({ type: 'overbought', text: `⚠️ RSI ${marketData.rsi.toFixed(1)} — Wykupienie! Ryzyko korekty.`, color: '#f85149' });
+    }
+    if (marketData.importantNews && marketData.importantNews.length > 0) {
+      newAlerts.push({ type: 'news', text: `📰 ${marketData.importantNews.length} ważna wiadomość!`, color: '#58a6ff' });
+    }
+    if (marketData.macd?.signal === 'NIEDŹWIEDZI' && marketData.sar?.signal === 'NIEDŹWIEDZI') {
+      newAlerts.push({ type: 'bearish', text: '🔴 MACD + SAR = podwójny sygnał niedźwiedzi', color: '#f85149' });
+    }
+    if (marketData.macd?.signal === 'BYCZY' && marketData.sar?.signal === 'BYCZY') {
+      newAlerts.push({ type: 'bullish', text: '🟢 MACD + SAR = podwójny sygnał byczy', color: '#3fb950' });
+    }
     setAlerts(newAlerts);
   }, [marketData]);
 
-  const handleSelect = (crypto) => {
-    setTicker(crypto);
-    setQuery('');
+  const cryptoList = [
+    'BTC', 'ETH', 'ADA', 'DOGE', 'SOL', 'XRP', 'BNB', 'LTC', 
+    'BCH', 'LINK', 'AVAX', 'MATIC', 'UNI', 'SHIB', 'ATOM', 'NEAR',
+    'POLKA', 'DOT', 'ICP', 'ARB', 'OP', 'PEPE', 'FLOKI', 'MEME',
+    'WIF', 'BONK', 'JUP', 'SAGA', 'GMX', 'BLUR'
+  ];
+
+  const currencyList = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'];
+
+  useEffect(() => {
+    if (marketData && ticker) {
+      const interval = setInterval(() => {
+        console.log('🔄 Auto-odświeżanie...');
+        handleSearch(ticker);
+      }, 5 * 60 * 1000);
+
+      return () => clearInterval(interval);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketData, ticker]);
+
+  const handleSearchChange = (value) => {
+    const upperValue = value.toUpperCase();
+    setSearchTicker(upperValue);
+    
+    if (upperValue.length > 0) {
+      const filtered = cryptoList.filter(crypto => 
+        crypto.startsWith(upperValue)
+      );
+      setSuggestions(filtered);
+      setShowSuggestions(true);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectCrypto = (crypto) => {
+    setSearchTicker(crypto);
     setSuggestions([]);
+    setShowSuggestions(false);
     handleSearch(crypto);
   };
 
   const handleSearch = async (searchValue) => {
-    const value = searchValue || query || searchTicker;
-    if (!value) return;
+    const value = searchValue || searchTicker;
+    
+    if (value.length === 0) return;
     
     setLoading(true);
     setError('');
+    setAnalysis('');
     setMarketData(null);
+    setChartData([]);
 
     try {
-      const res = await axios.post('https://autograph-qrt6.onrender.com/api/analyze', { 
-        ticker: value.toUpperCase(), 
-        currency: currency
-      }, { timeout: 120000 });
+      const res = await fetch('https://autograph-qrt6.onrender.com/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          ticker: value.toUpperCase(), 
+          currency: currency,
+          prompt: prompt || `Analiza techniczna i rynkowa ${value.toUpperCase()}/${currency}`
+        }),
+      });
 
-      const data = res.data;
-      if (data && (data.success || data.marketData)) {
-        const mData = data.marketData || data;
-        setMarketData(mData);
-        setTicker(data.ticker || value.toUpperCase());
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        const mappedMarketData = { ...data.marketData };
+        if (mappedMarketData.news && Array.isArray(mappedMarketData.news)) {
+          const newsByDayObj = {};
+          mappedMarketData.news.forEach(n => {
+             const parts = n.published.split(/[, ]+/);
+             const dateStr = parts[0]; 
+             const timeStr = parts.slice(1).join(' ') || n.published;
+
+             if (!newsByDayObj[dateStr]) {
+                 newsByDayObj[dateStr] = { articles: [], lastUpdated: n.published };
+             }
+             newsByDayObj[dateStr].articles.push({
+                 id: n.url || Math.random().toString(),
+                 importance: n.importance,
+                 isNew: false,
+                 importanceLevel: n.importanceLevel,
+                 sentiment: n.sentiment,
+                 source: n.source,
+                 title: n.title,
+                 image: null,
+                 body: n.body,
+                 publishedString: timeStr,
+                 url: n.url,
+                 isImportant: n.isImportant,
+                 impact: n.impact,
+                 direction: n.direction,
+                 directionConfidence: n.directionConfidence,
+                 shortSummary: n.shortSummary
+             });
+          });
+          
+          mappedMarketData.newsData = {
+             newsByDay: newsByDayObj,
+             lastRefresh: new Date().toLocaleTimeString(),
+             newArticlesCount: 0
+          };
+        }
+
+        setAnalysis(data.analysis);
+        setMarketData(mappedMarketData);
+        setTicker(data.ticker);
         setChartData(data.chartData || []);
-        setAnalysis(data.analysis || data.summary || "Brak szczegółowej analizy.");
-        
-        // Notification dispatch
+
+        // Dispatch notifications for the notification system
         const notifItems = [];
-        if (mData.composite?.decision) {
-          notifItems.push({ type: "price", text: `🤖 ${data.ticker || value.toUpperCase()}: Sygnał Composite — ${mData.composite.decision}`, ticker: data.ticker || value.toUpperCase() });
+        const t = data.ticker;
+        if (mappedMarketData.rsi < 30) {
+          notifItems.push({ type: "price", text: `⚠️ ${t}: RSI ${mappedMarketData.rsi.toFixed(1)} — Wyprzedanie! Możliwe odbicie.`, ticker: t });
+        }
+        if (mappedMarketData.rsi > 70) {
+          notifItems.push({ type: "price", text: `⚠️ ${t}: RSI ${mappedMarketData.rsi.toFixed(1)} — Wykupienie! Ryzyko korekty.`, ticker: t });
+        }
+        if (mappedMarketData.changePercent && Math.abs(mappedMarketData.changePercent) > 3) {
+          const dir = mappedMarketData.changePercent > 0 ? "wzrósł" : "spadł";
+          notifItems.push({ type: "percent", text: `📊 ${t} ${dir} o ${Math.abs(mappedMarketData.changePercent).toFixed(2)}% w ciągu 24h`, ticker: t });
+        }
+        if (mappedMarketData.composite?.decision) {
+          const dec = mappedMarketData.composite.decision;
+          notifItems.push({ type: "price", text: `🤖 ${t}: Sygnał Composite — ${dec} (Score: ${mappedMarketData.composite.score})`, ticker: t });
+        }
+        if (mappedMarketData.news && mappedMarketData.news.length > 0) {
+          const importantNews = mappedMarketData.news.filter(n => n.isImportant);
+          if (importantNews.length > 0) {
+            notifItems.push({ type: "news", text: `📰 ${t}: ${importantNews.length} ważna wiadomość rynkowa`, ticker: t });
+          }
         }
         if (notifItems.length > 0) {
           window.dispatchEvent(new CustomEvent("autograph:notification", {
@@ -163,393 +245,1733 @@ function AiTrader() {
           }));
         }
       } else {
-        setError(data.error || "Błąd analizy - spróbuj ponownie później.");
+        setError(`❌ ${data.error}`);
       }
     } catch (err) {
-      setError(err.response?.data?.error || err.message || "Błąd połączenia z serwerem Quantum.");
+      setError(`❌ ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleFavorite = (crypto) => {
-    setFavorites(prev => {
-      const next = prev.includes(crypto) ? prev.filter(f => f !== crypto) : [...prev, crypto];
-      localStorage.setItem('favorites', JSON.stringify(next));
-      return next;
-    });
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      setShowSuggestions(false);
+      handleSearch(searchTicker);
+    }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && suggestions.length > 0) handleSelect(suggestions[0]);
-    else if (e.key === 'Enter') handleSearch();
+  const handleCurrencyChange = (newCurrency) => {
+    setCurrency(newCurrency);
+    if (marketData && ticker) {
+      setTimeout(() => handleSearch(ticker), 100);
+    }
+  };
+
+  const formatMarketCap = (cap) => {
+    if (!cap) return 'N/A';
+    if (cap > 1000000000) return `$${(cap / 1000000000).toFixed(2)}B`;
+    if (cap > 1000000) return `$${(cap / 1000000).toFixed(2)}M`;
+    return `$${cap.toFixed(2)}`;
   };
 
   const formatPrice = (price) => {
     if (!price) return '0.00';
-    return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: price < 1 ? 6 : 2 });
+    if (price > 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (price > 1) return price.toFixed(4);
+    return price.toFixed(6);
   };
 
   return (
-    <div className="analyzer-page">
+    <div className={`aitrader-page ${theme}`}>
       <Header />
-      
       <main className="main-content">
-        {/* TOOLBAR - Unified with AiAnalyzer */}
-        <div className="toolbar-container" style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '2rem', padding: '8px 12px', background: '#1e1e1e', border: '1px solid #2a2a2a', borderRadius: '10px' }}>
-          <div className="search-container" style={{ flex: 1 }}>
-            <div className="search-input-wrapper" style={{ position: 'relative' }}>
-              <input
-                type="text"
-                className="search-input"
-                placeholder="Szukaj kryptowaluty (np. BTC, ETH, SOL)..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                style={{ paddingLeft: '35px' }}
-              />
-              <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
+        <div className="container">
+          <div className={`dashboard-wrapper ${focusMode ? 'focus-layout' : ''}`}>
+            <div className={`analyzer-container theme-${theme} ${focusMode ? 'focus-mode' : ''}`}>
+      {/* Navigation Header */}
+      <div className="header">
+        <div className="icons">
+          <i className="fa-regular fa-user" title="Użytkownik" onClick={() => navigate('/user')}></i>
+          <i className="fa-solid fa-chart-column" title="Rynek tradycyjny" onClick={() => navigate('/autograph')}></i>
+          <i className="fa-brands fa-bitcoin header-active" title="Kryptowaluty" onClick={() => navigate('/aitrader')}></i>
+          {isMaximum && (
+            <i className="fa-solid fa-chart-pie" title="Dywidendy" onClick={() => navigate('/aidividends')}></i>
+          )}
+        </div>
+        <h1 onClick={() => navigate('/')}>Autograph</h1>
+      </div>
+
+      {/* Toolbar: Theme Switcher + Focus Mode */}
+      <div className="trader-toolbar">
+        <div className="toolbar-left">
+          <button className={`toolbar-btn ${focusMode ? 'active' : ''}`} onClick={() => setFocusMode(!focusMode)} title="Tryb Focus — pokaż tylko wykres i decyzję">
+            {focusMode ? '🔍 Focus ON' : '👁️ Focus'}
+          </button>
+        </div>
+        <div className="toolbar-right">
+          <div className="theme-switcher">
+            {[{key: 'dark', icon: '🌙', label: 'Dark'}, {key: 'light', icon: '☀️', label: 'Light'}, {key: 'oled', icon: '⬛', label: 'OLED'}].map(t => (
+              <button key={t.key} className={`theme-btn ${theme === t.key ? 'active' : ''}`} onClick={() => setTheme(t.key)}>
+                {t.icon} {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Favorites Bar */}
+      {favorites.length > 0 && (
+        <div className="favorites-bar">
+          <span className="fav-label">⭐ Ulubione</span>
+          <div className="fav-list">
+            {favorites.map(fav => (
+              <button key={fav} className={`fav-chip ${ticker === fav ? 'fav-active' : ''}`} onClick={() => { setSearchTicker(fav); handleSearch(fav); }}>
+                {fav}
+                <span className="fav-remove" onClick={(e) => { e.stopPropagation(); toggleFavorite(fav); }}>×</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Search Section */}
+      <div className="search-section">
+        <div className="search-card">
+          <div className="search-card-bg"></div>
+          <div className="search-card-content">
+            <div className="search-hero-text">
+              <h2 className="search-title">Analizuj kryptowaluty w czasie rzeczywistym</h2>
+              <p className="search-subtitle">AI &bull; Wskaźniki techniczne &bull; Wiadomości &bull; Dane rynkowe</p>
             </div>
-            {suggestions.length > 0 && (
-              <div className="suggestions-dropdown">
-                {suggestions.map((s, i) => (
-                  <div key={i} className="suggestion-item" onClick={() => handleSelect(s)}>
-                    <span className="suggestion-ticker">{s}</span>
-                    <span className="suggestion-name">Kryptowaluta</span>
+
+            <div className="search-main-row">
+              <div className="search-input-group">
+                <div className="search-wrapper">
+                  <span className="search-icon-label">&#128270;</span>
+                  <input
+                    type="text"
+                    value={searchTicker}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    onFocus={() => searchTicker.length > 0 && setShowSuggestions(true)}
+                    placeholder="Wpisz symbol — BTC, ETH, SOL..."
+                    className="search-input"
+                  />
+                  <button
+                    onClick={() => {
+                      setShowSuggestions(false);
+                      handleSearch(searchTicker);
+                    }}
+                    disabled={loading || searchTicker.length === 0}
+                    className={`search-button ${loading ? 'loading' : ''}`}
+                  >
+                    {loading ? '⏳ Analizuję...' : '🚀 Analizuj'}
+                  </button>
+
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div className="suggestions-dropdown">
+                      {suggestions.map(crypto => (
+                        <div
+                          key={crypto}
+                          className="suggestion-item"
+                          onClick={() => selectCrypto(crypto)}
+                        >
+                          {crypto}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="search-options-row">
+              <div className="currency-field">
+                <span className="options-label">Waluta:</span>
+                <div className="currency-buttons">
+                  {currencyList.map(curr => (
+                    <button
+                      key={curr}
+                      onClick={() => handleCurrencyChange(curr)}
+                      className={`currency-btn ${currency === curr ? 'active' : ''}`}
+                    >
+                      {curr}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="prompt-field">
+                <span className="options-label">Notatka:</span>
+                <textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Opcjonalnie: dodatkowe pytanie do AI..."
+                  rows={2}
+                  className="prompt-input"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {error && <div className="error-message">{error}</div>}
+
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <p>Pobieranie danych z CoinGecko i Finnhub...</p>
+          <p className="loading-sub">Analiza Gemma 4 AI w toku</p>
+        </div>
+      )}
+
+      {/* Alerts */}
+      {alerts.length > 0 && (
+        <div className="alerts-bar">
+          {alerts.map((a, i) => (
+            <div key={i} className="alert-item" style={{ borderLeftColor: a.color }}>
+              {a.text}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Market Data Dashboard */}
+      {marketData && (
+        <div className="dashboard">
+          <div className="dashboard-header">
+            <h2>
+              <span className="ticker-label">{ticker}</span>
+              <span className="pair-separator">/</span>
+              <span className="currency-label">{currency}</span>
+              <span className="live-dot"></span>
+              <span className="live-text">NA ŻYWO</span>
+              <button className={`fav-star-btn ${favorites.includes(ticker) ? 'fav-starred' : ''}`} onClick={() => toggleFavorite(ticker)} title={favorites.includes(ticker) ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}>
+                {favorites.includes(ticker) ? '★' : '☆'}
+              </button>
+            </h2>
+            <div className="header-right">
+              {livePrice && (
+                <span className={`live-price ${priceFlash === 'up' ? 'flash-green' : priceFlash === 'down' ? 'flash-red' : ''}`}>
+                  Binance: {formatPrice(livePrice)} USDT
+                </span>
+              )}
+              <span className="last-update">Aktualizacja: {marketData.lastUpdate ? new Date(marketData.lastUpdate).toLocaleString('pl-PL') : '-'}</span>
+            </div>
+          </div>
+
+          {/* Price Cards */}
+          <div className="price-cards">
+            <div className="price-card main-price">
+              <span className="card-label">Cena</span>
+              <span className="card-value">{formatPrice(marketData.price)} {currency}</span>
+              <span className={`card-change ${marketData.changePercent > 0 ? 'positive' : 'negative'}`}>
+                {marketData.changePercent > 0 ? '▲' : '▼'} {marketData.changePercent?.toFixed(2)}%
+              </span>
+            </div>
+            <div className="price-card">
+              <span className="card-label">Kapitalizacja</span>
+              <span className="card-value">{formatMarketCap(marketData.marketCap)}</span>
+            </div>
+            <div className="price-card">
+              <span className="card-label">Wolumen 24h</span>
+              <span className="card-value">${(marketData.volume / 1000000).toFixed(1)}M</span>
+            </div>
+            <div className="price-card">
+              <span className="card-label">Śr. Wolumen</span>
+              <span className="card-value">${(marketData.avgVolume / 1000000).toFixed(1)}M</span>
+            </div>
+          </div>
+
+          {/* Pivot Points */}
+          <div className="sr-row">
+            <div className="sr-card resistance">
+              <span className="sr-icon">🔴</span>
+              <span className="sr-label">Opór R1</span>
+              <span className="sr-value">{formatPrice(marketData.resistance1)} {currency}</span>
+            </div>
+            <div className="sr-card pivot">
+              <span className="sr-icon">⚪</span>
+              <span className="sr-label">Pivot Point</span>
+              <span className="sr-value">{formatPrice(marketData.pivotPoint)} {currency}</span>
+            </div>
+            <div className="sr-card support">
+              <span className="sr-icon">🟢</span>
+              <span className="sr-label">Wsparcie S1</span>
+              <span className="sr-value">{formatPrice(marketData.support1)} {currency}</span>
+            </div>
+          </div>
+
+          {/* Technical Indicators */}
+          <div className="indicators-row">
+            <div className={`indicator ${marketData.rsi > 70 ? 'overbought' : marketData.rsi < 30 ? 'oversold' : 'neutral-ind'} ${activeOverlays.has('rsi') ? 'overlay-active' : ''}`} onClick={() => toggleOverlay('rsi')}>
+              <span className="ind-name">RSI (14)</span>
+              <span className="ind-value">{marketData.rsi?.toFixed(1)}</span>
+              <span className="ind-signal">{marketData.rsi > 70 ? 'Wykupiony' : marketData.rsi < 30 ? 'Wyprzedany' : 'Neutralny'}</span>
+              <span className={`ind-chart-toggle ${activeOverlays.has('rsi') ? 'active' : ''}`}>📊 {activeOverlays.has('rsi') ? 'Na wykresie' : 'Pokaż'}</span>
+            </div>
+            <div className={`indicator ${marketData.macd?.signal === 'BYCZY' ? 'bullish' : 'bearish'}`}>
+              <span className="ind-name">MACD</span>
+              <span className="ind-value">{marketData.macd?.signal}</span>
+              <span className="ind-signal">Histogram: {marketData.macd?.histogram}</span>
+            </div>
+            <div className={`indicator ${marketData.sar?.signal === 'BYCZY' ? 'bullish' : 'bearish'}`}>
+              <span className="ind-name">Parabolic SAR</span>
+              <span className="ind-value">{marketData.sar?.trend}</span>
+              <span className="ind-signal">{formatPrice(parseFloat(marketData.sar?.sar))}</span>
+            </div>
+            <div className={`indicator neutral-ind ${activeOverlays.has('ema') ? 'overlay-active' : ''}`} onClick={() => toggleOverlay('ema')}>
+              <span className="ind-name">EMA 12 / 26</span>
+              <span className="ind-value">{formatPrice(marketData.ema12)}</span>
+              <span className="ind-signal">{formatPrice(marketData.ema26)}</span>
+              <span className={`ind-chart-toggle ${activeOverlays.has('ema') ? 'active' : ''}`}>📊 {activeOverlays.has('ema') ? 'Na wykresie' : 'Pokaż'}</span>
+            </div>
+            <div className={`indicator neutral-ind ${activeOverlays.has('sma') ? 'overlay-active' : ''}`} onClick={() => toggleOverlay('sma')}>
+              <span className="ind-name">SMA 20 / 50</span>
+              <span className="ind-value">{formatPrice(marketData.sma20)}</span>
+              <span className="ind-signal">{formatPrice(marketData.sma50)}</span>
+              <span className={`ind-chart-toggle ${activeOverlays.has('sma') ? 'active' : ''}`}>📊 {activeOverlays.has('sma') ? 'Na wykresie' : 'Pokaż'}</span>
+            </div>
+          </div>
+
+          {/* Bollinger + ATR + ADX row */}
+          <div className="indicators-row secondary-indicators">
+            <div className={`indicator ${marketData.price > marketData.bb?.upper ? 'overbought' : marketData.price < marketData.bb?.lower ? 'oversold' : 'neutral-ind'} ${activeOverlays.has('bb') ? 'overlay-active' : ''}`} onClick={() => toggleOverlay('bb')}>
+              <span className="ind-name">Bollinger Bands</span>
+              <span className="ind-value">{formatPrice(marketData.bb?.middle)}</span>
+              <span className="ind-signal">
+                {formatPrice(marketData.bb?.lower)} — {formatPrice(marketData.bb?.upper)}
+              </span>
+              <span className={`ind-chart-toggle ${activeOverlays.has('bb') ? 'active' : ''}`}>📊 {activeOverlays.has('bb') ? 'Na wykresie' : 'Pokaż'}</span>
+            </div>
+            <div className={`indicator ${marketData.adx?.adx > 25 ? (marketData.adx?.plusDI > marketData.adx?.minusDI ? 'bullish' : 'bearish') : 'neutral-ind'}`}>
+              <span className="ind-name">ADX (Siła trendu)</span>
+              <span className="ind-value">{marketData.adx?.adx}</span>
+              <span className="ind-signal">{marketData.adx?.trend}</span>
+            </div>
+            <div className={`indicator ${marketData.stochRsi?.signal === 'WYPRZEDANY' ? 'oversold' : marketData.stochRsi?.signal === 'WYKUPIONY' ? 'overbought' : marketData.stochRsi?.signal === 'BYCZY' ? 'bullish' : marketData.stochRsi?.signal === 'NIEDŹWIEDZI' ? 'bearish' : 'neutral-ind'}`}>
+              <span className="ind-name">Stochastic RSI</span>
+              <span className="ind-value">K: {marketData.stochRsi?.k} / D: {marketData.stochRsi?.d}</span>
+              <span className="ind-signal">{marketData.stochRsi?.signal}</span>
+            </div>
+          </div>
+
+          {/* OBV + Divergence + Fear&Greed row */}
+          <div className="indicators-row secondary-indicators">
+            <div className={`indicator ${marketData.obv?.divergence ? (marketData.obv?.divergenceType === 'BYCZA' ? 'bullish' : 'bearish') : 'neutral-ind'}`}>
+              <span className="ind-name">OBV (Volume)</span>
+              <span className="ind-value">{marketData.obv?.trend}</span>
+              <span className="ind-signal">Dywergencja: {marketData.obv?.divergenceType || 'BRAK'}</span>
+            </div>
+            <div className={`indicator ${marketData.rsiDivergence?.detected ? (marketData.rsiDivergence?.type?.includes('BYCZA') ? 'bullish' : 'bearish') : 'neutral-ind'}`}>
+              <span className="ind-name">RSI Divergence</span>
+              <span className="ind-value">{marketData.rsiDivergence?.detected ? '⚠️ WYKRYTA' : '✅ Brak'}</span>
+              <span className="ind-signal">{marketData.rsiDivergence?.detected ? marketData.rsiDivergence?.type : 'Brak rozbieżności'}</span>
+            </div>
+            <div className={`indicator ${marketData.fearGreed?.value < 25 ? 'oversold' : marketData.fearGreed?.value > 75 ? 'overbought' : 'neutral-ind'}`}>
+              <span className="ind-name">Fear & Greed</span>
+              <span className="ind-value">{marketData.fearGreed?.value}/100</span>
+              <span className="ind-signal">{marketData.fearGreed?.classification}</span>
+            </div>
+          </div>
+
+          {/* Sentiment Thermometer */}
+          {marketData.fearGreed && (
+            <div className="sentiment-thermo-section">
+              <div className="thermo-header">
+                <span className="thermo-title">🌡️ Termometr Emocji Rynku</span>
+                <span className={`thermo-value-badge ${marketData.fearGreed.value < 35 ? 'thermo-fear' : marketData.fearGreed.value > 65 ? 'thermo-greed' : 'thermo-neutral'}`}>
+                  {marketData.fearGreed.value}
+                </span>
+              </div>
+              <div className="thermo-bar-wrapper">
+                <div className="thermo-marker" style={{ left: `${Math.min(Math.max(marketData.fearGreed.value, 2), 98)}%` }}></div>
+              </div>
+              <div className="thermo-labels">
+                <span className="thermo-label-fear">😱 Ekstremalny Strach</span>
+                <span className="thermo-label-neutral">😐 Neutralny</span>
+                <span className="thermo-label-greed">🤑 Ekstremalny Chciwość</span>
+              </div>
+              <div className="thermo-classification">{marketData.fearGreed.classification}</div>
+            </div>
+          )}
+
+          {/* Top Dashboard Grid (Decision & Backtest) */}
+          <div className="top-dashboard-grid">
+            {/* Composite Score Card — EXPANDED */}
+            {marketData.composite && (
+              <div className={`composite-score-card ${marketData.composite.score > 10 ? 'score-bullish' : marketData.composite.score < -10 ? 'score-bearish' : 'score-neutral'}`}>
+                <div className="composite-header">
+                  <div className="composite-header-left">
+                    <span className="composite-label">🤖 COMPOSITE SCORE</span>
+                    {marketData.adx && (
+                      <span className={`regime-badge ${marketData.adx.adx > 25 ? 'badge-trending' : 'badge-ranging'}`}>
+                        REGIME: {marketData.composite.regime} (ADX {Math.round(marketData.adx.adx)})
+                      </span>
+                    )}
                   </div>
-                ))}
+                  <span className={`composite-decision ${marketData.composite.decision.includes('KUPUJ') ? 'decision-buy' : marketData.composite.decision.includes('SPRZEDAJ') ? 'decision-sell' : 'decision-hold'}`}>
+                    {marketData.composite.decision}
+                  </span>
+                </div>
+                <div className="composite-body">
+                  <div className="score-meter-explicit">
+                    <div className="score-main-values">
+                      <span className="explicit-score-label">Score:</span>
+                      <span className={`explicit-score-value ${marketData.composite.score > 0 ? 'pos' : marketData.composite.score < 0 ? 'neg' : ''}`}>
+                        {marketData.composite.score > 0 ? '+' : ''}{marketData.composite.score}
+                      </span>
+                      <span className="explicit-conf-label">Confidence:</span>
+                      <span className="explicit-conf-value">{marketData.composite.confidence}%</span>
+                    </div>
+                  </div>
+
+                  {/* MATHEMATICAL BREAKDOWN PER CATEGORY */}
+                  {marketData.composite.breakdown && (
+                    <div className="math-breakdown-section">
+                      <div className="math-breakdown-list">
+                        {[
+                          { key: 'trend', label: 'Trend' },
+                          { key: 'momentum', label: 'Momentum' },
+                          { key: 'volume', label: 'Volume' },
+                          { key: 'sentiment', label: 'Sentiment' }
+                        ].map(cat => {
+                          const b = marketData.composite.breakdown[cat.key];
+                          if (!b) return null;
+                          return (
+                            <div key={cat.key} className="math-breakdown-row">
+                              <span className="math-lbl">{cat.label}:</span>
+                              <span className="math-calc">
+                                {(b.raw / 100).toFixed(2)} × {(b.weight / 100).toFixed(2)} = 
+                              </span>
+                              <span className={`math-result ${b.contribution > 0 ? 'pos' : b.contribution < 0 ? 'neg' : ''}`}>
+                                {b.contribution > 0 ? '+' : ''}{b.contribution}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="math-breakdown-final">
+                        <span className="math-final-lbl">Final:</span>
+                        <span className={`math-final-val ${marketData.composite.score > 0 ? 'pos' : marketData.composite.score < 0 ? 'neg' : ''}`}>
+                          {marketData.composite.score > 0 ? '+' : ''}{marketData.composite.score}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {marketData.composite.details?.length > 0 && (
+                    <div className="composite-details">
+                      {marketData.composite.details.map((d, i) => (
+                        <span key={i} className="detail-tag">{d}</span>
+                      ))}
+                    </div>
+                  )}
+                  {marketData.composite.decision === 'TRZYMAJ' && (
+                    <div className="trzymaj-info" style={{ marginTop: '12px' }}>
+                      <span className="trzymaj-icon">ℹ️</span>
+                      <span><strong>TRZYMAJ</strong> oznacza utrzymanie obecnej pozycji. Sygnały rynkowe są mieszane — nie ma wyraźnej przewagi kupujących ani sprzedających. Nie otwieraj nowych pozycji. Czekaj na silniejszy sygnał kierunkowy przed podjęciem decyzji.</span>
+                    </div>
+                  )}
+
+                  {/* Explainable AI — "Dlaczego?" */}
+                  {marketData.composite.breakdown && (
+                    <div className="why-section">
+                      <button className="why-btn" onClick={() => setShowWhy(!showWhy)}>
+                        {showWhy ? '🔽 Ukryj wyjaśnienie' : '❓ Dlaczego?'}
+                      </button>
+                      {showWhy && (
+                        <div className="why-content">
+                          <div className="why-header">3 kluczowe argumenty za decyzją:</div>
+                          {Object.entries(marketData.composite.breakdown)
+                            .filter(([, cat]) => cat && cat.contribution !== undefined)
+                            .sort(([, a], [, b]) => Math.abs(b.contribution) - Math.abs(a.contribution))
+                            .slice(0, 3)
+                            .map(([key, cat], i) => (
+                              <div key={key} className="why-item">
+                                <span className="why-num">{i + 1}</span>
+                                <div className="why-detail">
+                                  <span className="why-title">{key}</span>
+                                  <span className="why-desc">
+                                    Raw: {(cat.raw / 100).toFixed(2)} × Waga: {(cat.weight / 100).toFixed(2)}
+                                  </span>
+                                  <span className={`why-impact ${cat.contribution > 0 ? 'positive' : 'negative'}`}>
+                                    Wpływ: {cat.contribution > 0 ? '+' : ''}{cat.contribution}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Backtest Card (Moved next to Decision) */}
+            {marketData.backtest && marketData.backtest.totalTrades > 0 && (
+              <div className="backtest-card">
+                <h3>📈 Skuteczność (30D)</h3>
+                <div className="backtest-body">
+                  <div className="backtest-stats-list">
+                    <div className="backtest-stat-row">
+                      <span className="bt-check">✔</span>
+                      <span className="bt-lbl">Accuracy:</span>
+                      <span className="bt-val">{marketData.backtest.accuracy}%</span>
+                    </div>
+                    <div className="backtest-stat-row">
+                      <span className="bt-check">✔</span>
+                      <span className="bt-lbl">Avg return:</span>
+                      <span className={`bt-val ${marketData.backtest.avgReturnPerSignal > 0 ? 'pos' : 'neg'}`}>
+                        {marketData.backtest.avgReturnPerSignal > 0 ? '+' : ''}{marketData.backtest.avgReturnPerSignal}%
+                      </span>
+                    </div>
+                    {marketData.backtest.maxDrawdown !== undefined && (
+                      <div className="backtest-stat-row">
+                        <span className="bt-check">✔</span>
+                        <span className="bt-lbl">Max DD:</span>
+                        <span className="bt-val neg">{marketData.backtest.maxDrawdown}%</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* Mini equity curve */}
+                  {marketData.backtest.equityCurve && marketData.backtest.equityCurve.length > 2 && (
+                    <div className="equity-sparkline">
+                      <svg viewBox={`0 0 ${marketData.backtest.equityCurve.length * 10} 40`} className="sparkline-svg" preserveAspectRatio="none">
+                        {(() => {
+                          const pts = marketData.backtest.equityCurve;
+                          const min = Math.min(...pts);
+                          const max = Math.max(...pts);
+                          const range = max - min || 1;
+                          const path = pts.map((v, i) => `${i === 0 ? 'M' : 'L'} ${i * 10} ${38 - ((v - min) / range) * 36}`).join(' ');
+                          const lastVal = pts[pts.length - 1];
+                          return <path d={path} fill="none" stroke={lastVal >= 100 ? '#3fb950' : '#f85149'} strokeWidth="2" />;
+                        })()}
+                      </svg>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
 
-          <div style={{ width: '1px', height: '22px', background: '#2e2e2e', flexShrink: 0 }} />
-          
-          <div className="toolbar-actions" style={{ display: 'flex', gap: '8px' }}>
-             <select 
-               className="header-btn" 
-               value={currency} 
-               onChange={(e) => { setCurrency(e.target.value); if(ticker) handleSearch(ticker); }}
-               style={{ background: '#1e1e1e', cursor: 'pointer' }}
-             >
-               {currencyList.map(c => <option key={c} value={c}>{c}</option>)}
-             </select>
-
-             <button onClick={() => setFocusMode(!focusMode)} className={`header-btn ${focusMode ? 'active' : ''}`}>
-               <Maximize2 size={13} /> {focusMode ? 'Normal' : 'Focus'}
-             </button>
-             
-             <button onClick={() => window.print()} className="header-btn">
-               <Printer size={13} /> PDF
-             </button>
-          </div>
-        </div>
-
-        {/* Favorites Section */}
-        {favorites.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '1.5rem' }}>
-            {favorites.map(fav => (
-              <button 
-                key={fav} 
-                className={`tf-btn ${ticker === fav ? 'active' : ''}`}
-                onClick={() => handleSelect(fav)}
-                style={{ fontSize: '0.75rem', padding: '4px 12px' }}
-              >
-                ⭐ {fav}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* State Displays */}
-        {!marketData && !loading && !error && (
-          <div className="empty-state">
-            <Target size={64} color="var(--text-muted)" />
-            <h2>Analiza rynków krypto AI</h2>
-            <p>Wprowadź symbol kryptowaluty, aby wygenerować głęboką analizę techniczną i sentymentu.</p>
-          </div>
-        )}
-
-        {loading && (
-          <div className="loading-state">
-            <div className="spinner"></div>
-            <p className="loading-text">Algorytm Quantum Crypto analizuje rynek...</p>
-          </div>
-        )}
-
-        {error && (
-          <div className="error-state">
-            <AlertTriangle size={64} color="var(--accent-red)" />
-            <h2 style={{ color: 'var(--accent-red)' }}>{error}</h2>
-          </div>
-        )}
-
-        {/* DASHBOARD CONTENT */}
-        {marketData && !loading && (
-          <div className={`dashboard-wrapper ${focusMode ? 'focus-layout' : ''}`}>
-            
-            {/* Header Area */}
-            <div className="asset-header" style={{ marginBottom: '2rem' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                   <h2 className="asset-title">{ticker}</h2>
-                   <button 
-                     onClick={() => toggleFavorite(ticker)} 
-                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: favorites.includes(ticker) ? '#facc15' : '#444' }}
-                   >
-                     <Star fill={favorites.includes(ticker) ? "currentColor" : "none"} size={28} />
-                   </button>
-                </div>
-                <div className="asset-price-row">
-                  <span className="asset-price">{formatPrice(marketData.price)} {currency}</span>
-                  <span className={`asset-change ${marketData.changePercent >= 0 ? 'color-green' : 'color-red'}`}>
-                    {marketData.changePercent >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
-                    {marketData.changePercent > 0 ? '+' : ''}{marketData.changePercent?.toFixed(2)}%
-                  </span>
-                  {livePrice && (
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', borderLeft: '1px solid #333', paddingLeft: '12px', marginLeft: '12px' }}>
-                      Binance: <strong style={{ color: priceFlash === 'up' ? 'var(--accent-green)' : priceFlash === 'down' ? 'var(--accent-red)' : '#fff' }}>{formatPrice(livePrice)} USDT</strong>
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {!focusMode && (
-                <div className="quick-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px' }}>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Volume 24h</div>
-                    <div style={{ fontWeight: 700 }}>${(marketData.volume / 1e6).toFixed(1)}M</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Market Cap</div>
-                    <div style={{ fontWeight: 700 }}>${(marketData.marketCap / 1e9).toFixed(2)}B</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Fear & Greed</div>
-                    <div style={{ fontWeight: 700, color: marketData.fearGreed?.value > 60 ? 'var(--accent-green)' : marketData.fearGreed?.value < 40 ? 'var(--accent-red)' : 'var(--accent-amber)' }}>
-                      {marketData.fearGreed?.value || '—'}
+          {/* Micro/Macro Trend Recommendations */}
+          {(marketData.microTrend || marketData.macroTrend) && (
+            <div className="trend-analysis-section">
+              <h3>🔬 Analiza Trendów</h3>
+              <div className="trend-cards">
+                {marketData.microTrend && (
+                  <div className={`trend-card micro ${marketData.microTrend.recommendation?.includes('KUPUJ') ? 'trend-buy' : marketData.microTrend.recommendation?.includes('SPRZEDAJ') ? 'trend-sell' : 'trend-hold'}`}>
+                    <div className="trend-card-header">
+                      <span className="trend-icon">⚡</span>
+                      <span className="trend-title">MIKRO TREND</span>
+                      <span className="trend-timeframe">{marketData.microTrend.timeframe}</span>
                     </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Main Grid */}
-            <div className="dashboard-grid">
-              
-              <div className="left-column">
-                {/* Decision Banner (Consensus) */}
-                {marketData.composite && (
-                  <div className="consensus-banner" style={{ 
-                    background: marketData.composite.score > 0 ? 'rgba(34,197,94,0.05)' : 'rgba(239,68,68,0.05)',
-                    border: `1px solid ${marketData.composite.score > 0 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
-                    borderLeft: `4px solid ${marketData.composite.score > 0 ? 'var(--accent-green)' : 'var(--accent-red)'}`,
-                    padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                  }}>
-                    <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                      <div style={{ textAlign: 'center', minWidth: '80px' }}>
-                        <div style={{ fontSize: '2.5rem', fontWeight: 900, color: marketData.composite.score > 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                          {marketData.composite.score > 0 ? '↑' : '↓'}
-                        </div>
-                        <div style={{ fontSize: '1.2rem', fontWeight: 900, color: marketData.composite.score > 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                          {marketData.composite.score > 0 ? 'KUP' : 'SPRZEDAJ'}
-                        </div>
-                      </div>
-                      <div style={{ width: '1px', height: '3rem', background: 'rgba(255,255,255,0.1)' }} />
-                      <div>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: '4px' }}>COMPOSITE SCORE</div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 900, color: marketData.composite.score > 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                          {marketData.composite.score > 0 ? '+' : ''}{marketData.composite.score}
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>/100</span>
-                        </div>
-                      </div>
+                    <div className="trend-recommendation">
+                      <span className={`trend-rec ${marketData.microTrend.recommendation?.includes('KUPUJ') ? 'rec-buy' : marketData.microTrend.recommendation?.includes('SPRZEDAJ') ? 'rec-sell' : 'rec-hold'}`}>
+                        {marketData.microTrend.recommendation}
+                      </span>
+                      <span className="trend-score">Score: {marketData.microTrend.score > 0 ? '+' : ''}{marketData.microTrend.score}</span>
                     </div>
-
-                    {marketData.composite.breakdown && (
-                      <div style={{ flex: 1, maxWidth: '400px', display: 'flex', gap: '15px' }}>
-                        {Object.entries(marketData.composite.breakdown).map(([key, val]) => (
-                          <div key={key} style={{ flex: 1 }}>
-                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>{key}</div>
-                            <div style={{ height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-                              <div style={{ 
-                                width: `${Math.abs(val.contribution * 10)}%`, 
-                                height: '100%', 
-                                background: val.contribution > 0 ? 'var(--accent-green)' : 'var(--accent-red)' 
-                              }} />
-                            </div>
-                          </div>
-                        ))}
+                    <div className="trend-details">
+                      {marketData.microTrend.details?.map((d, i) => (
+                        <span key={i} className="trend-detail-tag">{d}</span>
+                      ))}
+                    </div>
+                    {marketData.microTrend.recommendation === 'TRZYMAJ' && (
+                      <div className="trzymaj-info">
+                        <span className="trzymaj-icon">ℹ️</span>
+                        <span>TRZYMAJ = utrzymuj obecną pozycję. Sygnały są mieszane — nie kupuj więcej ani nie sprzedawaj. Czekaj na wyraźniejszy kierunek rynku.</span>
                       </div>
                     )}
-
-                    <div style={{ textAlign: 'right' }}>
-                       <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>CONFIDENCE</div>
-                       <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>{marketData.composite.confidence}%</div>
-                       <div style={{ fontSize: '0.6rem', color: 'var(--accent-blue)', fontWeight: 700 }}>QUANT CORE</div>
+                  </div>
+                )}
+                {marketData.macroTrend && (
+                  <div className={`trend-card macro ${marketData.macroTrend.recommendation?.includes('KUPUJ') ? 'trend-buy' : marketData.macroTrend.recommendation?.includes('SPRZEDAJ') ? 'trend-sell' : 'trend-hold'}`}>
+                    <div className="trend-card-header">
+                      <span className="trend-icon">🌍</span>
+                      <span className="trend-title">MAKRO TREND</span>
+                      <span className="trend-timeframe">{marketData.macroTrend.timeframe}</span>
                     </div>
-                  </div>
-                )}
-
-                {/* Alerts Bar */}
-                {alerts.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '1.5rem' }}>
-                    {alerts.map((a, i) => (
-                      <div key={i} style={{ background: 'rgba(255,255,255,0.03)', borderLeft: `3px solid ${a.color}`, padding: '10px 15px', borderRadius: '4px', fontSize: '0.8rem' }}>
-                        {a.text}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* First Row of Indicators (Momentum & Pivots) */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '1rem' }}>
-                   <GlassCard>
-                      <div className="card-title"><Activity size={14} /> RSI (14)</div>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color: marketData.rsi > 70 ? 'var(--accent-red)' : marketData.rsi < 30 ? 'var(--accent-green)' : '#fff' }}>
-                        {marketData.rsi?.toFixed(1)}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{marketData.rsi > 70 ? 'WYKUPIONY' : marketData.rsi < 30 ? 'WYPRZEDANY' : 'NEUTRALNY'}</div>
-                   </GlassCard>
-                   
-                   <GlassCard>
-                      <div className="card-title"><Zap size={14} /> MACD</div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: marketData.macd?.signal === 'BYCZY' ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                        {marketData.macd?.signal}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>HIST: {marketData.macd?.histogram}</div>
-                   </GlassCard>
-
-                   <GlassCard>
-                      <div className="card-title"><Layout size={14} /> PIVOT POINT</div>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{formatPrice(marketData.pivotPoint)}</div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
-                        <span>S1: {formatPrice(marketData.support1)}</span>
-                        <span>R1: {formatPrice(marketData.resistance1)}</span>
-                      </div>
-                   </GlassCard>
-                </div>
-
-                {/* Second Row of Indicators (Volume & Technical Details) */}
-                {!focusMode && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '2rem' }}>
-                    <GlassCard>
-                       <div className="card-title"><Activity size={14} /> Stochastic RSI</div>
-                       <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{marketData.stochRsi?.k} / {marketData.stochRsi?.d}</div>
-                       <div style={{ fontSize: '0.7rem', color: marketData.stochRsi?.signal?.includes('BYCZY') ? 'var(--accent-green)' : 'var(--accent-red)' }}>{marketData.stochRsi?.signal}</div>
-                    </GlassCard>
-                    <GlassCard>
-                       <div className="card-title"><Zap size={14} /> Parabolic SAR</div>
-                       <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{formatPrice(parseFloat(marketData.sar?.sar))}</div>
-                       <div style={{ fontSize: '0.7rem', color: marketData.sar?.signal === 'BYCZY' ? 'var(--accent-green)' : 'var(--accent-red)' }}>{marketData.sar?.trend}</div>
-                    </GlassCard>
-                    <GlassCard>
-                       <div className="card-title"><TrendingUp size={14} /> SMA 20 / 50</div>
-                       <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{formatPrice(marketData.sma20)}</div>
-                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>SMA 50: {formatPrice(marketData.sma50)}</div>
-                    </GlassCard>
-                  </div>
-                )}
-
-                {/* Analysis Content */}
-                <GlassCard className="analysis-text" style={{ padding: '2rem', lineHeight: '1.8', marginBottom: '2rem' }}>
-                   <div className="card-title" style={{ marginBottom: '1.5rem' }}><Bot size={18} /> Analiza Quantum Crypto Core</div>
-                   <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', whiteSpace: 'pre-wrap' }}>
-                     {analysis}
-                   </div>
-                </GlassCard>
-
-                {/* Backtest Section */}
-                {!focusMode && marketData.backtest && (
-                  <GlassCard style={{ marginBottom: '2rem' }}>
-                    <div className="card-title"><Target size={14} /> Skuteczność Algorytmu (30D)</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-                       <div>
-                         <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>ACCURACY</div>
-                         <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--accent-blue)' }}>{marketData.backtest.accuracy}%</div>
-                       </div>
-                       <div>
-                         <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>AVG RETURN</div>
-                         <div style={{ fontSize: '1.8rem', fontWeight: 900, color: marketData.backtest.avgReturnPerSignal > 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                           {marketData.backtest.avgReturnPerSignal > 0 ? '+' : ''}{marketData.backtest.avgReturnPerSignal}%
-                         </div>
-                       </div>
-                       <div>
-                         <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>TRADES</div>
-                         <div style={{ fontSize: '1.8rem', fontWeight: 900 }}>{marketData.backtest.totalTrades}</div>
-                       </div>
+                    <div className="trend-recommendation">
+                      <span className={`trend-rec ${marketData.macroTrend.recommendation?.includes('KUPUJ') ? 'rec-buy' : marketData.macroTrend.recommendation?.includes('SPRZEDAJ') ? 'rec-sell' : 'rec-hold'}`}>
+                        {marketData.macroTrend.recommendation}
+                      </span>
+                      <span className="trend-score">Score: {marketData.macroTrend.score > 0 ? '+' : ''}{marketData.macroTrend.score}</span>
                     </div>
-                  </GlassCard>
+                    <div className="trend-details">
+                      {marketData.macroTrend.details?.map((d, i) => (
+                        <span key={i} className="trend-detail-tag">{d}</span>
+                      ))}
+                    </div>
+                    {marketData.macroTrend.recommendation === 'TRZYMAJ' && (
+                      <div className="trzymaj-info">
+                        <span className="trzymaj-icon">ℹ️</span>
+                        <span>TRZYMAJ = utrzymuj obecną pozycję. Brak wyraźnego trendu długoterminowego. Rynek w fazie konsolidacji — poczekaj na przełamanie.</span>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
+            </div>
+          )}
 
-              {/* Right Column / Sidebar */}
-              {!focusMode && (
-                <div className="sidebar">
-                  <GlassCard>
-                    <div className="card-title"><BadgeInfo size={14} /> Informacje o rynku</div>
-                    <div className="quant-row">
-                      <span className="quant-label">Trend (ADX)</span>
-                      <span className="quant-value" style={{ color: marketData.adx?.adx > 25 ? 'var(--accent-blue)' : 'var(--text-muted)' }}>
-                        {marketData.adx?.trend} ({marketData.adx?.adx})
+          {/* Candle Patterns */}
+          {marketData.patterns && marketData.patterns.length > 0 && (
+            <div className="patterns-section">
+              <h3>🕯️ Formacje świecowe</h3>
+              <div className="patterns-list">
+                {marketData.patterns.map((pattern, idx) => (
+                  <span key={idx} className="pattern-tag">{pattern}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Fibonacci Levels */}
+          {marketData.fibonacci && marketData.fibonacci.length > 0 && (
+            <div className="fibonacci-section">
+              <h3>📐 Fibonacci Retracement (30D)</h3>
+              <div className="fibonacci-levels">
+                {marketData.fibonacci.map((fib, i) => (
+                  <div key={i} className={`fib-level ${fib.level === 0.5 ? 'fib-key' : ''} ${fib.level === 0.618 ? 'fib-key' : ''}`}>
+                    <span className="fib-label">{fib.label}</span>
+                    <span className="fib-bar"><span className="fib-fill" style={{ width: `${fib.level * 100}%` }}></span></span>
+                    <span className="fib-price">{formatPrice(fib.price)} {currency}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Macro Context */}
+          {marketData.macroContext && (
+            <div className="macro-section">
+              <h3>🌍 Kontekst Makro</h3>
+              <div className="macro-cards">
+                {marketData.macroContext.btcDominance && (
+                  <div className="macro-card">
+                    <span className="macro-card-label">BTC Dominance</span>
+                    <span className="macro-card-value">{marketData.macroContext.btcDominance}%</span>
+                    <div className="macro-bar">
+                      <div className="macro-bar-fill" style={{ width: `${marketData.macroContext.btcDominance}%`, background: '#f7931a' }}></div>
+                    </div>
+                  </div>
+                )}
+                {marketData.macroContext.totalMarketCap && (
+                  <div className="macro-card">
+                    <span className="macro-card-label">Total Market Cap</span>
+                    <span className="macro-card-value">${(marketData.macroContext.totalMarketCap / 1e12).toFixed(2)}T</span>
+                    {marketData.macroContext.marketCapChange24h !== null && (
+                      <span className={`macro-change ${marketData.macroContext.marketCapChange24h > 0 ? 'positive' : 'negative'}`}>
+                        {marketData.macroContext.marketCapChange24h > 0 ? '▲' : '▼'} {Math.abs(marketData.macroContext.marketCapChange24h)}% (24h)
+                      </span>
+                    )}
+                  </div>
+                )}
+                {marketData.macroContext.ethDominance && (
+                  <div className="macro-card">
+                    <span className="macro-card-label">ETH Dominance</span>
+                    <span className="macro-card-value">{marketData.macroContext.ethDominance}%</span>
+                    <div className="macro-bar">
+                      <div className="macro-bar-fill" style={{ width: `${marketData.macroContext.ethDominance * 2}%`, background: '#627eea' }}></div>
+                    </div>
+                  </div>
+                )}
+                <div className="macro-card">
+                  <span className="macro-card-label">FED Rate</span>
+                  <span className="macro-card-value">{marketData.macroContext.fedRate}</span>
+                  <span className="macro-card-note">Akt. {marketData.macroContext.fedRateUpdated}</span>
+                </div>
+              </div>
+              <div className="macro-disclaimer">{marketData.macroContext.disclaimer}</div>
+            </div>
+          )}
+
+          {/* Trading Scenarios */}
+          {marketData.scenarios && (
+            <div className="scenarios-section">
+              <h3>🎯 Scenariusze tradingowe</h3>
+              <div className="scenario-cards">
+                {[marketData.scenarios.base, marketData.scenarios.alternative, marketData.scenarios.extreme].filter(Boolean).map((sc, i) => (
+                  <div key={i} className={`scenario-card scenario-${sc.direction}`}>
+                    <div className="scenario-card-header">
+                      <span className="scenario-label">{sc.label}</span>
+                      <span className={`scenario-dir-badge ${sc.direction}`}>
+                        {sc.direction === 'bullish' ? '🟢 Wzrostowy' : '🔴 Spadkowy'}
                       </span>
                     </div>
-                    <div className="quant-row">
-                      <span className="quant-label">OBV Trend</span>
-                      <span className="quant-value">{marketData.obv?.trend || 'NEUTRALNY'}</span>
+                    <div className="scenario-prob-row">
+                      <div className="scenario-prob-bar">
+                        <div className="scenario-prob-fill" style={{
+                          width: `${sc.probability}%`,
+                          background: sc.direction === 'bullish' ? '#3fb950' : '#f85149'
+                        }}></div>
+                      </div>
+                      <span className="scenario-prob-value">{sc.probability}%</span>
                     </div>
-                    <div className="quant-row">
-                      <span className="quant-label">Bollinger Bands</span>
-                      <span className="quant-value" style={{ fontSize: '0.75rem' }}>{marketData.price > marketData.bb?.upper ? 'OVERBOUGHT' : marketData.price < marketData.bb?.lower ? 'OVERSOLD' : 'INSIDE'}</span>
+                    <div className="scenario-details">
+                      <div className="scenario-detail">
+                        <span className="sd-label">Target:</span>
+                        <span className="sd-value">{formatPrice(sc.target)} {currency}</span>
+                      </div>
+                      <div className="scenario-detail">
+                        <span className="sd-label">Warunek:</span>
+                        <span className="sd-value">{sc.condition}</span>
+                      </div>
                     </div>
-                  </GlassCard>
-
-                  <GlassCard style={{ marginTop: '1rem' }}>
-                    <div className="card-title"><ShieldAlert size={14} /> Ryzyko i Sentyment</div>
-                    <SentimentGauge score={marketData.fearGreed?.value || 50} />
-                  </GlassCard>
-
-                  {/* Trends Sidebar Section */}
-                  {(marketData.microTrend || marketData.macroTrend) && (
-                    <div style={{ marginTop: '1rem' }}>
-                      <GlassCard>
-                        <div className="card-title"><Activity size={14} /> Strategiczne Trendy</div>
-                        {marketData.microTrend && (
-                          <div style={{ marginBottom: '15px', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>MIKRO (1H-4H)</div>
-                            <div style={{ fontWeight: 800, color: marketData.microTrend.recommendation?.includes('KUPUJ') ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                              {marketData.microTrend.recommendation}
-                            </div>
-                          </div>
-                        )}
-                        {marketData.macroTrend && (
-                          <div style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>MAKRO (DAILY)</div>
-                            <div style={{ fontWeight: 800, color: marketData.macroTrend.recommendation?.includes('KUPUJ') ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                              {marketData.macroTrend.recommendation}
-                            </div>
-                          </div>
-                        )}
-                      </GlassCard>
-                    </div>
-                  )}
-
-                  {/* RSI Divergence */}
-                  {marketData.rsiDivergence?.detected && (
-                    <GlassCard style={{ marginTop: '1rem', border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.05)' }}>
-                       <div className="card-title" style={{ color: 'var(--accent-amber)' }}><AlertTriangle size={14} /> RSI Divergence</div>
-                       <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{marketData.rsiDivergence.type}</div>
-                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>Wykryto rozbieżność ceny i RSI!</div>
-                    </GlassCard>
-                  )}
-                </div>
+                  </div>
+                ))}
+              </div>
+              {marketData.scenarios.methodology && (
+                <div className="scenario-methodology">📐 {marketData.scenarios.methodology}</div>
               )}
+            </div>
+          )}
 
+          {/* Risk Management */}
+          {marketData.riskManagement && (
+            <div className="risk-section">
+              <h3>🛡️ Risk Management</h3>
+              <div className="risk-body">
+                <div className="risk-badges-row">
+                  <div className="risk-badge badge-sl">
+                    <span className="rb-lbl">Stop Loss</span>
+                    <span className="rb-val">{formatPrice(marketData.riskManagement.stopLoss)}</span>
+                  </div>
+                  <div className="risk-badge badge-entry">
+                    <span className="rb-lbl">Entry</span>
+                    <span className="rb-val">{formatPrice(marketData.riskManagement.entry)}</span>
+                  </div>
+                  <div className="risk-badge badge-tp">
+                    <span className="rb-lbl">Take Profit (TP1)</span>
+                    <span className="rb-val">{formatPrice(marketData.riskManagement.takeProfit1)}</span>
+                  </div>
+                  <div className="risk-badge badge-tp">
+                    <span className="rb-lbl">Take Profit (TP2)</span>
+                    <span className="rb-val">{formatPrice(marketData.riskManagement.takeProfit2)}</span>
+                  </div>
+                </div>
+
+                <div className="rr-bar-section">
+                  <div className="rr-labels">
+                    <span className="rr-risk-lbl">Ryzyko (1)</span>
+                    <span className="rr-reward-lbl">Potencjał Zysku ({marketData.riskManagement.riskRewardRatio1})</span>
+                  </div>
+                  <div className="rr-visual-bar">
+                    <div className="rr-risk-fill" style={{ flex: 1 }}></div>
+                    <div className="rr-reward-fill" style={{ flex: marketData.riskManagement.riskRewardRatio1 }}></div>
+                  </div>
+                </div>
+
+                <div className="risk-stats">
+                  <div className="risk-stat">
+                    <span className="rs-label">Max Loss</span>
+                    <span className="rs-value negative">-{marketData.riskManagement.maxLossPercent}%</span>
+                  </div>
+                  <div className="risk-stat">
+                    <span className="rs-label">Pozycja</span>
+                    <span className="rs-value">{marketData.riskManagement.positionSize}</span>
+                  </div>
+                </div>
+                <div className="risk-methodology">📐 {marketData.riskManagement.methodology}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Risk Calculator */}
+          {marketData.riskManagement && (
+            <div className="risk-calc-section">
+              <h3>💰 Kalkulator Pozycji</h3>
+              <div className="risk-calc-body">
+                <div className="risk-calc-input-row">
+                  <label>Twój kapitał ({currency}):</label>
+                  <input
+                    type="number"
+                    value={riskCapital}
+                    onChange={(e) => setRiskCapital(e.target.value)}
+                    placeholder="np. 10000"
+                    min="0"
+                  />
+                </div>
+                {riskCapital > 0 && (() => {
+                  const capital = parseFloat(riskCapital);
+                  const stopDist = Math.abs(marketData.price - marketData.riskManagement.stopLoss);
+                  const riskAmount = capital * 0.015;
+                  const positionUnits = stopDist > 0 ? riskAmount / stopDist : 0;
+                  const positionValue = positionUnits * marketData.price;
+                  return (
+                    <div className="risk-calc-results">
+                      <div className="calc-result-card">
+                        <span className="calc-result-label">Maks. Ryzyko (1.5%)</span>
+                        <span className="calc-result-value highlight-red">{riskAmount.toFixed(2)} {currency}</span>
+                      </div>
+                      <div className="calc-result-card">
+                        <span className="calc-result-label">Wielkość Pozycji</span>
+                        <span className="calc-result-value highlight-blue">{positionUnits.toFixed(6)} {ticker}</span>
+                      </div>
+                      <div className="calc-result-card">
+                        <span className="calc-result-label">Wartość Pozycji</span>
+                        <span className="calc-result-value highlight-green">{positionValue.toFixed(2)} {currency}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+                <span className="calc-result-note">Obliczenia oparte o SL: {formatPrice(marketData.riskManagement.stopLoss)} {currency} | Ryzyko na trade: 1.5% kapitału</span>
+              </div>
+            </div>
+          )}
+
+          {/* Chart with type switcher */}
+          {chartData.length > 0 && (
+            <div className="chart-section">
+              <div className="chart-title-row">
+                <h3>📊 Wykres — ostatnie {chartData.length} dni</h3>
+                <div className="chart-controls">
+                  <div className="chart-type-switcher">
+                    {[
+                      { type: 'candlestick', label: '🕯️ Świecowy' },
+                      { type: 'line', label: '📈 Liniowy' },
+                      { type: 'bar', label: '📊 Słupkowy' }
+                    ].map(ct => (
+                      <button
+                        key={ct.type}
+                        className={`chart-type-btn ${chartType === ct.type ? 'active' : ''}`}
+                        onClick={() => setChartType(ct.type)}
+                      >
+                        {ct.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="overlay-toggles">
+                    <button className={`overlay-btn ${activeOverlays.has('fibonacci') ? 'active' : ''}`} onClick={() => toggleOverlay('fibonacci')}>Fib</button>
+                    <button className={`overlay-btn ${activeOverlays.has('rsi') ? 'active' : ''}`} onClick={() => toggleOverlay('rsi')}>RSI</button>
+                    <button className={`overlay-btn ${activeOverlays.has('ema') ? 'active' : ''}`} onClick={() => toggleOverlay('ema')}>EMA</button>
+                    <button className={`overlay-btn ${activeOverlays.has('sma') ? 'active' : ''}`} onClick={() => toggleOverlay('sma')}>SMA</button>
+                    <button className={`overlay-btn ${activeOverlays.has('bb') ? 'active' : ''}`} onClick={() => toggleOverlay('bb')}>BB</button>
+                  </div>
+                  <div className="chart-legend">
+                    <span className="legend-item green">▮ Wzrost</span>
+                    <span className="legend-item red">▮ Spadek</span>
+                  </div>
+                </div>
+              </div>
+              <ChartComponent data={chartData} chartType={chartType} overlays={marketData?.overlays} fibonacci={marketData?.fibonacci} activeOverlays={activeOverlays} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* News Section */}
+      {marketData && marketData.newsData && (
+        <NewsSlider newsData={marketData.newsData} ticker={ticker} newsAggregation={marketData.newsAggregation} />
+      )}
+
+      {/* AI Analysis */}
+      {analysis && <AnalysisDisplay analysis={analysis} ticker={ticker} currency={currency} />}
+
+      <footer className="app-footer">
+        <div className="footer-brand">Autograph</div>
+        <p>CoinGecko API • Technical Analysis • Gemma 4 AI • Finnhub News</p>
+        <p className="footer-date">{new Date().toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+      </footer>
+    </div>
+  );
+}
+
+/* ======================== ANALYSIS DISPLAY ======================== */
+
+function AnalysisDisplay({ analysis, ticker, currency }) {
+  const clean = (t) => t
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/^#{1,3}\s+/gm, '')
+    .replace(/\*(.*?)\*/g, '$1')
+    .trim();
+
+  const isJunk = (t) => /^(\*?\s*)?(use emoji|keep it|self-correct|i will|i'll|okay|sure|got it|understood|alright|polish only|no markdown|ensure|let me|let's go|wait,|double check|final check|final polish|language:|formatting:|style:|structure:|input data:|drafting|construction|no bolding|no italics|no headers|only polish|emojis used|no thoughts|all 10 sections|checked\.|self-correction|bez markdown|nie pisz)/i.test(t);
+  const isHeader = (t) => /[1-9]️⃣|🔟|^\*\*\s*\d+[.)]|^#{1,3}\s+\d|^\d+[.)]\s+[A-ZĄĆĘŁŃÓŚŹŻ]{2,}/i.test(t);
+  const getSignal = (t) => {
+    if (/KUPUJ|BUY|LONG/i.test(t)) return 'buy';
+    if (/SPRZEDAJ|SELL|SHORT/i.test(t)) return 'sell';
+    if (/TRZYMAJ|HOLD|NEUTRAL/i.test(t)) return 'hold';
+    return null;
+  };
+
+  // Section icon mapping based on number
+  const sectionIcons = {
+    '1': '📊', '2': '📈', '3': '🎯', '4': '📉', '5': '⚠️',
+    '6': '😱', '7': '📰', '8': '🔮', '9': '💰', '10': '🏆'
+  };
+  const sectionColors = {
+    '1': '#58a6ff', '2': '#3fb950', '3': '#f0883e', '4': '#a371f7', '5': '#f85149',
+    '6': '#d29922', '7': '#79c0ff', '8': '#bc8cff', '9': '#3fb950', '10': '#f0883e'
+  };
+
+  const parseTitle = (title) => {
+    const numMatch = title.match(/^([1-9]️⃣|🔟)\s*(.*)/);
+    if (numMatch) {
+      const num = numMatch[1] === '🔟' ? '10' : numMatch[1].replace('️⃣', '');
+      const rest = numMatch[2].replace(/^[—–-]\s*/, '');
+      return { num, text: rest, icon: sectionIcons[num] || '📌', color: sectionColors[num] || '#58a6ff' };
+    }
+    return { num: null, text: title, icon: '📌', color: '#58a6ff' };
+  };
+
+  // Detect AI fallback / rate limit message
+  const isAiFallback = /AI tymczasowo niedostępne|rate limit|AI niedostępne/i.test(analysis);
+
+  if (isAiFallback) {
+    const lines = analysis.split('\n').map(l => l.trim()).filter(l => l);
+    return (
+      <div className="analysis-section">
+        <div className="analysis-hero">
+          <div className="analysis-hero-bg"></div>
+          <div className="analysis-hero-content">
+            <div className="analysis-title-row">
+              <h2>🤖 Analiza Gemma 4 AI</h2>
+              <div className="analysis-badges">
+                <span className="model-badge" style={{ background: 'rgba(210,153,34,0.15)', color: '#d29922' }}>⏳ Rate Limit</span>
+                {ticker && <span className="ticker-badge">{ticker}/{currency}</span>}
+              </div>
             </div>
           </div>
+        </div>
+        <div className="analysis-body">
+          <div className="analysis-grid">
+            <div className="analysis-card intro-card card-hold">
+              <div className="card-header" style={{ borderColor: 'rgba(210,153,34,0.3)' }}>
+                <div className="card-num" style={{ background: 'rgba(210,153,34,0.15)', color: '#d29922' }}>⚠️</div>
+                <span className="card-title">AI tymczasowo niedostępne</span>
+              </div>
+              <div className="card-content">
+                {lines.map((line, i) => {
+                  if (/^⚠️/.test(line)) return <p key={i} className="a-line" style={{ color: '#d29922', fontWeight: 600 }}>{line}</p>;
+                  if (/^📊/.test(line)) return <p key={i} className="a-line" style={{ fontWeight: 700, marginTop: 8 }}>{line}</p>;
+                  if (/^-/.test(line)) {
+                    const parts = line.substring(1).trim();
+                    const kvMatch = parts.match(/^(.+?):\s*(.+)$/);
+                    if (kvMatch) {
+                      const sig = getSignal(kvMatch[2]);
+                      if (sig) return <div key={i} className={`sig-line sig-${sig}`}><span className="sig-icon">{sig === 'buy' ? '🟢' : sig === 'sell' ? '🔴' : '🟡'}</span><span>{parts}</span></div>;
+                      return <div key={i} className="kv-line"><span className="kv-key">{kvMatch[1]}</span><span className="kv-val">{kvMatch[2]}</span></div>;
+                    }
+                    return <p key={i} className="a-bullet">{parts}</p>;
+                  }
+                  if (/Spróbuj/i.test(line)) return <p key={i} className="a-line" style={{ color: '#8b949e', fontStyle: 'italic', marginTop: 8 }}>💡 {line}</p>;
+                  return <p key={i} className="a-line">{line}</p>;
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const sections = [];
+  let cur = null;
+
+  // Pre-expand: AI sometimes joins sections on one line with *: prefix
+  const expandedLines = [];
+  for (const raw of analysis.split('\n')) {
+    const t = raw.trim();
+    if (!t || /^[═─-]{4,}$/.test(t)) continue;
+    const parts = t.split(/\*:\s*(?=[1-9]️⃣|🔟)/);
+    for (const p of parts) {
+      const trimmed = p.replace(/^\*:\s*/, '').trim();
+      if (trimmed) expandedLines.push(trimmed);
+    }
+  }
+
+  for (const t of expandedLines) {
+    const c = clean(t);
+    if (!c || isJunk(c)) continue;
+
+    if (isHeader(t) || isHeader(c)) {
+      if (cur) sections.push(cur);
+      cur = { title: c, lines: [], signal: null };
+    } else if (cur) {
+      cur.lines.push(c);
+      if (getSignal(c)) cur.signal = getSignal(c);
+    } else {
+      if (sections.length && sections[sections.length - 1].type === 'intro') {
+        sections[sections.length - 1].lines.push(c);
+      } else {
+        sections.push({ title: null, lines: [c], signal: getSignal(c), type: 'intro' });
+      }
+    }
+  }
+  if (cur) sections.push(cur);
+
+  const overallSignal = getSignal(analysis);
+
+  // Parse trading decision metrics from text
+  const trendMatch = analysis.match(/[Ss]i[łl]a\s*trendu[:\s]*(\d+)\s*\/\s*10/i);
+  const confMatch = analysis.match(/[Pp]ewno[śs][ćc][:\s]*(\d+)\s*%/i);
+  const riskMatch = analysis.match(/[Rr]yzyko[:\s]*(niskie|średnie|wysokie|low|medium|high)/i);
+  const trendScore = trendMatch ? parseInt(trendMatch[1]) : null;
+  const confidence = confMatch ? parseInt(confMatch[1]) : null;
+  const riskRaw = riskMatch ? riskMatch[1].toLowerCase() : null;
+  const risk = riskRaw === 'niskie' || riskRaw === 'low' ? 'niskie' :
+               riskRaw === 'wysokie' || riskRaw === 'high' ? 'wysokie' : 'średnie';
+
+  // Split key: value pairs for better rendering
+  const renderLine = (line, li) => {
+    const sig = getSignal(line);
+
+    // Detect key-value patterns like "Sygnał: KUPUJ" or "Siła trendu: 4/10"
+    const kvMatch = line.match(/^(.+?)[:\s]+(.+)$/);
+    const isKV = kvMatch && kvMatch[1].length < 30 && !sig && !/^\*$|^\(Self-Correction\)/.test(kvMatch[1].trim());
+
+    if (sig) {
+      return (
+        <div key={li} className={`sig-line sig-${sig}`}>
+          <span className="sig-icon">{sig === 'buy' ? '🟢' : sig === 'sell' ? '🔴' : '🟡'}</span>
+          <span>{line}</span>
+        </div>
+      );
+    }
+
+    if (isKV) {
+      return (
+        <div key={li} className="kv-line">
+          <span className="kv-key">{kvMatch[1]}:</span>
+          <span className="kv-val">{kvMatch[2]}</span>
+        </div>
+      );
+    }
+
+    return (
+      <p key={li} className={/^[-•●▸▹]/.test(line) ? 'a-bullet' : 'a-line'}>{line}</p>
+    );
+  };
+
+  // Identify decision section (last / 🔟)
+  const isDecisionSection = (section) => {
+    return section.title && (/^🔟/.test(section.title) || /DECYZJA/i.test(section.title));
+  };
+
+  return (
+    <div className="analysis-section">
+      <div className="analysis-hero">
+        <div className="analysis-hero-bg"></div>
+        <div className="analysis-hero-content">
+          <div className="analysis-title-row">
+            <h2>🤖 Analiza Gemma 4 AI</h2>
+            <div className="analysis-badges">
+              <span className="model-badge">Gemma 4</span>
+              <span className="data-badge">📊 CoinGecko</span>
+              {ticker && <span className="ticker-badge">{ticker}/{currency}</span>}
+            </div>
+          </div>
+
+          {/* Trading Decision Card */}
+          {overallSignal && (
+            <div className={`trading-decision decision-${overallSignal}`}>
+              <div className="decision-signal">
+                <span className="decision-icon">
+                  {overallSignal === 'buy' ? '🟢' : overallSignal === 'sell' ? '🔴' : '🟡'}
+                </span>
+                <span className="decision-label">
+                  {overallSignal === 'buy' ? 'KUPUJ' :
+                   overallSignal === 'sell' ? 'SPRZEDAJ' : 'TRZYMAJ'}
+                </span>
+              </div>
+              <div className="decision-metrics">
+                {trendScore !== null && (
+                  <div className="metric">
+                    <span className="metric-label">Siła trendu</span>
+                    <div className="metric-bar">
+                      <div className="metric-fill" style={{ width: `${trendScore * 10}%`, background: trendScore >= 7 ? '#3fb950' : trendScore >= 4 ? '#d29922' : '#f85149' }}></div>
+                    </div>
+                    <span className="metric-value">{trendScore}/10</span>
+                  </div>
+                )}
+                {confidence !== null && (
+                  <div className="metric">
+                    <span className="metric-label">Pewność</span>
+                    <div className="metric-bar">
+                      <div className="metric-fill" style={{ width: `${confidence}%`, background: confidence >= 70 ? '#3fb950' : confidence >= 40 ? '#d29922' : '#f85149' }}></div>
+                    </div>
+                    <span className="metric-value">{confidence}%</span>
+                  </div>
+                )}
+                {riskRaw && (
+                  <div className="metric">
+                    <span className="metric-label">Ryzyko</span>
+                    <span className={`risk-badge risk-${risk}`}>
+                      {risk === 'niskie' ? '🟢 Niskie' : risk === 'wysokie' ? '🔴 Wysokie' : '🟡 Średnie'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="analysis-body">
+        <div className="analysis-grid">
+          {sections.filter(s => !isDecisionSection(s)).map((section, idx) => {
+            const parsed = section.title ? parseTitle(section.title) : null;
+            return (
+              <div key={idx} className={`analysis-card ${section.type === 'intro' ? 'intro-card' : ''} ${section.signal ? `card-${section.signal}` : ''}`}>
+                {parsed && (
+                  <div className="card-header" style={{ borderColor: parsed.color + '40' }}>
+                    <div className="card-num" style={{ background: parsed.color + '20', color: parsed.color }}>
+                      {parsed.num || '#'}
+                    </div>
+                    <span className="card-title">{parsed.text}</span>
+                  </div>
+                )}
+                <div className="card-content">
+                  {section.lines.map((l, li) => renderLine(l, li))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Decision Section - Special */}
+        {sections.filter(s => isDecisionSection(s)).map((section, idx) => {
+          const parsed = parseTitle(section.title);
+          return (
+            <div key={`dec-${idx}`} className={`analysis-decision-card ${overallSignal ? `decision-card-${overallSignal}` : ''}`}>
+              <div className="decision-card-header">
+                <span className="decision-card-icon">🏆</span>
+                <span className="decision-card-title">{parsed.text}</span>
+              </div>
+              <div className="decision-card-body">
+                {section.lines.map((l, li) => renderLine(l, li))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="analysis-footer-info">
+        <span>📊 CoinGecko (Binance, Coinbase, Kraken...)</span>
+        <span>📰 Finnhub</span>
+        <span>🕐 {new Date().toLocaleTimeString('pl-PL')}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ======================== CANDLESTICK CHART ======================== */
+
+function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, activeOverlays }) {
+  const containerRef = useRef(null);
+  const [tooltip, setTooltip] = useState(null);
+  const [crosshair, setCrosshair] = useState(null);
+  const [containerWidth, setContainerWidth] = useState(900);
+
+  useEffect(() => {
+    const observe = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.clientWidth);
+      }
+    };
+    observe();
+    window.addEventListener('resize', observe);
+    return () => window.removeEventListener('resize', observe);
+  }, []);
+
+  if (!data || data.length === 0) return null;
+
+  const showRsi = activeOverlays && activeOverlays.has('rsi');
+  const showFib = activeOverlays && activeOverlays.has('fibonacci');
+  const showEma = activeOverlays && activeOverlays.has('ema');
+  const showSma = activeOverlays && activeOverlays.has('sma');
+  const showBb = activeOverlays && activeOverlays.has('bb');
+
+  const n = data.length;
+  const paddingLeft = 80;
+  const paddingRight = 60;
+  const paddingTop = 30;
+  const paddingBottom = 55;
+  const priceAreaH = 500;
+  const volumeAreaH = 100;
+  const rsiAreaH = showRsi ? 130 : 0;
+  const rsiGap = showRsi ? 20 : 0;
+  const totalH = priceAreaH + volumeAreaH + rsiAreaH + rsiGap + paddingTop + paddingBottom + 20;
+
+  const minCandleW = 10;
+  const minSpacing = minCandleW / 0.6;
+  const neededW = paddingLeft + paddingRight + n * minSpacing;
+  const chartW = Math.max(containerWidth, neededW);
+
+  const usableW = chartW - paddingLeft - paddingRight;
+  const candleSpacing = usableW / n;
+  const candleW = Math.max(Math.min(candleSpacing * 0.6, 20), 6);
+
+  const prices = data.flatMap(d => [d.high, d.low]);
+  const maxPrice = Math.max(...prices);
+  const minPrice = Math.min(...prices);
+  const pricePad = (maxPrice - minPrice) * 0.08 || 1;
+  const pMax = maxPrice + pricePad;
+  const pMin = minPrice - pricePad;
+  const pRange = pMax - pMin;
+
+  const volumes = data.map(d => d.volume || 0);
+  const maxVol = Math.max(...volumes) || 1;
+
+  const getX = (i) => paddingLeft + i * candleSpacing + candleSpacing / 2;
+  const getY = (price) => paddingTop + (1 - (price - pMin) / pRange) * priceAreaH;
+  const volBase = paddingTop + priceAreaH + 20 + volumeAreaH;
+
+  // RSI sub-chart helpers
+  const rsiTop = volBase + rsiGap;
+  const getRsiY = (val) => rsiTop + (1 - val / 100) * rsiAreaH;
+
+  // Price grid
+  const gridLines = [];
+  for (let i = 0; i <= 6; i++) {
+    const price = pMin + (pRange * i) / 6;
+    gridLines.push({ y: getY(price), price });
+  }
+
+  // SMA20 (built-in)
+  const smaPoints = [];
+  for (let i = 0; i < n; i++) {
+    if (i >= 19) {
+      const slice = data.slice(i - 19, i + 1);
+      const avg = slice.reduce((s, d) => s + d.close, 0) / 20;
+      smaPoints.push({ x: getX(i), y: getY(avg) });
+    }
+  }
+  const smaPath = smaPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+
+  // Smart date label stepping
+  const labelMinPx = 70;
+  const labelStep = Math.max(1, Math.ceil(labelMinPx / candleSpacing));
+
+  // Overlay line builder
+  const buildLinePath = (series) => {
+    if (!series) return '';
+    const pts = [];
+    for (let i = 0; i < Math.min(series.length, n); i++) {
+      if (series[i] !== null && series[i] !== undefined) {
+        pts.push({ x: getX(i), y: getY(series[i]) });
+      }
+    }
+    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  };
+
+  // RSI line path
+  const buildRsiPath = () => {
+    if (!overlays?.rsiSeries) return '';
+    const pts = [];
+    for (let i = 0; i < Math.min(overlays.rsiSeries.length, n); i++) {
+      if (overlays.rsiSeries[i] !== null) {
+        pts.push({ x: getX(i), y: getRsiY(overlays.rsiSeries[i]) });
+      }
+    }
+    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  };
+
+  // BB fill path
+  const buildBbFill = () => {
+    if (!overlays?.bbSeries) return '';
+    const upper = [], lower = [];
+    for (let i = 0; i < Math.min(overlays.bbSeries.length, n); i++) {
+      const b = overlays.bbSeries[i];
+      if (b && b.upper !== null) {
+        upper.push({ x: getX(i), y: getY(b.upper) });
+        lower.push({ x: getX(i), y: getY(b.lower) });
+      }
+    }
+    if (upper.length < 2) return '';
+    const fwd = upper.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+    const bwd = lower.reverse().map((p) => `L ${p.x} ${p.y}`).join(' ');
+    return fwd + ' ' + bwd + ' Z';
+  };
+
+  const handleMouseMove = (e, candle, i) => {
+    const rect = containerRef.current.getBoundingClientRect();
+    const scrollLeft = containerRef.current.scrollLeft;
+    const mx = e.clientX - rect.left + scrollLeft;
+    const my = e.clientY - rect.top;
+    setTooltip({ x: mx, y: my, candle, i });
+    setCrosshair({ x: getX(i), y: my });
+  };
+
+  const handleMouseLeave = () => {
+    setTooltip(null);
+    setCrosshair(null);
+  };
+
+  const formatP = (p) => {
+    if (p > 1000) return p.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    if (p > 1) return p.toFixed(2);
+    return p.toFixed(6);
+  };
+
+  const fibColors = ['#8b949e', '#58a6ff', '#d29922', '#bc8cff', '#d29922', '#58a6ff', '#8b949e'];
+
+  return (
+    <div className="chart-wrapper" ref={containerRef}>
+      <svg
+        width={chartW}
+        height={totalH}
+        className="chart-svg"
+      >
+        <rect width={chartW} height={totalH} fill="#0d1117" rx="12" />
+
+        {/* Grid */}
+        {gridLines.map((gl, i) => (
+          <g key={`gl-${i}`}>
+            <line x1={paddingLeft} y1={gl.y} x2={chartW - paddingRight} y2={gl.y}
+              stroke="#161b22" strokeWidth="1" />
+            <text x={paddingLeft - 8} y={gl.y + 4} fill="#8b949e" fontSize="11"
+              textAnchor="end" fontFamily="monospace">
+              {formatP(gl.price)}
+            </text>
+          </g>
+        ))}
+
+        {/* Volume separator line */}
+        <line x1={paddingLeft} y1={paddingTop + priceAreaH + 10}
+          x2={chartW - paddingRight} y2={paddingTop + priceAreaH + 10}
+          stroke="#21262d" strokeWidth="1" strokeDasharray="4,4" />
+
+        {/* Volume bars */}
+        {data.map((candle, i) => {
+          const x = getX(i);
+          const isGreen = candle.close >= candle.open;
+          const vol = candle.volume || 0;
+          const barH = (vol / maxVol) * volumeAreaH;
+          return (
+            <rect key={`vol-${i}`} x={x - candleW / 2} y={volBase - barH}
+              width={candleW} height={Math.max(barH, 1)}
+              fill={isGreen ? 'rgba(35, 134, 54, 0.5)' : 'rgba(218, 54, 51, 0.5)'}
+              rx="1" />
+          );
+        })}
+
+        {/* SMA20 */}
+        {smaPoints.length > 1 && (
+          <path d={smaPath} fill="none" stroke="#f0883e" strokeWidth="1.5" opacity="0.7" />
         )}
+
+        {/* Fibonacci Levels */}
+        {showFib && fibonacci && fibonacci.map((fib, fi) => {
+          const y = getY(fib.price);
+          if (y < paddingTop || y > paddingTop + priceAreaH) return null;
+          return (
+            <g key={`fib-${fi}`}>
+              <line x1={paddingLeft} y1={y} x2={chartW - paddingRight} y2={y}
+                stroke={fibColors[fi] || '#58a6ff'} strokeWidth="1" strokeDasharray="6,4" opacity="0.6" />
+              <rect x={chartW - paddingRight + 4} y={y - 10} width={56} height={18} rx="4" fill="#161b22" stroke={fibColors[fi] || '#58a6ff'} strokeWidth="0.5" opacity="0.9" />
+              <text x={chartW - paddingRight + 8} y={y + 1} fill={fibColors[fi] || '#58a6ff'} fontSize="9" fontFamily="monospace" fontWeight="600">
+                {fib.label} {formatP(fib.price)}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Bollinger Bands */}
+        {showBb && overlays?.bbSeries && (
+          <g>
+            <path d={buildBbFill()} fill="rgba(88,166,255,0.06)" />
+            <path d={buildLinePath(overlays.bbSeries.map(b => b?.upper))} fill="none" stroke="#58a6ff" strokeWidth="1" opacity="0.5" strokeDasharray="4,3" />
+            <path d={buildLinePath(overlays.bbSeries.map(b => b?.middle))} fill="none" stroke="#58a6ff" strokeWidth="1" opacity="0.35" />
+            <path d={buildLinePath(overlays.bbSeries.map(b => b?.lower))} fill="none" stroke="#58a6ff" strokeWidth="1" opacity="0.5" strokeDasharray="4,3" />
+          </g>
+        )}
+
+        {/* EMA Overlay */}
+        {showEma && overlays && (
+          <g>
+            <path d={buildLinePath(overlays.ema12Series)} fill="none" stroke="#3fb950" strokeWidth="1.5" opacity="0.7" />
+            <path d={buildLinePath(overlays.ema26Series)} fill="none" stroke="#a371f7" strokeWidth="1.5" opacity="0.7" />
+          </g>
+        )}
+
+        {/* SMA Overlay */}
+        {showSma && overlays && (
+          <g>
+            <path d={buildLinePath(overlays.sma20Series)} fill="none" stroke="#f0883e" strokeWidth="1.5" opacity="0.7" />
+            <path d={buildLinePath(overlays.sma50Series)} fill="none" stroke="#d29922" strokeWidth="1.5" opacity="0.7" strokeDasharray="6,3" />
+          </g>
+        )}
+
+        {/* === CANDLESTICK === */}
+        {chartType === 'candlestick' && data.map((candle, i) => {
+          const x = getX(i);
+          const yOpen = getY(candle.open);
+          const yClose = getY(candle.close);
+          const yHigh = getY(candle.high);
+          const yLow = getY(candle.low);
+          const isGreen = candle.close >= candle.open;
+          const bodyTop = Math.min(yOpen, yClose);
+          const bodyH = Math.max(Math.abs(yOpen - yClose), 1.5);
+
+          return (
+            <g key={`c-${i}`} className="candle-group">
+              <line x1={x} y1={yHigh} x2={x} y2={yLow}
+                stroke={isGreen ? '#238636' : '#da3633'}
+                strokeWidth={Math.max(candleW * 0.12, 1)} />
+              <rect x={x - candleW / 2} y={bodyTop} width={candleW} height={bodyH}
+                fill={isGreen ? '#238636' : '#da3633'}
+                stroke={isGreen ? '#2ea043' : '#f85149'}
+                strokeWidth="0.5" rx="1" />
+              <rect x={x - candleSpacing / 2} y={paddingTop}
+                width={candleSpacing} height={priceAreaH + volumeAreaH + 20}
+                fill="transparent"
+                onMouseMove={(e) => handleMouseMove(e, candle, i)}
+                onMouseLeave={handleMouseLeave} />
+            </g>
+          );
+        })}
+
+        {/* === LINE CHART === */}
+        {chartType === 'line' && (() => {
+          const linePath = data.map((candle, i) => {
+            const x = getX(i);
+            const y = getY(candle.close);
+            return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+          }).join(' ');
+          const areaPath = linePath + ` L ${getX(n - 1)} ${paddingTop + priceAreaH} L ${getX(0)} ${paddingTop + priceAreaH} Z`;
+          return (
+            <g>
+              <defs>
+                <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#58a6ff" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="#58a6ff" stopOpacity="0.02" />
+                </linearGradient>
+              </defs>
+              <path d={areaPath} fill="url(#lineGrad)" />
+              <path d={linePath} fill="none" stroke="#58a6ff" strokeWidth="2.5" strokeLinejoin="round" />
+              {data.map((candle, i) => (
+                <g key={`lp-${i}`}>
+                  <circle cx={getX(i)} cy={getY(candle.close)} r="3.5"
+                    fill="#0d1117" stroke="#58a6ff" strokeWidth="1.5" />
+                  <rect x={getX(i) - candleSpacing / 2} y={paddingTop}
+                    width={candleSpacing} height={priceAreaH + volumeAreaH + 20}
+                    fill="transparent"
+                    onMouseMove={(e) => handleMouseMove(e, candle, i)}
+                    onMouseLeave={handleMouseLeave} />
+                </g>
+              ))}
+            </g>
+          );
+        })()}
+
+        {/* === BAR (OHLC) CHART === */}
+        {chartType === 'bar' && data.map((candle, i) => {
+          const x = getX(i);
+          const yOpen = getY(candle.open);
+          const yClose = getY(candle.close);
+          const yHigh = getY(candle.high);
+          const yLow = getY(candle.low);
+          const isGreen = candle.close >= candle.open;
+          const color = isGreen ? '#238636' : '#da3633';
+          const tickW = Math.max(candleW * 0.5, 4);
+
+          return (
+            <g key={`bar-${i}`}>
+              <line x1={x} y1={yHigh} x2={x} y2={yLow}
+                stroke={color} strokeWidth={Math.max(candleW * 0.15, 1.5)} />
+              <line x1={x - tickW} y1={yOpen} x2={x} y2={yOpen}
+                stroke={color} strokeWidth="2" />
+              <line x1={x} y1={yClose} x2={x + tickW} y2={yClose}
+                stroke={color} strokeWidth="2" />
+              <rect x={x - candleSpacing / 2} y={paddingTop}
+                width={candleSpacing} height={priceAreaH + volumeAreaH + 20}
+                fill="transparent"
+                onMouseMove={(e) => handleMouseMove(e, candle, i)}
+                onMouseLeave={handleMouseLeave} />
+            </g>
+          );
+        })}
+
+        {/* RSI Sub-Chart */}
+        {showRsi && overlays?.rsiSeries && (
+          <g>
+            <line x1={paddingLeft} y1={rsiTop} x2={chartW - paddingRight} y2={rsiTop}
+              stroke="#21262d" strokeWidth="1" />
+            <text x={paddingLeft - 8} y={rsiTop + 6} fill="#8b949e" fontSize="10" textAnchor="end" fontWeight="600">RSI</text>
+            <rect x={paddingLeft} y={getRsiY(70)} width={chartW - paddingLeft - paddingRight} height={getRsiY(30) - getRsiY(70)}
+              fill="rgba(88,166,255,0.04)" />
+            <line x1={paddingLeft} y1={getRsiY(70)} x2={chartW - paddingRight} y2={getRsiY(70)}
+              stroke="#f85149" strokeWidth="0.7" strokeDasharray="4,4" opacity="0.5" />
+            <text x={paddingLeft - 8} y={getRsiY(70) + 4} fill="#f85149" fontSize="9" textAnchor="end" opacity="0.7">70</text>
+            <line x1={paddingLeft} y1={getRsiY(50)} x2={chartW - paddingRight} y2={getRsiY(50)}
+              stroke="#484f58" strokeWidth="0.5" strokeDasharray="2,4" opacity="0.4" />
+            <line x1={paddingLeft} y1={getRsiY(30)} x2={chartW - paddingRight} y2={getRsiY(30)}
+              stroke="#3fb950" strokeWidth="0.7" strokeDasharray="4,4" opacity="0.5" />
+            <text x={paddingLeft - 8} y={getRsiY(30) + 4} fill="#3fb950" fontSize="9" textAnchor="end" opacity="0.7">30</text>
+            <line x1={paddingLeft} y1={rsiTop + rsiAreaH} x2={chartW - paddingRight} y2={rsiTop + rsiAreaH}
+              stroke="#21262d" strokeWidth="1" />
+            <path d={buildRsiPath()} fill="none" stroke="#bc8cff" strokeWidth="1.8" strokeLinejoin="round" />
+          </g>
+        )}
+
+        {/* Crosshair */}
+        {crosshair && (
+          <g>
+            <line x1={crosshair.x} y1={paddingTop} x2={crosshair.x} y2={paddingTop + priceAreaH}
+              stroke="#58a6ff" strokeWidth="0.5" strokeDasharray="3,3" opacity="0.6" />
+            <line x1={paddingLeft} y1={crosshair.y} x2={chartW - paddingRight} y2={crosshair.y}
+              stroke="#58a6ff" strokeWidth="0.5" strokeDasharray="3,3" opacity="0.6" />
+          </g>
+        )}
+
+        {/* Date labels */}
+        {data.map((candle, i) => {
+          if (i % labelStep !== 0 && i !== n - 1) return null;
+          return (
+            <text key={`dt-${i}`} x={getX(i)} y={totalH - 10}
+              fill="#8b949e" fontSize="10" textAnchor="middle" fontFamily="monospace">
+              {candle.date}
+            </text>
+          );
+        })}
+
+        {/* Legend */}
+        <g transform={`translate(${paddingLeft + 10}, ${paddingTop - 15})`}>
+          <rect width="8" height="8" fill="#238636" rx="1" />
+          <text x="12" y="8" fill="#8b949e" fontSize="10">Wzrost</text>
+          <rect x="60" width="8" height="8" fill="#da3633" rx="1" />
+          <text x="72" y="8" fill="#8b949e" fontSize="10">Spadek</text>
+          {smaPoints.length > 1 && (
+            <>
+              <line x1="120" y1="4" x2="140" y2="4" stroke="#f0883e" strokeWidth="1.5" />
+              <text x="144" y="8" fill="#8b949e" fontSize="10">SMA20</text>
+            </>
+          )}
+          <text x="200" y="8" fill="#484f58" fontSize="10">Vol ▼</text>
+          {showEma && <>
+            <line x1="250" y1="4" x2="270" y2="4" stroke="#3fb950" strokeWidth="1.5" />
+            <text x="274" y="8" fill="#8b949e" fontSize="10">EMA12</text>
+            <line x1="318" y1="4" x2="338" y2="4" stroke="#a371f7" strokeWidth="1.5" />
+            <text x="342" y="8" fill="#8b949e" fontSize="10">EMA26</text>
+          </>}
+          {showBb && <>
+            <line x1="390" y1="4" x2="410" y2="4" stroke="#58a6ff" strokeWidth="1" strokeDasharray="4,3" />
+            <text x="414" y="8" fill="#8b949e" fontSize="10">BB</text>
+          </>}
+          {showFib && <text x="450" y="8" fill="#d29922" fontSize="10">Fib</text>}
+          {showRsi && <text x="480" y="8" fill="#bc8cff" fontSize="10">RSI ▼</text>}
+        </g>
+      </svg>
+
+      {/* Tooltip */}
+      {tooltip && (
+        <div className="chart-tooltip" style={{
+          left: Math.min(tooltip.x + 16, containerWidth - 200),
+          top: Math.max(tooltip.y - 10, 10)
+        }}>
+          <div className="tt-date">{tooltip.candle.date} ({tooltip.candle.dayOfWeek})</div>
+          <div className="tt-row"><span>Otwarcie:</span> <span>{formatP(tooltip.candle.open)}</span></div>
+          <div className="tt-row"><span>Najwyższe:</span> <span className="tt-high">{formatP(tooltip.candle.high)}</span></div>
+          <div className="tt-row"><span>Najniższe:</span> <span className="tt-low">{formatP(tooltip.candle.low)}</span></div>
+          <div className="tt-row"><span>Zamknięcie:</span> <span>{formatP(tooltip.candle.close)}</span></div>
+          {tooltip.candle.volume > 0 && (
+            <div className="tt-row"><span>Wolumen:</span> <span>{(tooltip.candle.volume / 1e9).toFixed(2)}B</span></div>
+          )}
+          <div className={`tt-change ${tooltip.candle.changePercent >= 0 ? 'positive' : 'negative'}`}>
+            {tooltip.candle.changePercent >= 0 ? '▲' : '▼'} {tooltip.candle.changePercent?.toFixed(2)}%
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ======================== NEWS SLIDER ======================== */
+
+function NewsSlider({ newsData, ticker, newsAggregation }) {
+  const [selectedDay, setActiveDay] = useState(null);
+  const [expandedNews, setExpandedNews] = useState(null);
+  const [filterImportance, setFilterImportance] = useState('all');
+
+  if (!newsData || !newsData.newsByDay || Object.keys(newsData.newsByDay).length === 0) {
+    return (
+      <div className="news-section">
+        <div className="news-header">
+          <h3>📰 Wiadomości {ticker}</h3>
+          <span className="refresh-info">🔄 Auto-odświeżanie co 5 min</span>
+        </div>
+        <div className="news-empty">
+          <p>📰 Brak wiadomości dla {ticker} — spróbuj później</p>
+        </div>
+      </div>
+    );
+  }
+
+  const days = Object.keys(newsData.newsByDay);
+  const activeDay = selectedDay && days.includes(selectedDay) ? selectedDay : days[0];
+
+  const filterArticles = (articles) => {
+    if (filterImportance === 'all') return articles;
+    if (filterImportance === 'high') return articles.filter(a => a.importance >= 6);
+    if (filterImportance === 'important') return articles.filter(a => a.isImportant);
+    return articles;
+  };
+
+  const activeDayData = activeDay ? newsData.newsByDay[activeDay] : null;
+  const filteredArticles = activeDayData ? filterArticles(activeDayData.articles) : [];
+
+  return (
+    <div className="news-section">
+      <div className="news-header">
+        <div>
+          <h3>📰 Wiadomości — {ticker}</h3>
+          <small>🔄 Aktualizacja: {newsData.lastRefresh} • Źródło: Finnhub</small>
+        </div>
+        {newsData.newArticlesCount > 0 && (
+          <div className="new-articles-badge">✨ {newsData.newArticlesCount} nowych</div>
+        )}
+      </div>
+
+      {newsAggregation && (
+        <div className="news-aggregation-card">
+          <div className="nag-header">
+            <span className="nag-title">🤖 AI Sentiment Aggregation</span>
+            <span className={`nag-badge nag-${newsAggregation.direction}`}>{newsAggregation.label}</span>
+          </div>
+          <div className="nag-body">
+            <div className="nag-score-container">
+              <span className={`nag-score score-${newsAggregation.direction}`}>{newsAggregation.score > 0 ? '+' : ''}{newsAggregation.score}</span>
+              <span className="nag-score-label">Global Score</span>
+            </div>
+            <div className="nag-stats">
+              <div className="nag-stat">
+                <span className="nag-stat-val" style={{color: '#3fb950'}}>{newsAggregation.bullishCount} 🟢</span>
+                <span className="nag-stat-lbl">Pozytywne</span>
+              </div>
+              <div className="nag-stat">
+                <span className="nag-stat-val" style={{color: '#f85149'}}>{newsAggregation.bearishCount} 🔴</span>
+                <span className="nag-stat-lbl">Negatywne</span>
+              </div>
+              <div className="nag-stat">
+                <span className="nag-stat-val">{newsAggregation.neutralCount} ⚪</span>
+                <span className="nag-stat-lbl">Neutralne</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="news-filters">
+        {[
+          { key: 'all', label: 'Wszystkie' },
+          { key: 'high', label: '🔴 Krytyczne' },
+          { key: 'important', label: '⭐ Ważne' }
+        ].map(f => (
+          <button
+            key={f.key}
+            className={`filter-btn ${filterImportance === f.key ? 'active' : ''}`}
+            onClick={() => setFilterImportance(f.key)}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="days-slider">
+        {days.map((day) => {
+          const dayData = newsData.newsByDay[day];
+          return (
+            <button
+              key={day}
+              onClick={() => { setActiveDay(day); setExpandedNews(null); }}
+              className={`day-btn ${activeDay === day ? 'active' : ''}`}
+            >
+              <span className="day-name">{day}</span>
+              <span className="article-count">{dayData.articles.length}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {activeDay && activeDayData && (
+        <div className="news-list">
+          <div className="day-info-bar">
+            <span>{filteredArticles.length} artykułów</span>
+          </div>
+          
+          {filteredArticles.length > 0 ? (
+            <div className="news-articles">
+              {filteredArticles.map((article) => (
+                <div 
+                  key={article.id} 
+                  className={`news-article ${article.importance >= 6 ? 'high-imp' : ''}`}
+                >
+                  <div className="article-badges">
+                    <span className={`badge importance ${getImportanceClass(article.importance)}`}>
+                      {article.importanceLevel}
+                    </span>
+                    <span className={`badge sentiment ${article.sentiment.includes('POZYTYWNA') ? 'pos' : article.sentiment.includes('NEGATYWNA') ? 'neg' : 'neu'}`}>
+                      {article.sentiment}
+                    </span>
+                    {article.impact && (
+                      <span className={`badge impact-badge impact-${article.impact.toLowerCase()}`}>
+                        {article.impact}
+                      </span>
+                    )}
+                    {article.direction && article.direction !== 'neutral' && (
+                      <span className={`badge direction-badge dir-${article.direction}`}>
+                        {article.direction === 'bullish' ? '🟢 Wzrostowy' : '🔴 Spadkowy'} ({article.directionConfidence}%)
+                      </span>
+                    )}
+                    <span className="badge source">{article.source}</span>
+                  </div>
+
+                  <h4>{article.title}</h4>
+                  {article.shortSummary && (
+                    <div className="news-summary-line">{article.shortSummary}</div>
+                  )}
+
+                  <p className={`article-body ${expandedNews === article.id ? 'expanded' : ''}`}>
+                    {article.body}
+                  </p>
+
+                  <div className="article-footer">
+                    <span className="article-time">🕐 {article.publishedString}</span>
+                    <div className="article-actions">
+                      {article.body.length > 100 && (
+                        <button 
+                          className="btn-small"
+                          onClick={() => setExpandedNews(expandedNews === article.id ? null : article.id)}
+                        >
+                          {expandedNews === article.id ? '⬆ Zwiń' : '⬇ Więcej'}
+                        </button>
+                      )}
+                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="btn-small btn-link">
+                        🔗 Źródło
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="news-empty">
+              <p>Brak artykułów spełniających filtr</p>
+            </div>
+          )}
+        </div>
+      )}
+            </div>
+          </div>
+        </div>
       </main>
       <Footer />
     </div>
   );
+}
+
+function getImportanceClass(importance) {
+  if (importance >= 9) return 'critical';
+  if (importance >= 6) return 'high';
+  if (importance >= 3) return 'medium';
+  return 'low';
 }
 
 export default AiTrader;
