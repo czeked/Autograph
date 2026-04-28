@@ -431,23 +431,58 @@ app.post('/api/dividends/analyze', async (req, res) => {
         ).join('\n')
       : '\n\n📰 Brak aktualnych wiadomości z ostatnich 7 dni.';
 
+    // ── Server-side anomaly detection ──
+    const anomalies = [];
+    if (stock.debtToEquity === 0 && stock.marketCap > 1e9) {
+      anomalies.push(`⚠️ Debt/Equity = 0 przy kapitalizacji $${(stock.marketCap / 1e9).toFixed(1)}B — prawdopodobny błąd danych lub spółka bez długu (wymaga weryfikacji).`);
+    }
+    if (stock.payoutRatio > 100) {
+      anomalies.push(`⚠️ Payout ratio ${stock.payoutRatio.toFixed(0)}% > 100% — spółka wypłaca więcej niż zarabia. Dywidenda finansowana z rezerw/długu.`);
+    }
+    if (stock.dividendYield > 8) {
+      anomalies.push(`⚠️ Yield ${stock.dividendYield.toFixed(1)}% podejrzanie wysoki — potencjalna pułapka dywidendowa (yield trap). Sprawdź historię cięć.`);
+    }
+    if (stock.roe < 0 && stock.dividendYield > 3) {
+      anomalies.push(`⚠️ Ujemne ROE (${stock.roe.toFixed(1)}%) przy yield ${stock.dividendYield.toFixed(1)}% — spółka traci pieniądze, a wypłaca dywidendę.`);
+    }
+    if (stock.peRatio < 0 || stock.peRatio > 200) {
+      anomalies.push(`⚠️ P/E ${stock.peRatio.toFixed(1)} — wartość skrajna, wycena może być zniekształcona.`);
+    }
+    const anomalySection = anomalies.length > 0
+      ? '\n\n🔍 WYKRYTE ANOMALIE (system pre-check):\n' + anomalies.join('\n')
+      : '';
+
+    // ── Sector context (averages from pool) ──
+    const sectorPeers = allStocks.filter(s => s.sector === stock.sector && s.ticker !== stock.ticker);
+    let sectorContext = '';
+    if (sectorPeers.length >= 2) {
+      const avgYield = (sectorPeers.reduce((a, s) => a + s.dividendYield, 0) / sectorPeers.length).toFixed(2);
+      const avgPE = (sectorPeers.filter(s => s.peRatio > 0).reduce((a, s) => a + s.peRatio, 0) / (sectorPeers.filter(s => s.peRatio > 0).length || 1)).toFixed(1);
+      const avgPayout = (sectorPeers.reduce((a, s) => a + s.payoutRatio, 0) / sectorPeers.length).toFixed(0);
+      sectorContext = `\n\nKONTEKST SEKTORA (${stock.sectorPl}, ${sectorPeers.length} spółek w puli):\nŚr. yield sektora: ${avgYield}% | Śr. P/E sektora: ${avgPE} | Śr. payout sektora: ${avgPayout}%`;
+    }
+
+    // ── Price vs 52W range ──
+    const range52w = stock.fiftyTwoWeekHigh - stock.fiftyTwoWeekLow;
+    const pctFrom52Low = range52w > 0 ? (((stock.price - stock.fiftyTwoWeekLow) / range52w) * 100).toFixed(0) : '?';
+
     const prompt = `Przeanalizuj tę spółkę dywidendową:
 
 SPÓŁKA: ${stock.name} (${stock.ticker})
 Sektor: ${stock.sectorPl} | Branża: ${stock.industry} | Giełda: ${stock.exchange}
-Cena: $${stock.price} | Kapitalizacja: $${(stock.marketCap / 1e9).toFixed(2)}B
+Cena: $${stock.price} (${pctFrom52Low}% zakresu 52-tyg.) | Kapitalizacja: $${(stock.marketCap / 1e9).toFixed(2)}B
 
 DYWIDENDA:
-Stopa dywidendy: ${stock.dividendYield}% | Dywidenda/akcję: $${stock.dividendPerShare} | Payout ratio: ${stock.payoutRatio}% | 5Y avg yield: ${stock.fiveYearAvgYield}%
+Stopa dywidendy: ${stock.dividendYield}% | Dywidenda/akcję: $${stock.dividendPerShare} | Wskaźnik wypłaty: ${stock.payoutRatio}% | Śr. yield 5 lat: ${stock.fiveYearAvgYield}%
 
 WYCENA:
 P/E: ${stock.peRatio} | PEG: ${stock.pegRatio} | Score opłacalności: ${stock.score}/100
 
 ZDROWIE FINANSOWE:
-ROE: ${stock.roe}% | Debt/Equity: ${stock.debtToEquity} | Profit Margin: ${stock.profitMargin}% | Earnings Growth: ${stock.earningsGrowth}%
+ROE: ${stock.roe}% | Dług/Kapitał: ${stock.debtToEquity} | Marża zysku: ${stock.profitMargin}% | Wzrost zysków: ${stock.earningsGrowth}%
 
 RYZYKO:
-Beta: ${stock.beta} | 52W Low: $${stock.fiftyTwoWeekLow} | 52W High: $${stock.fiftyTwoWeekHigh}${newsSection}`;
+Beta: ${stock.beta} | 52W Min: $${stock.fiftyTwoWeekLow} | 52W Max: $${stock.fiftyTwoWeekHigh}${sectorContext}${anomalySection}${newsSection}`;
 
     const systemPrompt = `Rola: Analityk dywidendowy (income-first, NIE growth). TYLKO po polsku. ZERO markdown. Emoji tylko tam gdzie wskazane.
 
@@ -456,16 +491,18 @@ KRYTYCZNE:
 - NIE pisz "Check constraints", "Self-Correction", "Final check", "Wait", "Let me", "Refining", "Drafting"
 - NIE pisz nic przed [HEADER]. Pierwsza linia MUSI być [HEADER]
 - Produkujesz GOTOWY tekst dla klienta — żadnych notatek wewnętrznych
+- Nigdy nie powtarzaj tego samego argumentu. Każdy punkt MUSI wnosić NOWĄ wartość. Jeśli napisałeś o payout ratio w PROS, nie pisz o nim ponownie w CONS ani NEUTRAL
 
-ZASADY:
-- NIE powtarzaj danych liczbowych z UI (price, yield, P/E, payout, ROE)
-- Fokus na dywidendzie i decyzji inwestycyjnej
-- Każda linia = wartość decyzyjna. Zero ogólników
+ZASADY KONKRETU:
+- ZAKAZANE zwroty: "solidne fundamenty", "atrakcyjna wycena", "stabilna dywidenda", "dobra spółka". To nic nie znaczy
+- WYMAGANE: "Wycena P/E 8.6 jest o 30% niższa od średniej sektora (12.3)" zamiast "Wycena jest atrakcyjna"
+- WYMAGANE: "Yield 4.8% vs średnia sektorowa 3.1% (+55%)" zamiast "Yield powyżej średniej"
+- Każdy wniosek = KONKRETNA LICZBA + PORÓWNANIE (vs sektor, vs historia, vs próg bezpieczeństwa)
+- Jeśli w danych jest kontekst sektora — UŻYJ go w porównaniach
 - Oceniaj przez cash flow (nie tylko earnings)
 - Newsy interpretuj TYLKO przez wpływ na dywidendę i cash flow
-- Wykrywaj yield trap i anomalie danych
-- Język analityczny: "presja na marże", "erozja przychodów" NIE "solidne fundamenty"
-- Każdy wniosek MUSI zawierać KONKRETNY POWÓD np. NIE "dywidenda bezpieczna" ale "dywidenda bezpieczna, bo firma zredukowała dług o 15%, uwalniając gotówkę"
+- Jeśli wykryto anomalie danych (sekcja ANOMALIE) — MUSISZ je skomentować w [ANOMALY] i uwzględnić w ocenie pewności
+- Język analityczny: "presja na marże", "erozja przychodów", "kompresja spreadu"
 - Unikaj stwierdzeń oczywistych z tabelki — dawaj insight którego inwestor sam nie wydedukuje
 
 MODEL (oblicz w tle, NIE pokazuj obliczeń):
@@ -477,22 +514,22 @@ OUTPUT (DOKŁADNIE ten format, NIC przed nim):
 
 [HEADER]
 Score: X.X / 10
-Confidence: XX%
+Pewność: XX%
 Rekomendacja: KUPUJ / TRZYMAJ / UNIKAJ
 Dywidenda: Bardzo bezpieczna / Bezpieczna / Ryzykowna
-Powód: 1 zdanie analityczne
+Kluczowy wniosek: 1 zdanie podsumowujące (np. "Kupuj ze względu na X, ale uważaj na Y" — musi zawierać ZARÓWNO argument ZA jak i PRZECIW)
 
 [CONFIDENCE_REASON]
 1 zdanie wyjaśniające co wpływa na pewność AI (np. "Niska pewność wynika z rozbieżnych sygnałów w newsach i braku danych o FCF za ostatni kwartał")
 
 [PROS]
-✅ (1 zdanie o bezpieczeństwie dywidendy — FCF coverage + KONKRETNA LICZBA lub fakt dlaczego)
-✅ (1 zdanie o historii wypłat z konkretnym faktem np. "nieprzerwane wypłaty od 25 lat" lub "wzrost o X% rocznie")
-✅ (1 zdanie o wycenie jeśli atrakcyjna — z porównaniem np. "yield 40% powyżej średniej 5-letniej")
+✅ (1 unikalny argument — bezpieczeństwo dywidendy z LICZBĄ + PORÓWNANIEM np. "Wskaźnik wypłaty 45% vs próg bezpieczeństwa 60% — 15pp zapasu")
+✅ (1 unikalny argument — historia/wzrost/pozycja sektorowa z KONKRETNYM faktem)
+✅ (1 unikalny argument — wycena vs sektor/historia z LICZBAMI np. "P/E 8.6 o 30% poniżej średniej sektora 12.3")
 
 [CONS]
-❌ (1 zdanie o KONKRETNYM ryzyku dla dywidendy z podaniem co dokładnie zagraża cash flow)
-❌ (1 zdanie o drugim ryzyku jeśli istnieje — z danymi np. "Debt/EBITDA wzrósł z 2.1 do 3.4")
+❌ (1 unikalne ryzyko — z KONKRETNYM zagrożeniem dla cash flow + dane liczbowe)
+❌ (1 unikalne ryzyko — INNE niż powyżej, z danymi np. "Dług/EBITDA wzrósł z 2.1 do 3.4")
 
 [NEUTRAL]
 ⚖️ (1 zdanie o wycenie vs historia — jeśli neutralna)

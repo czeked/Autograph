@@ -2508,10 +2508,10 @@
 /* ── AI SECTION ── */
 
 .div-ai-section {
-    background: rgba(167, 139, 250, 0.04);
-    border: 1px solid rgba(167, 139, 250, 0.12);
+    background: rgba(167, 139, 250, 0.06);
+    border: 1px solid rgba(167, 139, 250, 0.18);
     border-radius: 14px;
-    padding: 20px;
+    padding: 22px;
 }
 
 .div-ai-loading {
@@ -2992,7 +2992,7 @@
 @keyframes expandFade { from { opacity:0; } to { opacity:1; } }
 .div-expand-scores { display:flex; flex-direction:column; gap:8px; }
 .div-expand-score-row { display:flex; align-items:center; gap:8px; font-family:'Cy Grotesk Key',sans-serif; font-size:11px; color:#888; }
-.div-expand-score-row span:first-child { min-width:100px; white-space:nowrap; }
+.div-expand-score-row span:first-child { min-width:150px; white-space:nowrap; }
 .div-mini-bar { flex:1; height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; }
 .div-mini-fill { height:100%; border-radius:3px; transition:width 0.4s ease; }
 .div-mini-green { background:rgba(34,197,94,0.6); }
@@ -3808,12 +3808,16 @@
 .div-card-reason {
     font-family: 'Cy Grotesk Key', sans-serif;
     font-size: 12px;
-    color: #aaa;
+    color: #d4d4dc;
     line-height: 1.5;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 8px 10px;
+    border-radius: 8px;
+    border-left: 3px solid rgba(167, 139, 250, 0.25);
 }
 
 .div-card-name {
@@ -3886,10 +3890,6 @@
     }
     .div-filter-bar {
         top: 60px;
-    }
-    .div-footer-top {
-        grid-template-columns: 1fr;
-        gap: 24px;
     }
     .div-modal-content {
         padding: 20px;
@@ -3979,11 +3979,19 @@
 .div-ai-reason-line {
     font-family: 'Cy Grotesk Key', sans-serif;
     font-size: 14px;
-    color: #ccc;
+    color: #f0f0f5;
     margin: 0;
     line-height: 1.5;
     padding-top: 6px;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.div-ai-reason-line strong {
+    color: #c4b5fd;
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
 /* ── Confidence explainer ── */
@@ -4059,7 +4067,7 @@
 .div-ai-pro-line, .div-ai-con-line, .div-ai-neutral-line {
     font-family: 'Cy Grotesk Key', sans-serif;
     font-size: 13px;
-    color: #ccc;
+    color: #e8e8ee;
     line-height: 1.55;
     margin: 0;
     padding-left: 22px;
@@ -4179,7 +4187,7 @@
 .div-ai-trend-line {
     font-family: 'Cy Grotesk Key', sans-serif;
     font-size: 12px;
-    color: #aaa;
+    color: #d4d4dc;
     margin: 0;
 }
 
@@ -4213,7 +4221,7 @@
 .div-ai-scenario p {
     font-family: 'Cy Grotesk Key', sans-serif;
     font-size: 12px;
-    color: #bbb;
+    color: #e2e2ea;
     margin: 4px 0 0;
     line-height: 1.45;
 }
@@ -4345,4 +4353,103 @@
 .div-ai-source-footer i {
     color: #444;
     font-size: 11px;
+}
+
+/* ── Score Methodology Accordion ── */
+
+.div-ai-methodology {
+    border: 1px solid rgba(167, 139, 250, 0.12);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.div-ai-methodology summary {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 12px;
+    color: #a78bfa;
+    padding: 10px 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(167, 139, 250, 0.04);
+    transition: background 0.2s;
+    list-style: none;
+}
+
+.div-ai-methodology summary::-webkit-details-marker { display: none; }
+
+.div-ai-methodology summary::after {
+    content: '▸';
+    margin-left: auto;
+    font-size: 10px;
+    transition: transform 0.2s;
+}
+
+.div-ai-methodology[open] summary::after {
+    transform: rotate(90deg);
+}
+
+.div-ai-methodology summary:hover {
+    background: rgba(167, 139, 250, 0.08);
+}
+
+.div-ai-methodology summary i {
+    font-size: 12px;
+    color: #a78bfa;
+}
+
+.div-ai-methodology-body {
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.div-ai-method-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Cy Grotesk Key', sans-serif;
+    font-size: 12px;
+    color: #ccc;
+}
+
+.div-ai-method-pct {
+    font-family: 'Cy Grotesk Grand Bold', sans-serif;
+    font-size: 13px;
+    color: #a78bfa;
+}
+
+.div-ai-method-desc {
+    font-family: 'Cy Grotesk Key', sans-serif;
+    font-size: 10px;
+    color: #666;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    margin-bottom: 2px;
+}
+
+.div-ai-method-desc:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+/* ── Metric color coding ── */
+
+.div-metric-ok { color: #34d399 !important; }
+.div-metric-warn { color: #fbbf24 !important; }
+.div-metric-danger { color: #f87171 !important; }
+
+/* ── Card data source stamp ── */
+
+.div-card-source {
+    font-family: 'Cy Grotesk Key', sans-serif;
+    font-size: 9px;
+    color: #555;
+    text-align: right;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
 }

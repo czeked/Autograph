@@ -53,10 +53,10 @@ export default function StockModal({ stock, analysis, aiLoading, news, onClose }
     let aiScore = "", aiConfidence = "", aiVerdict = "", aiSafety = "", aiReason = "";
     for (const l of headerLines) {
         if (/^Score:/i.test(l)) aiScore = l.replace(/^Score:\s*/i, "");
-        else if (/^Confidence:/i.test(l)) aiConfidence = l.replace(/^Confidence:\s*/i, "");
+        else if (/^(Confidence|Pewno[śs][ćc]):/i.test(l)) aiConfidence = l.replace(/^(Confidence|Pewno[śs][ćc]):\s*/i, "");
         else if (/^Rekomendacja:/i.test(l)) aiVerdict = l.replace(/^Rekomendacja:\s*/i, "");
         else if (/^Dywidenda:/i.test(l)) aiSafety = l.replace(/^Dywidenda:\s*/i, "");
-        else if (/^Pow[oó]d:/i.test(l)) aiReason = l.replace(/^Pow[oó]d:\s*/i, "");
+        else if (/^(Pow[oó]d|Kluczowy wniosek):/i.test(l)) aiReason = l.replace(/^(Pow[oó]d|Kluczowy wniosek):\s*/i, "");
     }
 
     const verdictColor = /kupuj/i.test(aiVerdict) ? "#34d399" : /trzymaj/i.test(aiVerdict) ? "#fbbf24" : "#f87171";
@@ -107,21 +107,21 @@ export default function StockModal({ stock, analysis, aiLoading, news, onClose }
                         <i className="fa-solid fa-star"></i>
                         <div>
                             <span className={`div-stat-value ${scoreClass}`}>{stock.score || 0}/100</span>
-                            <span className="div-stat-label">Score</span>
+                            <span className="div-stat-label">Ocena AI</span>
                         </div>
                     </div>
                     <div className="div-stat-card">
                         <i className="fa-solid fa-scale-balanced"></i>
                         <div>
                             <span className="div-stat-value">{stock.payoutRatio.toFixed(1)}%</span>
-                            <span className="div-stat-label">Payout ratio</span>
+                            <span className="div-stat-label">Wsk. wypłaty</span>
                         </div>
                     </div>
                     <div className="div-stat-card">
                         <i className="fa-solid fa-calculator"></i>
                         <div>
                             <span className="div-stat-value">{stock.peRatio > 0 ? stock.peRatio.toFixed(1) : "N/A"}</span>
-                            <span className="div-stat-label">P/E Ratio</span>
+                            <span className="div-stat-label">Cena/Zysk (P/E)</span>
                         </div>
                     </div>
                     <div className="div-stat-card">
@@ -143,18 +143,18 @@ export default function StockModal({ stock, analysis, aiLoading, news, onClose }
                 <div className="div-modal-body">
                     {/* Szczegóły spółki */}
                     <div className="div-modal-section">
-                        <h4><i className="fa-solid fa-table-list"></i> Szczegóły spółki</h4>
+                        <h4><i className="fa-solid fa-table-list"></i> Dane fundamentalne</h4>
                         <div className="div-detail-grid">
                             <div className="div-detail-item">
                                 <span className="div-detail-label">Dywidenda / akcję</span>
                                 <span className="div-detail-value">${stock.dividendPerShare.toFixed(2)}</span>
                             </div>
                             <div className="div-detail-item">
-                                <span className="div-detail-label">Średnia stopa (5 lat)</span>
+                                <span className="div-detail-label">Śr. yield (5 lat)</span>
                                 <span className="div-detail-value">{stock.fiveYearAvgYield.toFixed(2)}%</span>
                             </div>
                             <div className="div-detail-item">
-                                <span className="div-detail-label">Dług/Kapitał</span>
+                                <span className="div-detail-label">Dług/Kapitał (D/E)</span>
                                 <span className="div-detail-value">{stock.debtToEquity.toFixed(2)}</span>
                             </div>
                             <div className="div-detail-item">
@@ -183,7 +183,7 @@ export default function StockModal({ stock, analysis, aiLoading, news, onClose }
                     {/* Wiadomości */}
                     {news && news.length > 0 && (
                         <div className="div-modal-section div-news-section">
-                            <h4><i className="fa-solid fa-newspaper"></i> Wiadomości ({news.length})</h4>
+                            <h4><i className="fa-solid fa-newspaper"></i> Wiadomości rynkowe ({news.length})</h4>
                             <div className="div-news-list">
                                 {news.map((n, i) => (
                                     <a key={i} className="div-news-item" href={n.url} target="_blank" rel="noopener noreferrer">
@@ -231,7 +231,7 @@ export default function StockModal({ stock, analysis, aiLoading, news, onClose }
                                     <div className="div-ai-sub-row">
                                         <span className="div-ai-safety-pill">🛡 {aiSafety}</span>
                                         <span className="div-ai-conf-pill" title={parsed.CONFIDENCE_REASON ? parsed.CONFIDENCE_REASON.join(" ") : ""}>
-                                            📊 Pewność: {aiConfidence}
+                                            📊 Pewność analizy: {aiConfidence}
                                             <i className="fa-solid fa-circle-info div-ai-conf-info"></i>
                                         </span>
                                         {aiConfidence && (
@@ -245,7 +245,7 @@ export default function StockModal({ stock, analysis, aiLoading, news, onClose }
                                             </div>
                                         )}
                                     </div>
-                                    {aiReason && <p className="div-ai-reason-line">{aiReason}</p>}
+                                    {aiReason && <p className="div-ai-reason-line"><strong>Kluczowy wniosek:</strong> {aiReason}</p>}
                                 </div>
 
                                 {/* ── CONFIDENCE EXPLAINER ── */}
@@ -260,7 +260,7 @@ export default function StockModal({ stock, analysis, aiLoading, news, onClose }
                                 {parsed.PROS && parsed.PROS.length > 0 && (
                                     <div className="div-ai-card div-ai-card-pros">
                                         <div className="div-ai-card-title">
-                                            <i className="fa-solid fa-circle-check"></i> Argumenty za
+                                            <i className="fa-solid fa-circle-check"></i> Plusy
                                         </div>
                                         {parsed.PROS.map((l, i) => (
                                             <p key={i} className="div-ai-pro-line">{l}</p>
@@ -284,7 +284,7 @@ export default function StockModal({ stock, analysis, aiLoading, news, onClose }
                                 {parsed.NEUTRAL && parsed.NEUTRAL.length > 0 && (
                                     <div className="div-ai-card div-ai-card-neutral">
                                         <div className="div-ai-card-title">
-                                            <i className="fa-solid fa-scale-balanced"></i> Czynniki neutralne
+                                            <i className="fa-solid fa-scale-balanced"></i> Kontekst neutralny
                                         </div>
                                         {parsed.NEUTRAL.map((l, i) => (
                                             <p key={i} className="div-ai-neutral-line">{l}</p>
@@ -296,7 +296,7 @@ export default function StockModal({ stock, analysis, aiLoading, news, onClose }
                                 {parsed.NEWS && parsed.NEWS.length > 0 && (
                                     <div className="div-ai-card div-ai-card-news">
                                         <div className="div-ai-card-title">
-                                            <i className="fa-solid fa-newspaper"></i> Sentyment z wiadomości
+                                            <i className="fa-solid fa-newspaper"></i> Wpływ wiadomości
                                         </div>
                                         <div className="div-ai-sentiment-visual">
                                             <div className="div-ai-sentiment-track">
@@ -327,7 +327,7 @@ export default function StockModal({ stock, analysis, aiLoading, news, onClose }
                                 <div className="div-ai-scores-grid">
                                     {divScore && (
                                         <div className="div-ai-score-tile">
-                                            <span className="div-ai-score-tile-label">Bezp. dywidendy</span>
+                                            <span className="div-ai-score-tile-label">Bezpieczeństwo dywidendy</span>
                                             <span className="div-ai-score-tile-val">{divScore}</span>
                                         </div>
                                     )}
@@ -356,7 +356,7 @@ export default function StockModal({ stock, analysis, aiLoading, news, onClose }
                                 {/* ── SCENARIOS ── */}
                                 <div className="div-ai-scenarios">
                                     <div className="div-ai-card-title" style={{ marginBottom: "10px" }}>
-                                        <i className="fa-solid fa-route"></i> Co obserwować? (Scenariusze)
+                                        <i className="fa-solid fa-route"></i> Triggery — kiedy działać?
                                     </div>
                                     <div className="div-ai-scenario-grid">
                                         {parsed.SCENARIO_BULL && parsed.SCENARIO_BULL.length > 0 && (
@@ -405,9 +405,23 @@ export default function StockModal({ stock, analysis, aiLoading, news, onClose }
                                 </button>
 
                                 {/* ── DATA SOURCE + TIMESTAMP ── */}
+                                {/* ── SCORE METHODOLOGY ── */}
+                                <details className="div-ai-methodology">
+                                    <summary><i className="fa-solid fa-flask"></i> Jak liczymy Score {aiScore}?</summary>
+                                    <div className="div-ai-methodology-body">
+                                        <div className="div-ai-method-row"><span>Bezpieczeństwo dywidendy</span><span className="div-ai-method-pct">50%</span></div>
+                                        <div className="div-ai-method-desc">Payout ratio, pokrycie z FCF, historia wypłat, stabilność zysków</div>
+                                        <div className="div-ai-method-row"><span>Wycena</span><span className="div-ai-method-pct">30%</span></div>
+                                        <div className="div-ai-method-desc">P/E vs sektor, yield vs średnia 5-letnia, pozycja w zakresie 52-tyg.</div>
+                                        <div className="div-ai-method-row"><span>Korekta ryzyka</span><span className="div-ai-method-pct">20%</span></div>
+                                        <div className="div-ai-method-desc">Beta, zadłużenie, trend zysków, wpływ wiadomości</div>
+                                    </div>
+                                </details>
+
+                                {/* ── DATA SOURCE + TIMESTAMP ── */}
                                 <div className="div-ai-source-footer">
                                     <i className="fa-solid fa-database"></i>
-                                    <span>Dane zaktualizowane: {new Date().toLocaleString('pl-PL')} · Źródło: Financial Modeling Prep · AI: Gemma 4</span>
+                                    <span>Dane: Financial Modeling Prep · AI: Gemma 4 / Gemini · Aktualizacja: {new Date().toLocaleString('pl-PL')}</span>
                                 </div>
                             </div>
                         ) : (

@@ -123,24 +123,23 @@ export function getVerdictClass(verdict) {
 export function getReason(stock, safety, valuation) {
     const reasons = [];
 
-    // Safety
-    if (safety >= 8) reasons.push("dywidenda bardzo bezpieczna");
-    else if (safety >= 5) reasons.push("dywidenda zabezpieczona");
-    else reasons.push("dywidenda zagrożona");
+    // Safety — with concrete number
+    if (safety >= 8) reasons.push(`wsk. wypłaty ${stock.payoutRatio.toFixed(0)}% — dywidenda bezpieczna`);
+    else if (safety >= 5) reasons.push(`wsk. wypłaty ${stock.payoutRatio.toFixed(0)}% — umiarkowane pokrycie`);
+    else reasons.push(`wsk. wypłaty ${stock.payoutRatio.toFixed(0)}% — zagrożona`);
 
-    // Valuation
-    if (valuation >= 7) reasons.push("atrakcyjna wycena");
-    else if (valuation >= 5) reasons.push("neutralna wycena");
-    else reasons.push("droga wycena");
+    // Valuation — with P/E or yield context
+    if (valuation >= 7 && stock.peRatio > 0) reasons.push(`P/E ${stock.peRatio.toFixed(1)} — tanio`);
+    else if (valuation >= 5) reasons.push("wycena neutralna");
+    else if (stock.peRatio > 0) reasons.push(`P/E ${stock.peRatio.toFixed(1)} — drogo`);
 
-    // Risk modifiers
-    if (stock.payoutRatio > 85) reasons.push("wysoki payout");
-    if (stock.roe < 0) reasons.push("ujemne ROE");
-    if (stock.earningsGrowth > 10) reasons.push("rosnące zyski");
-    if (stock.earningsGrowth < -10) reasons.push("spadające zyski");
-    if (stock.debtToEquity > 150) reasons.push("wysokie zadłużenie");
+    // Risk modifiers — concrete
+    if (stock.roe < 0) reasons.push(`ROE ${stock.roe.toFixed(1)}%`);
+    if (stock.earningsGrowth > 10) reasons.push(`zyski +${stock.earningsGrowth.toFixed(0)}% r/r`);
+    if (stock.earningsGrowth < -10) reasons.push(`zyski ${stock.earningsGrowth.toFixed(0)}% r/r`);
+    if (stock.debtToEquity > 150) reasons.push(`D/E ${stock.debtToEquity.toFixed(0)}`);
 
-    return reasons.slice(0, 3).join(", ");
+    return reasons.slice(0, 3).join(" · ");
 }
 
 export function getYieldContext(stock) {

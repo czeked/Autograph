@@ -42,7 +42,7 @@ export default function StatsOverview({ stocks }) {
                 <i className="fa-solid fa-scale-balanced"></i>
                 <div>
                     <span className="div-stat-value">{avgPayout}%</span>
-                    <span className="div-stat-label">Śr. payout ratio</span>
+                    <span className="div-stat-label">Śr. wsk. wypłaty</span>
                 </div>
             </div>
 
@@ -58,7 +58,7 @@ export default function StatsOverview({ stocks }) {
                 <i className="fa-solid fa-star"></i>
                 <div>
                     <span className="div-stat-value">{avgScore}/100</span>
-                    <span className="div-stat-label">Śr. score ({totalStocks} spółek)</span>
+                    <span className="div-stat-label">Śr. ocena ({totalStocks} spółek)</span>
                 </div>
             </div>
 

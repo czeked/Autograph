@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { getSafetyClass, getVerdictClass, getVerdictEmoji } from "./dividendUtils";
 
-const METHODOLOGY_TOOLTIP = "50% Bezpieczeństwo dywidendy · 30% Wycena (P/E, Yield vs 5Y avg) · 20% Ryzyko (Beta, D/E, ROE)";
+const METHODOLOGY_TOOLTIP = "Jak liczymy score?\n50% — Bezpieczeństwo dywidendy (payout, FCF, historia)\n30% — Wycena (P/E vs sektor, yield vs śr. 5-letnia)\n20% — Korekta ryzyka (beta, zadłużenie, trend zysków)";
 const BELKA_TAX = 0.19;
 
 const METRIC_TOOLTIPS = {
-    payout: "Payout Ratio — ile procent zysku spółka wypłaca jako dywidendę. Powyżej 80% = ryzyko cięcia.",
-    pe: "P/E (Cena/Zysk) — ile lat zysku płacisz za akcję. Niższe = tańsza wycena.",
+    payout: "Wskaźnik wypłaty — procent zysku przeznaczany na dywidendę.\nBezpieczny: <60% · Ostrzeżenie: 60-80% · Ryzyko cięcia: >80%",
+    pe: "Cena/Zysk (P/E) — ile lat zysku płacisz za akcję.\nTania: <12 · Neutralna: 12-20 · Droga: >25",
     mcap: "Kapitalizacja rynkowa — łączna wartość wszystkich akcji spółki na giełdzie.",
     divPerShare: "Dywidenda na akcję — kwota w USD wypłacana rocznie na jedną posiadaną akcję."
 };
@@ -208,14 +208,14 @@ export default function StockCard({ stock, onAnalyze, index, isWatchlisted, onTo
                     {/* Score breakdown */}
                     <div className="div-expand-scores">
                         <div className="div-expand-score-row">
-                            <span>Bezp. dywidendy</span>
+                            <span>Bezpieczeństwo dywidendy</span>
                             <div className="div-mini-bar">
                                 <div className="div-mini-fill div-mini-green" style={{ width: `${stock.divScore * 10}%` }}></div>
                             </div>
                             <span className="div-expand-val">{stock.divScore}/10</span>
                         </div>
                         <div className="div-expand-score-row">
-                            <span>Wycena</span>
+                            <span>Wycena vs sektor</span>
                             <div className="div-mini-bar">
                                 <div className="div-mini-fill div-mini-yellow" style={{ width: `${stock.valScore * 10}%` }}></div>
                             </div>
@@ -233,15 +233,15 @@ export default function StockCard({ stock, onAnalyze, index, isWatchlisted, onTo
                     {/* Key metrics with tooltips */}
                     <div className="div-expand-metrics">
                         <div className="div-expand-metric" title={METRIC_TOOLTIPS.payout}>
-                            <span>Payout Ratio <i className="fa-solid fa-circle-info div-tip-icon"></i></span>
-                            <strong>{stock.payoutRatio.toFixed(0)}%</strong>
+                            <span>Wskaźnik wypłaty <i className="fa-solid fa-circle-info div-tip-icon"></i></span>
+                            <strong className={stock.payoutRatio > 80 ? 'div-metric-danger' : stock.payoutRatio > 60 ? 'div-metric-warn' : 'div-metric-ok'}>{stock.payoutRatio.toFixed(0)}%</strong>
                         </div>
                         <div className="div-expand-metric" title={METRIC_TOOLTIPS.pe}>
-                            <span>P/E (Cena/Zysk) <i className="fa-solid fa-circle-info div-tip-icon"></i></span>
+                            <span>Cena/Zysk (P/E) <i className="fa-solid fa-circle-info div-tip-icon"></i></span>
                             <strong>{stock.peRatio > 0 ? stock.peRatio.toFixed(1) : "N/A"}</strong>
                         </div>
                         <div className="div-expand-metric" title={METRIC_TOOLTIPS.mcap}>
-                            <span>Kap. rynkowa <i className="fa-solid fa-circle-info div-tip-icon"></i></span>
+                            <span>Kapitalizacja <i className="fa-solid fa-circle-info div-tip-icon"></i></span>
                             <strong>{formatMCap(stock.marketCap)}</strong>
                         </div>
                         <div className="div-expand-metric" title={METRIC_TOOLTIPS.divPerShare}>
@@ -254,7 +254,7 @@ export default function StockCard({ stock, onAnalyze, index, isWatchlisted, onTo
                     <div className="div-calc-section">
                         <div className="div-calc-label">
                             <i className="fa-solid fa-calculator"></i>
-                            Kalkulator dywidendy (z podatkiem Belki)
+                            Kalkulator netto (z podatkiem Belki 19%)
                         </div>
                         <div className="div-calc-row">
                             <span className="div-calc-prefix">Inwestuję</span>
@@ -314,6 +314,11 @@ export default function StockCard({ stock, onAnalyze, index, isWatchlisted, onTo
                     <i className="fa-solid fa-robot"></i>
                     Analizuj AI
                 </button>
+            </div>
+
+            {/* ── DATA SOURCE STAMP ── */}
+            <div className="div-card-source">
+                Dane: FMP · Aktualizacja: {new Date().toLocaleDateString('pl-PL')}
             </div>
         </div>
     );

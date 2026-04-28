@@ -116,10 +116,10 @@ export default function DividendsPanel() {
 
         // Smart filters
         let matchSmart = true;
-        if (smartFilter === "very-safe") matchSmart = s.safetyLabel === "B. BEZPIECZNA";
-        else if (smartFilter === "high-yield-safe") matchSmart = s.dividendYield >= 4 && s.safetyLabel !== "RYZYKOWNA";
+        if (smartFilter === "very-safe") matchSmart = s.safetyLabel === "Bardzo bezpieczna";
+        else if (smartFilter === "high-yield-safe") matchSmart = s.dividendYield >= 4 && s.safetyLabel !== "Ryzykowna";
         else if (smartFilter === "buy-only") matchSmart = s.verdict === "KUPUJ";
-        else if (smartFilter === "risky") matchSmart = s.safetyLabel === "RYZYKOWNA";
+        else if (smartFilter === "risky") matchSmart = s.safetyLabel === "Ryzykowna";
 
         return matchSearch && matchSector && matchSmart;
     });

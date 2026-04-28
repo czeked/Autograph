@@ -13,15 +13,15 @@ export default function FilterBar({
     const sortOptions = [
         { value: "score", label: "⭐ Opłacalność" },
         { value: "yield", label: "Stopa dywidendy" },
-        { value: "pe", label: "P/E (najniższe)" },
+        { value: "pe", label: "Cena/Zysk (P/E)" },
         { value: "price", label: "Cena" },
-        { value: "payout", label: "Payout Ratio" },
+        { value: "payout", label: "Wsk. wypłaty" },
     ];
 
     const smartFilters = [
         { value: "", label: "Wszystkie" },
-        { value: "very-safe", label: "🛡️ Bardzo bezpieczne" },
-        { value: "high-yield-safe", label: "💰 Stopa >4% + bezpieczne" },
+        { value: "very-safe", label: "🛡️ Stabilna dywidenda" },
+        { value: "high-yield-safe", label: "💰 Yield >4% + bezpieczne" },
         { value: "buy-only", label: "✅ Tylko Kupuj" },
         { value: "risky", label: "⚠️ Ryzykowne" },
     ];
