@@ -5,13 +5,8 @@ import cors from 'cors';
 import axios from 'axios';
 import fs from 'fs';
 
-const app = express();
-const PORT = process.env.DIVIDENDS_PORT || 3001;
 const FMP_KEY = process.env.FMP_API_KEY;
 const FINNHUB_KEY = process.env.FINNHUB_API_KEY;
-
-app.use(cors());
-app.use(express.json());
 
 if (!FMP_KEY) {
   console.error('❌ Brak FMP_API_KEY w .env! Zarejestruj się: https://financialmodelingprep.com/register');
@@ -352,6 +347,8 @@ async function fetchStockNews(ticker, limit = 5) {
 
 // ======================== ROUTES ========================
 
+export function setupDividendRoutes(app) {
+
 // GET /api/dividends — zwraca cached dane (odświeżane co 24h)
 app.get('/api/dividends', async (req, res) => {
   try {
@@ -568,32 +565,41 @@ Efekt: jaka zmiana oceny/rekomendacji
   }
 });
 
-app.get('/', (req, res) => {
-  res.json({ status: '✅ Dividends API Online — FMP + Gemma 4 AI', hasApiKey: !!FMP_KEY });
-});
+} // end setupDividendRoutes
 
-app.listen(PORT, async () => {
-  console.log(`\n✅ Dividends Backend: http://localhost:${PORT}`);
-  console.log(`📊 Financial Modeling Prep API — ${DIVIDEND_POOL.length} spółek w puli, TOP ${MAX_DISPLAY} wyświetlanych`);
-  console.log(`🤖 AI Engine: Gemma 4 + Gemini fallback`);
-  console.log(`🔄 Auto-refresh: co 24h`);
-  console.log(`🔑 FMP API Key: ${FMP_KEY ? '✅ OK' : '❌ BRAK — dodaj FMP_API_KEY do .env'}\n`);
+export async function initDividends() {
+  console.log(`📊 Dividends module: ${DIVIDEND_POOL.length} spółek w puli, TOP ${MAX_DISPLAY}`);
+  console.log(`🔑 FMP API Key: ${FMP_KEY ? '✅ OK' : '❌ BRAK'}`);
 
-  // Wczytaj cache z dysku (przetrwa restart + rate limits)
   const hadCache = loadCacheFromDisk();
-  
-  // Pobierz świeże dane tylko jeśli brak cache lub starsze niż 24h
   const cacheAge = lastRefresh ? (Date.now() - new Date(lastRefresh).getTime()) : Infinity;
   if (!hadCache || cacheAge > CACHE_TTL) {
     await refreshAllStocks();
   } else {
-    console.log(`⏭️ Cache aktualny (${(cacheAge / 3600000).toFixed(1)}h) — pomijam API`);
+    console.log(`⏭️ Dividends cache aktualny (${(cacheAge / 3600000).toFixed(1)}h) — pomijam API`);
   }
 
-  // Auto-refresh co 24h
   setInterval(() => {
-    console.log('⏰ Zaplanowane odświeżenie danych (24h)...');
+    console.log('⏰ Zaplanowane odświeżenie danych dywidendowych (24h)...');
     Object.keys(stockCache).forEach(k => delete stockCache[k]);
     refreshAllStocks();
   }, 24 * 60 * 60 * 1000);
-});
+}
+
+// ======================== STANDALONE MODE ========================
+// Jeśli uruchomiony bezpośrednio: node dividends.js
+const isMain = process.argv[1] && (process.argv[1].endsWith('dividends.js') || process.argv[1].endsWith('dividends'));
+if (isMain) {
+  const app = express();
+  const PORT = process.env.DIVIDENDS_PORT || 3001;
+  app.use(cors());
+  app.use(express.json());
+  setupDividendRoutes(app);
+  app.get('/', (req, res) => {
+    res.json({ status: '✅ Dividends API Online — FMP + Gemma 4 AI', hasApiKey: !!FMP_KEY });
+  });
+  app.listen(PORT, async () => {
+    console.log(`\n✅ Dividends Backend (standalone): http://localhost:${PORT}`);
+    await initDividends();
+  });
+}

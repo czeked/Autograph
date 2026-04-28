@@ -4,12 +4,16 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import cors from 'cors';
 import axios from 'axios';
 import { EventEmitter } from 'events';
+import { setupDividendRoutes, initDividends } from './dividends.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+// Mount dividend routes on main server
+setupDividendRoutes(app);
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -1648,14 +1652,19 @@ app.get('/', (req, res) => {
   res.json({ status: "✅ Online - COINGECKO + FINNHUB + GEMMA 4 AI" });
 });
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   console.log(`\n✅ Backend: http://localhost:${PORT}`);
   console.log(`📊 CoinGecko API - OHLC 30 dni`);
   console.log(`🤖 AI Engine: Gemma 4 (gemma-4-31b-it) + Gemini fallback`);
-  console.log(`📰 Finnhub News - Real Time Crypto Monitoring\n`);
+  console.log(`📰 Finnhub News - Real Time Crypto Monitoring`);
 
   // Uruchom monitoring wiadomości
   startNewsMonitoring();
+
+  // Inicjalizuj moduł dywidendowy
+  console.log(`\n📊 Inicjalizacja modułu dywidendowego...`);
+  await initDividends();
+  console.log(`✅ Dividends routes zamontowane na /api/dividends\n`);
 });
 
 app.get('/api/news', async (req, res) => {
