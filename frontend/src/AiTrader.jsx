@@ -396,7 +396,11 @@ function AiTrader() {
                       <div key={i} style={{ background: 'rgba(255,255,255,0.03)', borderLeft: `3px solid ${a.color}`, padding: '10px 15px', borderRadius: '4px', fontSize: '0.8rem' }}>
                         {a.text}
                       </div>
-                                    {/* First Row of Indicators (Momentum & Pivots) */}
+                    ))}
+                  </div>
+                )}
+
+                {/* First Row of Indicators (Momentum & Pivots) */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '1rem' }}>
                    <GlassCard>
                       <div className="card-title"><Activity size={14} /> RSI (14)</div>
