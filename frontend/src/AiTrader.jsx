@@ -542,9 +542,6 @@ function AiTrader() {
                   )}
                 </div>
               )}
-assCard>
-                </div>
-              )}
 
             </div>
           </div>
