@@ -62,6 +62,36 @@ app.get('/api/stock/search', async (req, res) => {
     } catch (e) { res.json([]); }
 });
 
+function detectMarketStructure(history, n = 5) {
+    if (!history || history.length < n * 3) return { structure: 'BRAK DANYCH', high_pattern: null, low_pattern: null };
+    const highs = history.map(h => h.h || h.c);
+    const lows  = history.map(h => h.l || h.c);
+    const pivotHighs = [], pivotLows = [];
+    for (let i = n; i < history.length - n; i++) {
+        let isH = true, isL = true;
+        for (let j = i - n; j <= i + n; j++) {
+            if (j === i) continue;
+            if (highs[j] >= highs[i]) isH = false;
+            if (lows[j]  <= lows[i])  isL = false;
+        }
+        if (isH) pivotHighs.push(highs[i]);
+        if (isL) pivotLows.push(lows[i]);
+    }
+    if (pivotHighs.length < 2 || pivotLows.length < 2)
+        return { structure: 'NIEOKREŚLONA', high_pattern: null, low_pattern: null };
+    const pH = pivotHighs.slice(-3), pL = pivotLows.slice(-3);
+    const highTrend = pH[pH.length - 1] > pH[0] ? 'HH' : 'LH';
+    const lowTrend  = pL[pL.length - 1] > pL[0] ? 'HL' : 'LL';
+    let structure;
+    if      (highTrend === 'HH' && lowTrend === 'HL') structure = 'TREND WZROSTOWY';
+    else if (highTrend === 'LH' && lowTrend === 'LL') structure = 'TREND SPADKOWY';
+    else if (highTrend === 'LH' && lowTrend === 'HL') structure = 'KONSOLIDACJA';
+    else                                               structure = 'WYBICIE';
+    return { structure, high_pattern: highTrend, low_pattern: lowTrend,
+             last_pivot_high: +pH[pH.length - 1].toFixed(2),
+             last_pivot_low:  +pL[pL.length - 1].toFixed(2) };
+}
+
 app.post('/api/stock/analyze', async (req, res) => {
     const { ticker, timeframe = '1Y', entryPrice, stopLoss } = req.body;
     const reqStart = Date.now();
@@ -483,6 +513,12 @@ app.post('/api/stock/analyze', async (req, res) => {
             momentum: catScore(cats.momentum),
             volatility: catScore(cats.volatility),
             sentiment: catScore(cats.sentiment),
+            raw: {
+                trend:      { bull: cats.trend.bull,      max: cats.trend.max },
+                momentum:   { bull: cats.momentum.bull,   max: cats.momentum.max },
+                volatility: { bull: cats.volatility.bull, max: cats.volatility.max },
+                sentiment:  { bull: cats.sentiment.bull,  max: cats.sentiment.max },
+            },
             // Weight contributions (how much each category adds to the final score)
             weights: CATEGORY_WEIGHTS,
             weighted_scores: {
@@ -505,20 +541,20 @@ app.post('/api/stock/analyze', async (req, res) => {
         let setupWarning = null;
         if (isBBSqueeze && adxData.adx < 20) {
             setupType = 'RANGE';
-            setupWarning = 'Konsolidacja — brak wyraznego trendu, czekaj na wybicie z Bollinger Squeeze.';
+            setupWarning = 'Konsolidacja — brak wyraźnego trendu, czekaj na wybicie z Bollinger Squeeze.';
         } else if (isBullTrend && isBullMomentum) {
             setupType = 'TREND';
         } else if (isBearTrend && isBearMomentum) {
             setupType = 'TREND';
         } else if (isBearTrend && isBullMomentum) {
             setupType = 'REVERSAL';
-            setupWarning = 'UWAGA: Kontr-trendowe zagranie (Death Cross aktywny). Podwyzszony ryzyko — zmniejsz wielkosc pozycji.';
+            setupWarning = 'UWAGA: Kontr-trendowe zagranie (Death Cross aktywny). Podwyższone ryzyko — zmniejsz wielkość pozycji.';
         } else if (isBullTrend && isBearMomentum) {
             setupType = 'PULLBACK';
-            setupWarning = 'Pullback w trendzie wzrostowym. Szukaj wsparcia na EMA50/EMA200 przed wejsciem.';
+            setupWarning = 'Pullback w trendzie wzrostowym. Szukaj wsparcia na EMA50/EMA200 przed wejściem.';
         } else if (isBBSqueeze) {
             setupType = 'BREAKOUT';
-            setupWarning = 'Bollinger Squeeze — oczekuj silnego ruchu. Ustaw stopy ciasnio.';
+            setupWarning = 'Bollinger Squeeze — oczekuj silnego ruchu. Ustaw stopy ciasno.';
         }
 
         const signalBias = bearScore > bullScore
@@ -716,8 +752,32 @@ app.post('/api/stock/analyze', async (req, res) => {
         const periodReturn = (((lastC - (history[0]?.c || lastC)) / (history[0]?.c || lastC)) * 100);
         const dataRecommendation = bullScore > bearScore ? 'LONG' : (bearScore > bullScore ? 'SHORT' : 'NEUTRAL');
         const compositeScore = Math.round(bullScore / (bullScore + bearScore || 1) * 100);
-        const compositeLabel = compositeScore >= 70 ? 'SILNY BYK' : compositeScore >= 55 ? 'BYK' : compositeScore >= 45 ? 'NEUTRALNY' : compositeScore >= 30 ? 'NIEDZWIEDZ' : 'SILNY NIEDZWIEDZ';
-        const suggestedConfidence = (compositeScore >= 68 || compositeScore <= 32) ? 'WYSOKA' : (compositeScore >= 58 || compositeScore <= 42) ? 'SREDNIA' : 'NISKA';
+        // === CONFLICT PENALTY (redukuje composite score przy sprzecznych sygnałach) ===
+        let conflictPenalty = 0;
+        const conflictSignals = [];
+        if (ema50 < ema200 && dataRecommendation === 'LONG') {
+            conflictPenalty += 8;
+            conflictSignals.push('Death Cross aktywny — trend długoterminowy niedźwiedzi');
+        }
+        if (ema9 < ema21 && ema50 > ema200 && dataRecommendation === 'LONG') {
+            conflictPenalty += 3;
+            conflictSignals.push('EMA9 < EMA21 — mikrotren niedźwiedzi przy byczym trendzie długoterminowym');
+        }
+        if (rsi > 75 && macdData.macd > macdData.signal) {
+            conflictPenalty += 5;
+            conflictSignals.push(`RSI ${rsi.toFixed(0)} — skrajnie wykupiony przy aktywnym sygnale MACD buy`);
+        }
+        if (rsi < 25 && macdData.macd < macdData.signal) {
+            conflictPenalty += 5;
+            conflictSignals.push(`RSI ${rsi.toFixed(0)} — skrajnie wyprzedany przy aktywnym sygnale MACD sell`);
+        }
+        if (stochRsi?.k != null && stochRsi?.d != null && stochRsi.k > 80 && stochRsi.d > 80 && dataRecommendation === 'LONG') {
+            conflictPenalty += 3;
+            conflictSignals.push(`Stochastic K=${Number(stochRsi.k).toFixed(0)}/D=${Number(stochRsi.d).toFixed(0)} — wykupiony przy wejściu LONG`);
+        }
+        const adjustedCompositeScore = Math.max(0, compositeScore - conflictPenalty);
+        const compositeLabel = adjustedCompositeScore >= 70 ? 'SILNY BYK' : adjustedCompositeScore >= 55 ? 'BYK' : adjustedCompositeScore >= 45 ? 'NEUTRALNY' : adjustedCompositeScore >= 30 ? 'NIEDŹWIEDŹ' : 'SILNY NIEDŹWIEDŹ';
+        const suggestedConfidence = (adjustedCompositeScore >= 68 || adjustedCompositeScore <= 32) ? 'WYSOKA' : (adjustedCompositeScore >= 58 || adjustedCompositeScore <= 42) ? 'SREDNIA' : 'NISKA';
         const currentDate = new Date().toISOString().split('T')[0];
 
         // === PRE-COMPUTE ALGORITHMIC R:R (wstrzykiwany do promptu) ===
@@ -726,9 +786,11 @@ app.post('/api/stock/analyze', async (req, res) => {
         const algoSL = parseFloat(atrSL);
         const algoTP_fib = parseFloat(fib.fib_618); // Fibonacci 61.8% jako konserwatywny target
         const algoTP_pivot = pivots?.R1 ?? null;
+        const atrTP_long  = lastC + (3 * atrData);
+        const atrTP_short = lastC - (3 * atrData);
         const algoTP = dataRecommendation === 'LONG'
-            ? Math.max(algoTP_fib || lastC, algoTP_pivot || lastC, lastC * 1.05)
-            : Math.min(algoTP_fib || lastC, algoTP_pivot || lastC, lastC * 0.95);
+            ? Math.max(algoTP_fib || atrTP_long, algoTP_pivot || atrTP_long, atrTP_long)
+            : Math.min(algoTP_fib || atrTP_short, algoTP_pivot || atrTP_short, atrTP_short);
         const algoRisk = Math.abs(algoEntry - algoSL);
         const algoReward = Math.abs(algoTP - algoEntry);
         const preComputedRR = algoRisk > 0 ? +(algoReward / algoRisk).toFixed(2) : null;
@@ -811,17 +873,20 @@ Cena poczatkowa: $${history[0]?.c.toFixed(2)} => Obecna: $${lastC.toFixed(2)}
 ${userPositionStr}
 
 === CONSENSUS ALGORYTMU (OBLIGATORYJNY) ===
-KIERUNEK: ${dataRecommendation} | COMPOSITE: ${compositeScore}/100 (${compositeLabel})
-Byki: ${bullScore} pkt | Niedzwiedzie: ${bearScore} pkt | Sugerowana pewnosc: ${suggestedConfidence}
+KIERUNEK: ${dataRecommendation} | COMPOSITE: ${adjustedCompositeScore}/100 (${compositeLabel})${conflictPenalty > 0 ? ` [kara -${conflictPenalty}pkt za konflikty sygnałów]` : ''}
+Byki: ${bullScore} pkt | Niedźwiedzie: ${bearScore} pkt | Sugerowana pewność: ${suggestedConfidence}
 
 KRYTYCZNE ZASADY SPOJNOSCI — BEZWZGLEDNIE PRZESTRZEGAJ:
 1. quant_analysis.recommendation = "${dataRecommendation}" — BEZ WYJATKOW. NIE ZMIENIAJ.
-2. sentiment_score MUSI byc miedzy ${Math.max(0, compositeScore - 10)} a ${Math.min(100, compositeScore + 10)}. ZAKAZ wartosci domyslnej 50!
+2. sentiment_score MUSI byc miedzy ${Math.max(0, adjustedCompositeScore - 10)} a ${Math.min(100, adjustedCompositeScore + 10)}. ZAKAZ wartosci domyslnej 50!
 3. global_data.final_direction MUSI jednoznacznie wspierac "${dataRecommendation}". Jesli LONG — pisz o wzrostach. Jesli SHORT — o spadkach.
 4. Ton summary MUSI odpowiadac "${dataRecommendation}": LONG = dominuje optymizm, SHORT = pesymizm, NEUTRAL = wywazone.
 5. bull_case vs bear_case: ${dataRecommendation === 'LONG' ? 'bull_case = SILNE, szczegolowe argumenty. bear_case = pomniejsze ryzyka, zastrzezenia (slabsze).' : dataRecommendation === 'SHORT' ? 'bear_case = SILNE, szczegolowe argumenty. bull_case = pomniejsze szanse (slabsze).' : 'Obie strony rownej wagi.'}
 6. ZERO SPRZECZNOSCI. Wszystkie sekcje musza mowic JEDNYM GLOSEM. Nie moze byc tak, ze quant mowi LONG a bear_case jest silniejszy od bull_case.
 7. quant_analysis.confidence_level = "${suggestedConfidence}" (mozesz zmienic o 1 poziom jesli masz dobry powod, ale uzasadnij).
+8. GEOMETRIA SETUPU: Przy LONG — SL MUSI byc < $${lastC.toFixed(2)} (biezaca cena), TP MUSI byc > entry. Przy SHORT — odwrotnie. Bledna geometria (SL >= entry przy LONG) jest KRYTYCZNYM BLEDEM i zostanie skorygowana przez system.
+9. SYGNALY SPRZECZNE: Jesli EMA9/21 sprzeczny z EMA50/200 — wymien to explicite w odpowiednim scenariuszu. Jesli RSI > 75 przy LONG — obowiazkowo ostrzez o ryzyku wyczerpania impulsu wzrostowego w bear_case.
+${conflictSignals.length > 0 ? `10. AKTYWNE KONFLIKTY SYGNALOW (system odjalil -${conflictPenalty}pkt z composite score):\n${conflictSignals.map(s => `    - ${s}`).join('\n')}\n    Uwzgledniej je explicite w summary (Akapit 1) i odpowiednim scenariuszu.` : '10. Brak wykrytych konfliktow sygnalow — sygnaly sa spojne.'}
 
 ZASADY DECYZYJNE:
 - LONG: Golden Cross + MACD>Signal + Cena>EMA200 + RSI<70 => LONG (niskie ADX = slaby trend, NIE blokuje LONG!)
@@ -908,9 +973,9 @@ global_data.sex_appeal: sentyment medialny — ${quantStats.sent_bull_pct}% pozy
 global_data.final_direction: TWARDY WERDYKT: kierunek + sila przekonania (wysoka/srednia/niska) + kluczowy katalizator + glowne ryzyko.
 
 radar.scenarios: dwa scenariusze — Bear i Bull — z konkretnymi triggerami i targetami cenowymi.
-sentiment_score: liczba ${Math.max(0, compositeScore - 10)}-${Math.min(100, compositeScore + 10)} — MUSI odzwierciedlac consensus algorytmu (${compositeScore}/100). ZAKAZ ustawiania na 50 domyslnie!`;
+sentiment_score: liczba ${Math.max(0, adjustedCompositeScore - 10)}-${Math.min(100, adjustedCompositeScore + 10)} — MUSI odzwierciedlac consensus algorytmu (${adjustedCompositeScore}/100). ZAKAZ ustawiania na 50 domyslnie!`;
         // --- GENERACJA AI (Structured Output — dane tylko z API) ---
-        console.log(`[AI] ${symbol} ${timeframe} | bulls=${bullScore} bears=${bearScore} | news=${filteredNews.length} | preRR=${preComputedRR} (${rrQualityLabel}) | volatility_score=${scoringBreakdown.volatility}`);
+        console.log(`[AI] ${symbol} ${timeframe} | bulls=${bullScore} bears=${bearScore} | composite=${adjustedCompositeScore}(raw=${compositeScore}) | conflicts=${conflictSignals.length}(-${conflictPenalty}pts) | preRR=${preComputedRR} (${rrQualityLabel})`);
         const aiStart = Date.now();
 
         const AI_MODELS = [
@@ -952,10 +1017,32 @@ sentiment_score: liczba ${Math.max(0, compositeScore - 10)}-${Math.min(100, comp
         parsedAnalysis.setup_type = setupType;
         parsedAnalysis.setup_warning = setupWarning;
 
+        // === WALIDACJA GEOMETRII SETUPU (override AI jeśli sprzeczne) ===
+        let setupInvalid = null;
+        let targetWarning = null;
+        if (dataRecommendation === 'LONG' && aiSL != null && aiEntry != null && aiSL >= aiEntry) {
+            setupInvalid = `Błąd geometrii: SL ($${aiSL.toFixed(2)}) ≥ Entry ($${aiEntry.toFixed(2)}) przy LONG — zastosowano SL algorytmiczny $${algoSL.toFixed(2)} (2×ATR).`;
+            if (parsedAnalysis.quant_analysis) parsedAnalysis.quant_analysis.stop_loss = '$' + algoSL.toFixed(2);
+        }
+        if (dataRecommendation === 'SHORT' && aiSL != null && aiEntry != null && aiSL <= aiEntry) {
+            const shortSL = (lastC + atrData * 2).toFixed(2);
+            setupInvalid = `Błąd geometrii: SL ($${aiSL.toFixed(2)}) ≤ Entry ($${aiEntry.toFixed(2)}) przy SHORT — zastosowano SL algorytmiczny $${shortSL} (2×ATR).`;
+            if (parsedAnalysis.quant_analysis) parsedAnalysis.quant_analysis.stop_loss = '$' + shortSL;
+        }
+        if (aiEntry != null && aiTP != null && Math.abs(aiTP - aiEntry) < atrData) {
+            const correctedTP = dataRecommendation === 'LONG'
+                ? (aiEntry + 2.5 * atrData)
+                : (aiEntry - 2.5 * atrData);
+            targetWarning = `Cel ($${aiTP.toFixed(2)}) bliższy niż 1×ATR ($${atrData.toFixed(2)}) od entry — nierealistyczny. Skorygowano do $${correctedTP.toFixed(2)} (2.5×ATR).`;
+            if (parsedAnalysis.quant_analysis) parsedAnalysis.quant_analysis.take_profit = '$' + correctedTP.toFixed(2);
+        }
+        parsedAnalysis.setup_invalid = setupInvalid;
+        parsedAnalysis.target_warning = targetWarning;
+
         // === HARD SAFETY RULE: R:R < 1.5 → degrade confidence, inject warning ===
         if (computedRR != null && computedRR < 1.5) {
             parsedAnalysis.rr_warning = computedRR < 1.0
-                ? `R:R wynosi zaledwie 1:${computedRR.toFixed(1)} — ujemna wartość oczekiwana. NIE WCHODZIĆ po bieżącej cenie. Czekaj na głębszą korektę w celu poprawy parametru zysku do ryzyka (min. 1:2).`
+                ? `R:R wynosi zaledwie 1:${computedRR.toFixed(1)} — ryzyko przewyższa potencjalny zysk. Przy 50% skuteczności setup ma ujemną wartość oczekiwaną. Czekaj na głębszą korektę (min. R:R 1:2).`
                 : `R:R wynosi 1:${computedRR.toFixed(1)} — poniżej optymalnego progu 1:1.5. Rozważ czekanie na lepszy punkt wejścia lub zawężenie Stop Loss.`;
             // Force confidence down if AI set it too high
             if (parsedAnalysis.quant_analysis?.confidence_level === 'WYSOKA' && computedRR < 1.0) {
@@ -966,7 +1053,7 @@ sentiment_score: liczba ${Math.max(0, compositeScore - 10)}-${Math.min(100, comp
         }
 
         // === POST-PROCESSING: Naprawa sprzecznosci AI tekstu z R:R ===
-        if (computedRR != null && parsedAnalysis.summary) {
+        if (false) { /* post-processing via regex removed — prompt+schema handle consistency upstream */
             const summaryLower = parsedAnalysis.summary.toLowerCase();
             const saysNegative = summaryLower.includes('niekorzystny') || summaryLower.includes('nie oferuje optymalnych') || summaryLower.includes('czekanie na') || summaryLower.includes('nie wchodzi');
             const saysPositive = summaryLower.includes('korzystny') || summaryLower.includes('solidny') || summaryLower.includes('optymaln') || summaryLower.includes('atrakcyjn');
@@ -1005,6 +1092,23 @@ sentiment_score: liczba ${Math.max(0, compositeScore - 10)}-${Math.min(100, comp
         }
 
         console.log(`[AI] Done in ${Date.now() - aiStart}ms | Total: ${Date.now() - reqStart}ms`);
+
+        // === P2-A6: RULE-BASED CONSISTENCY VALIDATION ===
+        let consistencyFlag = null;
+        const aiRec = parsedAnalysis.quant_analysis?.recommendation;
+        if (aiRec === 'LONG' && adjustedCompositeScore < 45) {
+            consistencyFlag = `Rozbieżność: AI rekomenduje LONG, lecz wynik algorytmiczny to ${adjustedCompositeScore}/100 — sygnały techniczne przeważnie niedźwiedzie.`;
+            console.warn(`[CONSISTENCY] LONG rec ale score=${adjustedCompositeScore} — flagging`);
+        } else if (aiRec === 'SHORT' && adjustedCompositeScore > 55) {
+            consistencyFlag = `Rozbieżność: AI rekomenduje SHORT, lecz wynik algorytmiczny to ${adjustedCompositeScore}/100 — sygnały techniczne przeważnie bycze.`;
+            console.warn(`[CONSISTENCY] SHORT rec ale score=${adjustedCompositeScore} — flagging`);
+        } else if (conflictSignals.length >= 3 && aiRec === 'LONG') {
+            consistencyFlag = `Uwaga: LONG przy ${conflictSignals.length} wykrytych konfliktach sygnałów — ryzyko podwyższone.`;
+        }
+        if (consistencyFlag && parsedAnalysis.quant_analysis?.confidence_level === 'WYSOKA') {
+            parsedAnalysis.quant_analysis.confidence_level = 'SREDNIA';
+            consistencyFlag += ' Pewność zdegradowana: WYSOKA→ŚREDNIA.';
+        }
 
         // Chart series computed on filtered timeframe history (single source of truth for frontend)
         const csMACD = calculateMACD(history);
@@ -1061,7 +1165,9 @@ sentiment_score: liczba ${Math.max(0, compositeScore - 10)}-${Math.min(100, comp
             ticker: symbol,
             timeframe,
             volatile_days: pctChanges.slice(0, 40).map(v => ({ date: v.date, pct: v.pct })),
-            composite_score: compositeScore,
+            composite_score: adjustedCompositeScore,
+            raw_composite_score: compositeScore,
+            conflict_signals: conflictSignals,
             scoring_breakdown: scoringBreakdown,
             bull_score: bullScore,
             bear_score: bearScore,
@@ -1069,6 +1175,8 @@ sentiment_score: liczba ${Math.max(0, compositeScore - 10)}-${Math.min(100, comp
             setup_warning: setupWarning,
             fundamentals,
             relative_strength: relativeStrength,
+            market_structure: detectMarketStructure(allHistory),
+            consistency_flag: consistencyFlag,
             generated_at: new Date().toISOString(),
         };
 

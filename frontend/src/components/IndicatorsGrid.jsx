@@ -27,10 +27,10 @@ function Card({ cardKey, title, color, children, activeTooltip, setActiveTooltip
           onClick={() => setActiveTooltip(isOpen ? null : cardKey)}
           title="Co to jest?"
           style={{
-            background: isOpen ? 'rgba(0,168,214,0.18)' : 'rgba(255,255,255,0.05)',
-            border: `1px solid ${isOpen ? 'rgba(0,168,214,0.4)' : '#333'}`,
+            background: isOpen ? 'rgba(0,168,214,0.22)' : 'rgba(255,255,255,0.1)',
+            border: `1px solid ${isOpen ? '#00a8d6' : '#555'}`,
             borderRadius: '50%', width: '18px', height: '18px',
-            color: isOpen ? '#00a8d6' : '#555',
+            color: isOpen ? '#00a8d6' : '#aaa',
             fontSize: '0.65rem', fontWeight: 700,
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0, transition: 'all 0.15s', lineHeight: 1,
