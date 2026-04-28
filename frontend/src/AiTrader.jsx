@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from './Header.jsx';
 import Footer from './Footer.jsx';
-import GlassCard from './components/GlassCard.jsx';
 import './AiTrader.css';
 
 function AiTrader() {
@@ -1357,6 +1356,11 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
         <span>📰 Finnhub</span>
         <span>🕐 {new Date().toLocaleTimeString('pl-PL')}</span>
       </div>
+            </div>
+          </div>
+        </div>
+      </main>
+      <Footer />
     </div>
   );
 }
@@ -1958,11 +1962,6 @@ function NewsSlider({ newsData, ticker, newsAggregation }) {
           )}
         </div>
       )}
-            </div>
-          </div>
-        </div>
-      </main>
-      <Footer />
     </div>
   );
 }
