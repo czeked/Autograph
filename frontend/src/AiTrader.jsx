@@ -396,12 +396,8 @@ function AiTrader() {
                       <div key={i} style={{ background: 'rgba(255,255,255,0.03)', borderLeft: `3px solid ${a.color}`, padding: '10px 15px', borderRadius: '4px', fontSize: '0.8rem' }}>
                         {a.text}
                       </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Indicators Row */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '2rem' }}>
+                                    {/* First Row of Indicators (Momentum & Pivots) */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '1rem' }}>
                    <GlassCard>
                       <div className="card-title"><Activity size={14} /> RSI (14)</div>
                       <div style={{ fontSize: '1.5rem', fontWeight: 800, color: marketData.rsi > 70 ? 'var(--accent-red)' : marketData.rsi < 30 ? 'var(--accent-green)' : '#fff' }}>
@@ -428,13 +424,57 @@ function AiTrader() {
                    </GlassCard>
                 </div>
 
+                {/* Second Row of Indicators (Volume & Technical Details) */}
+                {!focusMode && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '2rem' }}>
+                    <GlassCard>
+                       <div className="card-title"><Activity size={14} /> Stochastic RSI</div>
+                       <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{marketData.stochRsi?.k} / {marketData.stochRsi?.d}</div>
+                       <div style={{ fontSize: '0.7rem', color: marketData.stochRsi?.signal?.includes('BYCZY') ? 'var(--accent-green)' : 'var(--accent-red)' }}>{marketData.stochRsi?.signal}</div>
+                    </GlassCard>
+                    <GlassCard>
+                       <div className="card-title"><Zap size={14} /> Parabolic SAR</div>
+                       <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{formatPrice(parseFloat(marketData.sar?.sar))}</div>
+                       <div style={{ fontSize: '0.7rem', color: marketData.sar?.signal === 'BYCZY' ? 'var(--accent-green)' : 'var(--accent-red)' }}>{marketData.sar?.trend}</div>
+                    </GlassCard>
+                    <GlassCard>
+                       <div className="card-title"><TrendingUp size={14} /> SMA 20 / 50</div>
+                       <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{formatPrice(marketData.sma20)}</div>
+                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>SMA 50: {formatPrice(marketData.sma50)}</div>
+                    </GlassCard>
+                  </div>
+                )}
+
                 {/* Analysis Content */}
-                <GlassCard className="analysis-text" style={{ padding: '2rem', lineHeight: '1.8' }}>
+                <GlassCard className="analysis-text" style={{ padding: '2rem', lineHeight: '1.8', marginBottom: '2rem' }}>
                    <div className="card-title" style={{ marginBottom: '1.5rem' }}><Bot size={18} /> Analiza Quantum Crypto Core</div>
                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', whiteSpace: 'pre-wrap' }}>
                      {analysis}
                    </div>
                 </GlassCard>
+
+                {/* Backtest Section */}
+                {!focusMode && marketData.backtest && (
+                  <GlassCard style={{ marginBottom: '2rem' }}>
+                    <div className="card-title"><Target size={14} /> Skuteczność Algorytmu (30D)</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+                       <div>
+                         <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>ACCURACY</div>
+                         <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--accent-blue)' }}>{marketData.backtest.accuracy}%</div>
+                       </div>
+                       <div>
+                         <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>AVG RETURN</div>
+                         <div style={{ fontSize: '1.8rem', fontWeight: 900, color: marketData.backtest.avgReturnPerSignal > 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                           {marketData.backtest.avgReturnPerSignal > 0 ? '+' : ''}{marketData.backtest.avgReturnPerSignal}%
+                         </div>
+                       </div>
+                       <div>
+                         <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>TRADES</div>
+                         <div style={{ fontSize: '1.8rem', fontWeight: 900 }}>{marketData.backtest.totalTrades}</div>
+                       </div>
+                    </div>
+                  </GlassCard>
+                )}
               </div>
 
               {/* Right Column / Sidebar */}
@@ -449,12 +489,12 @@ function AiTrader() {
                       </span>
                     </div>
                     <div className="quant-row">
-                      <span className="quant-label">Stoch RSI</span>
-                      <span className="quant-value">{marketData.stochRsi?.signal}</span>
+                      <span className="quant-label">OBV Trend</span>
+                      <span className="quant-value">{marketData.obv?.trend || 'NEUTRALNY'}</span>
                     </div>
                     <div className="quant-row">
-                      <span className="quant-label">EMA 12/26</span>
-                      <span className="quant-value">{marketData.ema12 < marketData.ema26 ? 'SPADEK' : 'WZROST'}</span>
+                      <span className="quant-label">Bollinger Bands</span>
+                      <span className="quant-value" style={{ fontSize: '0.75rem' }}>{marketData.price > marketData.bb?.upper ? 'OVERBOUGHT' : marketData.price < marketData.bb?.lower ? 'OVERSOLD' : 'INSIDE'}</span>
                     </div>
                   </GlassCard>
 
@@ -462,6 +502,43 @@ function AiTrader() {
                     <div className="card-title"><ShieldAlert size={14} /> Ryzyko i Sentyment</div>
                     <SentimentGauge score={marketData.fearGreed?.value || 50} />
                   </GlassCard>
+
+                  {/* Trends Sidebar Section */}
+                  {(marketData.microTrend || marketData.macroTrend) && (
+                    <div style={{ marginTop: '1rem' }}>
+                      <GlassCard>
+                        <div className="card-title"><Activity size={14} /> Strategiczne Trendy</div>
+                        {marketData.microTrend && (
+                          <div style={{ marginBottom: '15px', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>MIKRO (1H-4H)</div>
+                            <div style={{ fontWeight: 800, color: marketData.microTrend.recommendation?.includes('KUPUJ') ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                              {marketData.microTrend.recommendation}
+                            </div>
+                          </div>
+                        )}
+                        {marketData.macroTrend && (
+                          <div style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>MAKRO (DAILY)</div>
+                            <div style={{ fontWeight: 800, color: marketData.macroTrend.recommendation?.includes('KUPUJ') ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                              {marketData.macroTrend.recommendation}
+                            </div>
+                          </div>
+                        )}
+                      </GlassCard>
+                    </div>
+                  )}
+
+                  {/* RSI Divergence */}
+                  {marketData.rsiDivergence?.detected && (
+                    <GlassCard style={{ marginTop: '1rem', border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.05)' }}>
+                       <div className="card-title" style={{ color: 'var(--accent-amber)' }}><AlertTriangle size={14} /> RSI Divergence</div>
+                       <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{marketData.rsiDivergence.type}</div>
+                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>Wykryto rozbieżność ceny i RSI!</div>
+                    </GlassCard>
+                  )}
+                </div>
+              )}
+assCard>
                 </div>
               )}
 
