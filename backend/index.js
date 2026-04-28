@@ -1033,6 +1033,27 @@ function calculateRiskManagement(data, scenarios) {
   };
 }
 
+// ======================== RETRY HELPER ========================
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function axiosWithRetry(url, options, maxRetries = 3) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await axios.get(url, options);
+    } catch (err) {
+      const status = err.response?.status;
+      if (status === 429 && attempt < maxRetries) {
+        const delay = Math.pow(2, attempt + 1) * 1000 + Math.random() * 1000;
+        console.log(`⏳ API 429 rate limit — retry ${attempt + 1}/${maxRetries} po ${(delay / 1000).toFixed(1)}s`);
+        await sleep(delay);
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 // ======================== MACRO CONTEXT ========================
 
 let macroCache = { data: null, timestamp: 0 };
@@ -1250,25 +1271,6 @@ function analyzeMacroTrend(data) {
 }
 
 // ======================== COINGECKO ========================
-
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-async function axiosWithRetry(url, options, maxRetries = 3) {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await axios.get(url, options);
-    } catch (err) {
-      const status = err.response?.status;
-      if (status === 429 && attempt < maxRetries) {
-        const delay = Math.pow(2, attempt + 1) * 1000 + Math.random() * 1000;
-        console.log(`⏳ CoinGecko 429 rate limit — retry ${attempt + 1}/${maxRetries} po ${(delay / 1000).toFixed(1)}s`);
-        await sleep(delay);
-        continue;
-      }
-      throw err;
-    }
-  }
-}
 
 async function getCoinGeckoData(ticker, currency = 'USD') {
   try {
