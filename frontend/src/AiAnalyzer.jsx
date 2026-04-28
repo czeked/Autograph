@@ -1,3 +1,4 @@
+import './AiAnalyzer.css';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import {
@@ -5,11 +6,13 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import {
-  Search, TrendingUp, TrendingDown, Activity, ChevronDown, ChevronUp, Bot, BrainCircuit, Target, AlertTriangle, Calendar, ExternalLink, HelpCircle, Printer
+  Search, TrendingUp, TrendingDown, Activity, ChevronDown, ChevronUp, Bot, BrainCircuit, Target, AlertTriangle, Calendar, ExternalLink, HelpCircle, Printer, SlidersHorizontal
 } from 'lucide-react';
 import GlassCardComponent from './components/GlassCard.jsx';
 import LegendModal from './components/Legend.jsx';
 import IndicatorsGrid from './components/IndicatorsGrid.jsx';
+import IndicatorPrefsModal from './components/IndicatorPrefsModal.jsx';
+import { DEFAULT_PREFS, PREFS_LS_KEY, loadPrefs } from './components/indicatorPrefs.js';
 import TrendMatrix from './components/TrendMatrix.jsx';
 import Watchlist from './components/Watchlist.jsx';
 import FundamentalsPanel from './components/FundamentalsPanel.jsx';
@@ -105,7 +108,9 @@ export default function AiAnalyzer() {
   const [dayLoading, setDayLoading] = useState(false);
   const [dayArticles, setDayArticles] = useState([]);
   const [showEMA, setShowEMA] = useState(true);
-  const [showLegend, setShowLegend] = useState(false);
+  const [isFirstVisit] = useState(() => !localStorage.getItem(PREFS_LS_KEY));
+  const [prefs, setPrefs] = useState(() => loadPrefs() || DEFAULT_PREFS);
+  const [showPrefsModal, setShowPrefsModal] = useState(() => !localStorage.getItem(PREFS_LS_KEY));
   const [showBB, setShowBB] = useState(false);
   const [showMACD, setShowMACD] = useState(true);
   const anomalyRef = React.useRef(null);
@@ -355,20 +360,26 @@ export default function AiAnalyzer() {
     <>
       <Header />
 
-      {showLegend && <LegendModal onClose={() => setShowLegend(false)} />}
+      {showPrefsModal && (
+        <IndicatorPrefsModal
+          prefs={prefs}
+          onSave={(p) => { setPrefs(p); setShowPrefsModal(false); }}
+          onClose={() => setShowPrefsModal(false)}
+          isFirstTime={isFirstVisit && !localStorage.getItem(PREFS_LS_KEY)}
+        />
+      )}
 
       <div className="analyzer-page">
       <main className="main-content">
 
-        {/* SEARCH BAR */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '2rem', justifyContent: 'center'}}>
-          <div className="search-container" style={{ flex: 1, maxWidth: '520px' }}>
+        {/* TOOLBAR */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '2rem', padding: '8px 12px', background: '#1e1e1e', border: '1px solid #2a2a2a', borderRadius: '10px' }}>
+          <div className="search-container" style={{ flex: 1 }}>
             <div className="search-input-wrapper">
-              <Search className="search-icon" size={18} />
               <input
                 type="text"
                 className="search-input"
-                placeholder="Szukaj rynków (np. AAPL, NVDA)..."
+                placeholder="Ticker lub nazwa spółki (np. AAPL, NVDA)..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -385,12 +396,15 @@ export default function AiAnalyzer() {
               </div>
             )}
           </div>
+
+          <div style={{ width: '1px', height: '22px', background: '#2e2e2e', flexShrink: 0 }} />
+
           <Watchlist currentTicker={data?.ticker} onSelect={handleSelect} />
           <button onClick={() => window.print()} className="header-btn">
-            <Printer size={14} /> PDF
+            <Printer size={13} /> PDF
           </button>
-          <button onClick={() => setShowLegend(true)} className="header-btn">
-            <HelpCircle size={14} /> Legenda
+          <button onClick={() => setShowPrefsModal(true)} className="header-btn header-btn--purple">
+            <SlidersHorizontal size={13} /> Preferencje
           </button>
         </div>
 
@@ -403,19 +417,9 @@ export default function AiAnalyzer() {
         )}
 
         {loading && (
-          <div>
-            <div className="loading-state" style={{ marginBottom: '1.5rem' }}>
-              <div className="spinner"></div>
-              <p className="loading-text">Trwa praca Quant AI...</p>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', maxWidth: '900px', margin: '0 auto' }}>
-              <SkeletonCard height={130} label="EMA CROSSOVERS" />
-              <SkeletonCard height={130} label="MACD (12/26/9)" />
-              <SkeletonCard height={130} label="BOLLINGER BANDS" />
-              <SkeletonCard height={130} label="ADX - SILA TRENDU" />
-              <SkeletonCard height={130} label="ATR - ZMIENNOSC" />
-              <SkeletonCard height={130} label="STOCH RSI" />
-            </div>
+          <div className="loading-state">
+            <div className="spinner"></div>
+            <p className="loading-text">Trwa praca Quant AI...</p>
           </div>
         )}
 
@@ -481,7 +485,7 @@ export default function AiAnalyzer() {
               </GlassCard>
 
               {data.quant_stats && (
-                <IndicatorsGrid qs={data.quant_stats} />
+                <IndicatorsGrid qs={data.quant_stats} visibleCards={prefs} />
               )}
 
               {showMACD && (() => {
@@ -647,12 +651,11 @@ export default function AiAnalyzer() {
                 );
               })()}
 
-              {/* SEKCJA ANALIZY QUANT I GLOBAL DATA */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+              {/* WSZYSTKIE SEKCJE ANALIZY — jeden flex-column z gap */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-                {/* Kolumna Lewa: Quant + Global */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {data.analysis?.quant_analysis && (() => {
+                {/* Kolumna Lewa: Quant */}
+                {data.analysis?.quant_analysis && (() => {
                     const rec = data.analysis.quant_analysis.recommendation;
                     const recColor = rec === 'LONG' ? 'var(--accent-green)' : rec === 'SHORT' ? 'var(--accent-red)' : '#f59e0b';
                     const recBg = rec === 'LONG' ? 'rgba(16,185,129,0.12)' : rec === 'SHORT' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)';
@@ -739,40 +742,8 @@ export default function AiAnalyzer() {
                     );
                   })()}
 
-                  {data.analysis?.global_data && (
-                    <GlassCard style={{ borderTop: '3px solid #f59e0b' }}>
-                      <h3 className="card-title" style={{ color: '#fff', marginBottom: '1rem' }}>
-                        <Activity size={18} color="#f59e0b" /> Global Data & Fundamentals
-                      </h3>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                        {[
-                          { label: 'BIEŻĄCY STATUS', val: data.analysis.global_data.current_status },
-                          { label: 'PROGNOZA (1 MC)', val: data.analysis.global_data.future_outlook },
-                          { label: 'SENTYMENT ELIT & PŁYNNOŚĆ', val: data.analysis.global_data.elite_view },
-                          { label: 'PROFIL DYWIDENDOWY', val: data.analysis.global_data.dividend_trend },
-                          { label: 'ZAINTERESOWANIE PUBLICZNE', val: data.analysis.global_data.sex_appeal },
-                        ].map(({ label, val }) => (
-                          <div key={label} style={{ padding: '0.65rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                            <div style={{ fontSize: '0.6rem', color: '#f59e0b', fontWeight: 700, letterSpacing: '0.07em', marginBottom: '0.2rem' }}>{label}</div>
-                            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{val}</div>
-                          </div>
-                        ))}
-                        <div style={{ paddingTop: '0.8rem', marginTop: '0.2rem' }}>
-                          <div style={{ fontSize: '0.62rem', color: '#fff', fontWeight: 700, letterSpacing: '0.07em', marginBottom: '0.3rem' }}>TWARDY KIERUNEK</div>
-                          <div style={{ fontSize: '0.88rem', color: '#fff', lineHeight: 1.5 }}>{data.analysis.global_data.final_direction}</div>
-                        </div>
-                      </div>
-                    </GlassCard>
-                  )}
-
-                  {data.fundamentals && (
-                    <FundamentalsPanel fundamentals={data.fundamentals} relativeStrength={data.relative_strength} />
-                  )}
-                </div>
-
                 {/* Kolumna Prawa: Skan Główny (AI) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  <GlassCard style={{ borderTop: '3px solid var(--accent-purple)', height: '100%' }}>
+                {prefs.aiScan && <GlassCard style={{ borderTop: '3px solid var(--accent-purple)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                       <h3 className="card-title" style={{ color: '#fff', margin: 0 }}>
                         <BrainCircuit size={18} color="var(--accent-purple)" /> Skan Główny (AI)
@@ -793,17 +764,44 @@ export default function AiAnalyzer() {
                     {data.analysis?.summary?.split('\n\n').map((para, i, arr) => (
                       <p key={i} className="summary-text" style={{ marginBottom: i < arr.length - 1 ? '0.9rem' : 0, lineHeight: 1.65 }}>{para}</p>
                     ))}
-                  </GlassCard>
-                </div>
-              </div>
+                  </GlassCard>}
 
-              {/* BULL / BEAR CASE */}
-              {(data.analysis?.bull_case?.length > 0 || data.analysis?.bear_case?.length > 0) && (() => {
-                const rec = data.analysis?.quant_analysis?.recommendation;
-                const bullStrong = rec === 'LONG';
-                const bearStrong = rec === 'SHORT';
-                return (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                {/* Global Data */}
+                {prefs.globalData && data.analysis?.global_data && (
+                <GlassCard style={{ borderTop: '3px solid #f59e0b' }}>
+                  <h3 className="card-title" style={{ color: '#fff', marginBottom: '1rem' }}>
+                    <Activity size={18} color="#f59e0b" /> Global Data & Fundamentals
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0 2rem' }}>
+                    {[
+                      { label: 'BIEŻĄCY STATUS', val: data.analysis.global_data.current_status },
+                      { label: 'PROGNOZA (1 MC)', val: data.analysis.global_data.future_outlook },
+                      { label: 'SENTYMENT ELIT & PŁYNNOŚĆ', val: data.analysis.global_data.elite_view },
+                      { label: 'PROFIL DYWIDENDOWY', val: data.analysis.global_data.dividend_trend },
+                      { label: 'ZAINTERESOWANIE PUBLICZNE', val: data.analysis.global_data.sex_appeal },
+                      { label: 'TWARDY KIERUNEK', val: data.analysis.global_data.final_direction, bold: true },
+                    ].map(({ label, val, bold }) => (
+                      <div key={label} style={{ padding: '0.6rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div style={{ fontSize: '0.58rem', color: '#f59e0b', fontWeight: 700, letterSpacing: '0.07em', marginBottom: '0.2rem' }}>{label}</div>
+                        <div style={{ fontSize: '0.82rem', color: bold ? '#fff' : 'var(--text-secondary)', lineHeight: 1.4, fontWeight: bold ? 600 : 400 }}>{val}</div>
+                      </div>
+                    ))}
+                  </div>
+                </GlassCard>
+              )}
+
+                {/* FundamentalsPanel */}
+                {prefs.fundamentalsPanel && data.fundamentals && (
+                  <FundamentalsPanel fundamentals={data.fundamentals} relativeStrength={data.relative_strength} />
+                )}
+
+                {/* BULL / BEAR CASE */}
+                {prefs.bullBear && (data.analysis?.bull_case?.length > 0 || data.analysis?.bear_case?.length > 0) && (() => {
+                  const rec = data.analysis?.quant_analysis?.recommendation;
+                  const bullStrong = rec === 'LONG';
+                  const bearStrong = rec === 'SHORT';
+                  return (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                   {data.analysis?.bull_case?.length > 0 && (
                     <GlassCard style={{ borderTop: '3px solid var(--accent-green)', background: bullStrong ? 'rgba(16,185,129,0.06)' : 'rgba(16,185,129,0.02)', opacity: bearStrong ? 0.7 : 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.8rem' }}>
@@ -838,14 +836,14 @@ export default function AiAnalyzer() {
                       </ul>
                     </GlassCard>
                   )}
-                </div>
-                );
-              })()}
+                  </div>
+                  );
+                })()}
 
+                {/* TREND ALIGNMENT MATRIX */}
+                {prefs.trendMatrix && <TrendMatrix matrix={data.chart_series?.trend_matrix} />}
 
-              {/* TREND ALIGNMENT MATRIX */}
-              <TrendMatrix matrix={data.chart_series?.trend_matrix} />
-
+                {prefs.anomalies && (<>
               <h3 ref={anomalyRef} className="section-title" style={{ scrollMarginTop: '80px' }}>
                 <Calendar color="var(--accent-purple)" size={24} />
                 Kalendarium Anomalii ({timeframe})
@@ -945,6 +943,9 @@ export default function AiAnalyzer() {
                   })()
                 )}
               </div>
+              </>)}
+
+              </div>{/* koniec flex-column analizy */}
 
             </div>
 

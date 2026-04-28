@@ -59,14 +59,14 @@ export default function Watchlist({ currentTicker, onSelect }) {
           <button
             onClick={toggle}
             title={isWatched ? 'Usuń z watchlisty' : 'Dodaj do watchlisty'}
-            style={{ background: isWatched ? 'rgba(250,204,21,0.15)' : 'rgba(255,255,255,0.08)', border: `1px solid ${isWatched ? 'rgba(250,204,21,0.4)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: isWatched ? '#facc15' : 'var(--text-muted)', padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+            style={{ background: isWatched ? 'rgba(250,204,21,0.12)' : '#2a2a2a', border: `1px solid ${isWatched ? 'rgba(250,204,21,0.4)' : '#333'}`, borderRadius: '7px', color: isWatched ? '#facc15' : '#777', padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.15s' }}
           >
             <Star size={15} fill={isWatched ? '#facc15' : 'none'} />
           </button>
         )}
         <button
           onClick={() => setOpen(p => !p)}
-          style={{ background: open ? 'rgba(250,204,21,0.12)' : 'rgba(255,255,255,0.08)', border: `1px solid ${open ? 'rgba(250,204,21,0.3)' : 'rgba(255,255,255,0.15)'}`, borderRadius: '8px', color: '#fff', padding: '6px 12px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+          style={{ background: open ? 'rgba(250,204,21,0.1)' : '#2a2a2a', border: `1px solid ${open ? 'rgba(250,204,21,0.35)' : '#333'}`, borderRadius: '7px', color: open ? '#facc15' : '#b0b0b0', padding: '6px 12px', cursor: 'pointer', fontSize: '0.79rem', fontFamily: 'Inter, sans-serif', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', transition: 'all 0.15s' }}
         >
           <Star size={14} fill={tickers.length ? '#facc15' : 'none'} color={tickers.length ? '#facc15' : 'currentColor'} />
           Watchlist {tickers.length > 0 && <span style={{ background: '#facc15', color: '#000', borderRadius: '10px', padding: '1px 6px', fontSize: '0.7rem', fontWeight: 'bold' }}>{tickers.length}</span>}
