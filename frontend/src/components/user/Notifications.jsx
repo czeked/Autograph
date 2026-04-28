@@ -35,6 +35,7 @@ export default function Notifications({ setHasChanges, currentPlan }) {
         markAllAsRead,
         clearAll,
         settingsChanged,
+        playNotificationSound,
     } = useNotifications();
 
     const isMaximum = currentPlan === "maximum";
@@ -44,14 +45,21 @@ export default function Notifications({ setHasChanges, currentPlan }) {
         setHasChanges(true);
     };
 
-    const handleSoundToggle = (key) => {
+    const handleSoundToggle = (key, source) => {
         toggleSetting(key);
         setHasChanges(true);
+        // Play sound as a test if enabled
+        if (!settings[key]) { // If we just enabled it
+             playNotificationSound(source);
+        }
     };
 
     return (
         <div className="panel-notifications">
-            <h1>Powiadomienia</h1>
+            <div className="panel-header">
+                <h1>Powiadomienia</h1>
+                <p>Zarządzaj swoimi alertami i bądź na bieżąco z rynkiem.</p>
+            </div>
 
             <div className="notify-p">
 
@@ -63,7 +71,7 @@ export default function Notifications({ setHasChanges, currentPlan }) {
 
                         <div className="notify-actions">
                             <i className={`fa-solid ${settings.systemSound ? "fa-volume-high" : "fa-volume-xmark"}`}
-                                onClick={() => handleSoundToggle("systemSound")}
+                                onClick={() => handleSoundToggle("systemSound", "system")}
                             />
 
                             <div
@@ -96,7 +104,7 @@ export default function Notifications({ setHasChanges, currentPlan }) {
 
                             <div className="notify-actions">
                                 <i className={`fa-solid ${settings.cryptoSound ? "fa-volume-high" : "fa-volume-xmark"}`}
-                                    onClick={() => handleSoundToggle("cryptoSound")}
+                                    onClick={() => handleSoundToggle("cryptoSound", "crypto")}
                                 />
 
                                 <div
@@ -150,7 +158,7 @@ export default function Notifications({ setHasChanges, currentPlan }) {
 
                             <div className="notify-actions">
                                 <i className={`fa-solid ${settings.stocksSound ? "fa-volume-high" : "fa-volume-xmark"}`}
-                                    onClick={() => handleSoundToggle("stocksSound")}
+                                    onClick={() => handleSoundToggle("stocksSound", "stocks")}
                                 />
 
                                 <div
@@ -206,7 +214,7 @@ export default function Notifications({ setHasChanges, currentPlan }) {
                                 <i className={`fa-solid ${settings.dividendsSound ? "fa-volume-high" : "fa-volume-xmark"}`}
                                     onClick={() => {
                                         if (!isMaximum) return;
-                                        handleSoundToggle("dividendsSound");
+                                        handleSoundToggle("dividendsSound", "dividends");
                                     }}
                                 />
 

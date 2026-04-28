@@ -1,20 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from './Header.jsx';
-import Footer from './Footer.jsx';
 import './AiTrader.css';
 
 function AiTrader() {
   const navigate = useNavigate();
-  const [searchTicker, setSearchTicker] = useState('BTC');
-  const [currency, setCurrency] = useState('USD');
+  const [searchTicker, setSearchTicker] = useState(() => localStorage.getItem('aitrader_search_ticker') || 'BTC');
+  const [currency, setCurrency] = useState(() => localStorage.getItem('aitrader_currency') || 'USD');
   const [prompt, setPrompt] = useState('');
-  const [analysis, setAnalysis] = useState('');
+  const [analysis, setAnalysis] = useState(() => localStorage.getItem('aitrader_last_analysis') || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [marketData, setMarketData] = useState(null);
-  const [ticker, setTicker] = useState('');
-  const [chartData, setChartData] = useState([]);
+  const [marketData, setMarketData] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('aitrader_last_market_data')) || null; } catch { return null; }
+  });
+  const [ticker, setTicker] = useState(() => localStorage.getItem('aitrader_last_ticker') || '');
+  const [chartData, setChartData] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('aitrader_last_chart_data')) || []; } catch { return []; }
+  });
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [livePrice, setLivePrice] = useState(null);
@@ -36,6 +38,16 @@ function AiTrader() {
   useEffect(() => {
     localStorage.setItem('ai_trader_theme', theme);
   }, [theme]);
+
+  // Persist session data
+  useEffect(() => {
+    if (analysis) localStorage.setItem('aitrader_last_analysis', analysis);
+    if (marketData) localStorage.setItem('aitrader_last_market_data', JSON.stringify(marketData));
+    if (ticker) localStorage.setItem('aitrader_last_ticker', ticker);
+    if (chartData && chartData.length > 0) localStorage.setItem('aitrader_last_chart_data', JSON.stringify(chartData));
+    localStorage.setItem('aitrader_currency', currency);
+    localStorage.setItem('aitrader_search_ticker', searchTicker);
+  }, [analysis, marketData, ticker, chartData, currency, searchTicker]);
 
   const toggleFavorite = (crypto) => {
     setFavorites(prev => {
@@ -165,7 +177,7 @@ function AiTrader() {
         body: JSON.stringify({ 
           ticker: value.toUpperCase(), 
           currency: currency,
-          prompt: prompt || `Analiza techniczna i rynkowa ${value.toUpperCase()}/${currency}`
+          prompt: prompt || `Analiza ${value.toUpperCase()}/${currency} na dzień ${new Date().toLocaleDateString('pl-PL')}`
         }),
       });
 
@@ -282,12 +294,7 @@ function AiTrader() {
   };
 
   return (
-    <div className={`aitrader-page ${theme}`}>
-      <Header />
-      <main className="main-content">
-        <div className="container">
-          <div className={`dashboard-wrapper ${focusMode ? 'focus-layout' : ''}`}>
-            <div className={`analyzer-container theme-${theme} ${focusMode ? 'focus-mode' : ''}`}>
+    <div className={`analyzer-container theme-${theme} ${focusMode ? 'focus-mode' : ''}`}>
       {/* Navigation Header */}
       <div className="header">
         <div className="icons">
@@ -1356,11 +1363,6 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
         <span>📰 Finnhub</span>
         <span>🕐 {new Date().toLocaleTimeString('pl-PL')}</span>
       </div>
-            </div>
-          </div>
-        </div>
-      </main>
-      <Footer />
     </div>
   );
 }

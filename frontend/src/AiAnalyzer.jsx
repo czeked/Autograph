@@ -92,13 +92,15 @@ const SkeletonCard = ({ height = 120, label = '' }) => (
 export default function AiAnalyzer() {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
-  const [symbol, setSymbol] = useState('');
+  const [symbol, setSymbol] = useState(() => localStorage.getItem('aianalyzer_last_symbol') || '');
 
-  const [timeframe, setTimeframe] = useState('1M');
+  const [timeframe, setTimeframe] = useState(() => localStorage.getItem('aianalyzer_last_timeframe') || '1M');
   const timeframes = ['1W', '1M', '3M', '6M', '1Y'];
 
 
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('aianalyzer_last_data')) || null; } catch { return null; }
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -113,12 +115,20 @@ export default function AiAnalyzer() {
   const [showPrefsModal, setShowPrefsModal] = useState(() => !localStorage.getItem(PREFS_LS_KEY));
   const [showBB, setShowBB] = useState(false);
   const [showMACD, setShowMACD] = useState(true);
-  const [activeTab, setActiveTab] = useState('sygnal');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('aianalyzer_last_active_tab') || 'sygnal');
   const DEFAULT_GLOWNA_ORDER = ['indicators','quant','aiscan','bullbear','trendmatrix','globaldata','fundamentals','anomalies'];
   const [glownaOrder, setGlownaOrder] = useState(() => { try { const s = localStorage.getItem('ag_glowna_order'); if (s) return JSON.parse(s); } catch {} return DEFAULT_GLOWNA_ORDER; });
   const [editingOrder, setEditingOrder] = useState(false);
   const moveGlownaSection = (id, dir) => setGlownaOrder(prev => { const a = [...prev]; const i = a.indexOf(id); const j = i + dir; if (j < 0 || j >= a.length) return prev; [a[i], a[j]] = [a[j], a[i]]; localStorage.setItem('ag_glowna_order', JSON.stringify(a)); return [...a]; });
   const anomalyRef = React.useRef(null);
+
+  // Persist session data
+  useEffect(() => {
+    if (symbol) localStorage.setItem('aianalyzer_last_symbol', symbol);
+    if (data) localStorage.setItem('aianalyzer_last_data', JSON.stringify(data));
+    if (activeTab) localStorage.setItem('aianalyzer_last_active_tab', activeTab);
+    if (timeframe) localStorage.setItem('aianalyzer_last_timeframe', timeframe);
+  }, [symbol, data, activeTab, timeframe]);
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {

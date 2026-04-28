@@ -49,7 +49,10 @@ export default function Plans({ showToast }) {
 
     return (
         <div className="panel-plans">
-            <h1>Twoje Plany</h1>
+            <div className="panel-header">
+                <h1>Twoje Plany</h1>
+                <p>Wybierz pakiet dopasowany do Twoich potrzeb i odblokuj pełną moc AI.</p>
+            </div>
 
             {currentPlan ? (
                 <div className="current-plan-box">

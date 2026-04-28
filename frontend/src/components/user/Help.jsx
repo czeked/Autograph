@@ -91,36 +91,37 @@ export default function Help() {
 
     return (
         <div className="panel-help">
-            <div className="help-header">
+            <div className="panel-header">
                 <h1>Pomoc</h1>
                 <p>Znajdź odpowiedzi na swoje pytania lub skontaktuj się z naszym zespołem.</p>
-                <div className="help-search">
-                    <i className="fa-solid fa-magnifying-glass"></i>
-                    <input 
-                        type="text" 
-                        placeholder="W czym możemy Ci pomóc?" 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    
-                    {searchQuery.length > 2 && (
-                        <div className="search-results">
-                            {filteredQuestions.length > 0 ? (
-                                filteredQuestions.map((item, index) => (
-                                    <div key={index} className="search-result-item" onClick={() => {
-                                        setSelectedCategory(item.categoryId);
-                                        setSearchQuery("");
-                                    }}>
-                                        <span className="res-cat">{item.categoryTitle}</span>
-                                        <span className="res-q">{item.q}</span>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="no-results">Brak wyników dla "{searchQuery}"</div>
-                            )}
-                        </div>
-                    )}
-                </div>
+            </div>
+
+            <div className="help-search">
+                <i className="fa-solid fa-magnifying-glass"></i>
+                <input 
+                    type="text" 
+                    placeholder="W czym możemy Ci pomóc?" 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                
+                {searchQuery.length > 2 && (
+                    <div className="search-results">
+                        {filteredQuestions.length > 0 ? (
+                            filteredQuestions.map((item, index) => (
+                                <div key={index} className="search-result-item" onClick={() => {
+                                    setSelectedCategory(item.categoryId);
+                                    setSearchQuery("");
+                                }}>
+                                    <span className="res-cat">{item.categoryTitle}</span>
+                                    <span className="res-q">{item.q}</span>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="no-results">Brak wyników dla "{searchQuery}"</div>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className="help-grid">

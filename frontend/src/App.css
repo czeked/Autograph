@@ -111,11 +111,10 @@
 }
 
 .homepage {
-    background: linear-gradient(rgba(98, 62, 42, 0.4), rgba(98, 62, 42, 0.4)),
-        url("imgs/bg-grand.png");
-    background-repeat: no-repeat;
-    background-size: cover;
-    background-position: center;
+    background: #0a0a0a;
+    background: radial-gradient(circle at center, #1a1a1a 0%, #050505 100%);
+    position: relative;
+    overflow: hidden;
     height: 100vh;
     width: 100%;
     z-index: 1;
@@ -126,9 +125,52 @@
     color: #fff;
 }
 
+/* Central Glow following the mouse */
+.homepage::before {
+    content: '';
+    position: absolute;
+    top: var(--mouse-y, 50%);
+    left: var(--mouse-x, 50%);
+    transform: translate(-50%, -50%);
+    width: 900px;
+    height: 900px;
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.3) 0%, transparent 65%);
+    z-index: -1;
+    filter: blur(100px);
+    pointer-events: none;
+    transition: top 0.1s ease-out, left 0.1s ease-out; /* Smooth follow */
+}
+
+/* Floating Particles (Financial Rain effect) - Rising from bottom to top */
+.homepage::after {
+    content: '₿  Ξ  %  📈  $  Ł  ₮  📊  €  ₿  Ξ  £  %  ¥  ₿  Ξ  %  📈  $  Ł  ₮  📊  €  ₿  Ξ  £  %  ¥';
+    position: absolute;
+    bottom: -100%;
+    left: 0;
+    width: 100%;
+    height: 300%;
+    font-size: 26px;
+    color: rgba(255, 255, 255, 0.08);
+    white-space: pre-wrap;
+    word-spacing: 12vw;
+    line-height: 12vh;
+    z-index: -1;
+    pointer-events: none;
+    animation: risingIcons 25s linear infinite;
+}
+
+@keyframes risingIcons {
+    from { transform: translateY(0); }
+    to { transform: translateY(-33.33%); }
+}
+
+
+
 .homepage h1 {
     font-family: 'Parfumerie Script', cursive;
     font-size: 226px;
+    position: relative;
+    text-shadow: 0 0 30px rgba(255,255,255,0.1);
 }
 
 .homepage p {
@@ -309,6 +351,7 @@
 }
 
 .div-hello p {
+    font-family: 'Cy Grotesk Key', sans-serif;
     font-size: 52px;
     width: 48%;
     color: #fff;
@@ -316,18 +359,19 @@
 }
 
 .strong {
-    font-family: 'cy Grotesk Key Bold', sans-serif;
+    font-family: 'Cy Grotesk Grand Bold', sans-serif;
 }
 
 .tptext {
+    font-family: 'Cy Grotesk Key', sans-serif;
     color: #fff;
     font-size: 32px;
     width: 48%;
     text-align: center;
 }
 
-.tptext-next {
-    font-family: 'Cy Grotesk Key Bold', sans-serif;
+.hello-tx .tptext-next {
+    font-family: 'Cy Grotesk Grand Bold', sans-serif;
 }
 
 
@@ -336,67 +380,168 @@
 
 
 .div-offers {
-    background: linear-gradient(rgba(98, 62, 42, 0.4), rgba(98, 62, 42, 0.4)), url("imgs/bg-started2.png");
-    background-repeat: no-repeat;
-    background-size: cover;
-    background-position: center;
+    background: #0d0d17;
+    background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0d0d17 100%);
+    position: relative;
+    overflow: hidden;
     height: 100vh;
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 250px;
+    justify-content: flex-start;
+    padding-top: 80px;
+    gap: 100px;
+}
+
+.div-offers::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: radial-gradient(rgba(0, 168, 214, 0.1) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.3;
 }
 
 .div-offers h1 {
     font-family: 'Cy Grotesk Grand', sans-serif;
-    font-size: 34px;
-    text-transform: uppercase;
+    font-size: 64px;
     text-align: center;
-    padding: 40px 0 25px 0;
+    color: #fff;
+    margin-bottom: 5px;
+}
+
+.div-offers-subtitle {
+    text-align: center;
+    color: #00a8d6;
+    font-size: 14px;
+    font-family: 'Cy Grotesk Key', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
 }
 
 .icons-s {
-    display: flex;
-    justify-content: center;
-    flex-direction: row;
-    gap: 200px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 0 40px;
+    gap: 40px;
 }
 
 .icons-sep {
-    font-family: 'cy grotesk grand', sans-serif;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+    padding: 40px 30px;
+    border-radius: 20px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    align-items: center;
     text-align: center;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+}
+
+.icons-sep:hover {
+    transform: translateY(-10px);
+    background: rgba(255,255,255,0.06);
+    border-color: #00a8d6;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
 }
 
 .icons-sep i {
-    text-align: center;
     font-size: 48px;
-    margin-bottom: 10px;
+    color: #00a8d6;
+    margin-bottom: 25px;
+}
+
+.icons-sep h3 {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    color: #fff;
+    font-size: 22px;
+    margin-bottom: 15px;
+    text-transform: uppercase;
 }
 
 .icons-sep p {
-    text-align: center;
-    font-size: 32px;
-    width: 400px;
+    font-family: 'Cy Grotesk Key', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #b0b0b0;
+    width: 100% !important;
 }
+
+.offers-extra {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 60px;
+    margin-top: 40px;
+    padding: 30px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 100px;
+    border: 1px solid rgba(255,255,255,0.05);
+    max-width: 900px;
+    margin: 40px auto 0;
+}
+
+.extra-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.extra-num {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 38px;
+    color: #fff;
+    line-height: 1;
+}
+
+.extra-label {
+    font-family: 'Cy Grotesk Key', sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #00a8d6;
+    margin-top: 5px;
+}
+
+.extra-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(255,255,255,0.1);
+}
+
+
 
 
 
 
 
 .div-plans {
-    background: url("imgs/bg-started3.png");
-    background-repeat: no-repeat;
-    background-size: cover;
-    background-position: center;
+    background: linear-gradient(135deg, #020205 0%, #15152b 50%, #020205 100%);
+    position: relative;
+    overflow: hidden;
     height: 100vh;
     width: 100%;
 }
 
+.div-plans::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 80% 20%, rgba(0, 168, 214, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 10% 90%, rgba(167, 139, 250, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.4) 100%);
+    pointer-events: none;
+}
+
 .div-plans h1 {
-    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-family: 'Cy Grotesk Grand Bold', sans-serif;
     font-size: 58px;
     text-transform: uppercase;
     text-align: center;
@@ -446,7 +591,7 @@
 }
 
 .block-plan h2 {
-    font-family: 'Cy Grotesk Key', sans-serif;
+    font-family: 'Cy Grotesk Grand', sans-serif;
     padding: 40px 0 10px 0;
     font-size: 36px;
 }
@@ -473,6 +618,27 @@
 .block-plan button:hover {
     background-color: #662779;
     
+}
+
+.back-to-top-btn {
+    display: block;
+    margin: 50px auto 0 auto;
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.back-to-top-btn:hover {
+    background: #fff;
+    color: #000;
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(255, 255, 255, 0.1);
 }
 
 .div-plans .plans-logo {
@@ -683,7 +849,7 @@
 }
 
 .save-btn {
-    margin-top: 210px;
+    margin-top: 270px;
     padding: 12px;
     border: none;
     border-radius: 8px;
@@ -832,108 +998,256 @@
 
 
 
-.panel-plans h1 {
-    font-family: 'Cy Grotesk Grand Bold', sans-serif;
-    font-size: 48px;
-}
 
 
 
 
 
-.panel-profile h1 {
-    font-family: 'Cy Grotesk Grand Bold', sans-serif;
-    font-size: 48px;
-}
 
-.profile-tab {
-    display: flex;
-    flex-direction: row;
-    gap: 50px;
-}
-
-.profile-card,
-.profile-img {
-    width: 50%;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    justify-content: center;
-}
-
-.profile-card input {
-    padding: 20px;
-    border: none;
-    border-radius: 25px;
-    background-color: #3e3e3e;
+/* ── MODERN PROFILE SECTION ── */
+/* ── MODERN USER PANELS ── */
+.panel-profile, 
+.panel-notifications, 
+.panel-settings, 
+.panel-help {
+    padding: 0 20px 40px 20px; /* Removed top padding to allow header to move up */
     color: #fff;
-    font-family: 'Cy Grotesk Key', sans-serif;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.panel-plans{
+    max-width: 1600px;
+}
+
+.panel-profile {
+    max-width: 1000px;
+}
+
+/* ── MODERN PANEL HEADERS ── */
+.panel-header {
+    text-align: center;
+    margin-top: -10px;
+    margin-bottom: 50px;
+}
+
+.panel-header h1 {
+    font-family: 'Cy Grotesk Grand Bold', sans-serif;
+    font-size: 52px;
+    margin-bottom: 10px;
+    background: none;
+    -webkit-text-fill-color: #fff;
+    line-height: 1.1;
+}
+
+.panel-header p {
+    color: #888;
     font-size: 16px;
-    width: 80%;
+    font-family: 'Cy Grotesk Key', sans-serif;
 }
 
-.profile-img {
-    align-items: center;
-}
-
-.profile-img img {
-    width: 160px;
-    height: 160px;
-    border-radius: 50%;
-
-}
-
-.profile-img button {
-    padding: 10px;
-    border: none;
+.profile-main-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 40px;
     border-radius: 20px;
-    background-color: #3e3e3e;
-    color: #fff;
-    font-family: 'Cy Grotesk Grand', sans-serif;
-    font-size: 14px;
-    width: 16%;
+    margin-bottom: 40px;
+    backdrop-filter: blur(10px);
+}
+
+.avatar-section {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    margin-bottom: 40px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.avatar-wrapper {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    overflow: hidden;
     cursor: pointer;
 }
 
-.profile-img button:hover {
-    background-color: #333;
-    transition: background-color .3s;
+.avatar-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
-.profile-tab-sec {
-    padding-right: 50px;
+.avatar-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: 0.3s;
 }
 
-.profile-tab-sec h1 {
-    margin: 50px 0 15px 0;
+.avatar-wrapper:hover .avatar-overlay {
+    opacity: 1;
+}
+
+.avatar-overlay i {
     font-size: 24px;
+    color: #fff;
 }
 
-.profile-tab-sec span {
-    font-size: 14px;
+.avatar-info h3 {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 18px;
+    margin-bottom: 5px;
+}
+
+.avatar-info p {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 15px;
+}
+
+.upload-btn {
+    background: rgba(0, 168, 214, 0.1);
+    border: 1px solid rgba(0, 168, 214, 0.2);
+    color: #00a8d6;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: 'Cy Grotesk Key Bold', sans-serif;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.upload-btn:hover {
+    background: rgba(0, 168, 214, 0.2);
+    transform: translateY(-2px);
+}
+
+.profile-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.form-group label {
+    font-family: 'Cy Grotesk Key Bold', sans-serif;
+    font-size: 13px;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon i {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #555;
+}
+
+.form-group input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 14px 15px;
+    border-radius: 12px;
+    color: #fff;
     font-family: 'Cy Grotesk Key', sans-serif;
-
+    font-size: 15px;
+    outline: none;
+    transition: 0.3s;
 }
 
-
-
-
-.panel-settings h1 {
-    font-family: 'Cy Grotesk Grand Bold', sans-serif;
-    font-size: 48px;
+.input-with-icon input {
+    padding-left: 45px;
 }
 
+.form-group input:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #00a8d6;
+    box-shadow: 0 0 15px rgba(0, 168, 214, 0.1);
+}
 
+.profile-secondary-section {
+    margin-top: 20px;
+}
 
-
-
-
-
-.panel-notifications h1 {
-    font-family: 'Cy Grotesk Grand Bold', sans-serif;
-    font-size: 48px;
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     margin-bottom: 25px;
 }
+
+.section-title i {
+    font-size: 20px;
+    color: #00a8d6;
+}
+
+.section-title h2 {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 22px;
+}
+
+.security-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 30px;
+    border-radius: 20px;
+}
+
+.security-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.security-footer p {
+    font-size: 13px;
+    color: #555;
+}
+
+.security-footer a {
+    color: #00a8d6;
+    text-decoration: none;
+    font-size: 13px;
+    font-family: 'Cy Grotesk Key Bold', sans-serif;
+}
+
+.security-footer a:hover {
+    text-decoration: underline;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

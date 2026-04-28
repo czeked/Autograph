@@ -1,7 +1,10 @@
 export default function Settings({ setHasChanges }) {
     return (
         <div className="panel-settings">
-            <h1>Ustawienia modułu</h1>
+            <div className="panel-header">
+                <h1>Ustawienia modułu</h1>
+                <p>Dostosuj działanie algorytmów i sposób generowania analiz AI.</p>
+            </div>
 
             {/* SEKCOJA W BUDOWIE - Łatwe do usunięcia */}
             <div style={{

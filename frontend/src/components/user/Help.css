@@ -16,21 +16,12 @@
     -webkit-text-fill-color: #fff;
 }
 
-.help-header {
-    text-align: center;
-    margin-bottom: 50px;
-}
 
-.help-header p {
-    color: #888;
-    margin-bottom: 30px;
-    margin-top: -20px;
-}
 
 .help-search {
     position: relative;
     max-width: 600px;
-    margin: 0 auto;
+    margin: -20px auto 50px auto; /* Adjust margin to compensate for panel-header spacing */
     z-index: 100;
 }
 

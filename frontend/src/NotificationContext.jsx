@@ -102,6 +102,26 @@ export function NotificationProvider({ children }) {
         setSettingsChanged(false);
     }, [settings]);
 
+    // Notification Sound (Base64 Tech Ping)
+    const NOTIFY_SOUND_BASE64 = "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YTtvT18AZGF0YQAAAAA="; // Placeholder, I will use a real short beep
+    // Actually, I'll use a more reliable way to create a beep in browser if possible, 
+    // or just use a standard clean Base64.
+    
+    const playNotificationSound = useCallback((source) => {
+        const soundEnabled = {
+            system: settings.systemSound,
+            crypto: settings.cryptoSound,
+            stocks: settings.stocksSound,
+            dividends: settings.dividendsSound
+        }[source];
+
+        if (soundEnabled) {
+            const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"); // High-quality tech ping
+            audio.volume = 0.4;
+            audio.play().catch(e => console.log("Audio play blocked by browser policy"));
+        }
+    }, [settings]);
+
     const addNotification = useCallback((notif) => {
         const newNotif = {
             ...notif,
@@ -111,7 +131,10 @@ export function NotificationProvider({ children }) {
         };
         setNotifications(prev => [newNotif, ...prev].slice(0, 50));
         setBannerNotification(newNotif);
-    }, []);
+        
+        // Play sound if enabled
+        playNotificationSound(notif.source);
+    }, [playNotificationSound]);
 
     const removeNotification = useCallback((id) => {
         setNotifications(prev => prev.filter(n => n.id !== id));
@@ -221,6 +244,7 @@ export function NotificationProvider({ children }) {
             clearAll,
             dismissBanner,
             isTypeEnabled,
+            playNotificationSound,
             SOURCE_LABELS,
             SOURCE_ICONS,
         }}>

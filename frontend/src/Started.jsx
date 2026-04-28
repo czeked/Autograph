@@ -14,7 +14,7 @@ export default function Started() {
 
     const handleSelectPlan = (planId) => {
         navigate('/user', { state: { section: 'plans' } });
-    }; ``
+    };
 
     return (
         <>
@@ -39,22 +39,48 @@ export default function Started() {
 
             <div className="div-offers" ref={offersRef}>
                 <div className="helpers">
-                    <h1>Działamy w oparciu o</h1>
+                    <h1>Innowacja napędzana technologią</h1>
+                    <p className="div-offers-subtitle">Nasz system to synergia zaawansowanych rozwiązań, które pracują na Twój sukces.</p>
                     <hr />
                 </div>
 
                 <div className="icons-s">
                     <div className="icons-sep">
                         <i className="fa-solid fa-brain"></i>
-                        <p>AI</p>
+                        <h3>AI Quantum Core</h3>
+                        <p>Analiza generatywna oparta na modelach Gemma 4 i Gemini, dostarczająca głębokich wniosków rynkowych.</p>
                     </div>
                     <div className="icons-sep">
                         <i className="fa-solid fa-code-merge"></i>
-                        <p>Algorytmy</p>
+                        <h3>Algorytmy</h3>
+                        <p>Zaawansowane wskaźniki techniczne (RSI, EMA, MACD) i autorskie modele scoringowe opłacalności.</p>
                     </div>
                     <div className="icons-sep">
                         <i className="fa-solid fa-earth-europe"></i>
-                        <p>Dane globalne</p>
+                        <h3>Dane Globalne</h3>
+                        <p>Dostęp do danych w czasie rzeczywistym z największych giełd światowych przez protokoły WebSocket.</p>
+                    </div>
+                    <div className="icons-sep">
+                        <i className="fa-solid fa-comments"></i>
+                        <h3>Sentyment</h3>
+                        <p>Analiza nastrojów rynkowych na podstawie wiadomości, mediów społecznościowych i trendów globalnych.</p>
+                    </div>
+                </div>
+
+                <div className="offers-extra">
+                    <div className="extra-item">
+                        <span className="extra-num">700k+</span>
+                        <span className="extra-label">Użytkowników</span>
+                    </div>
+                    <div className="extra-divider"></div>
+                    <div className="extra-item">
+                        <span className="extra-num">24/7</span>
+                        <span className="extra-label">Monitoring Rynków</span>
+                    </div>
+                    <div className="extra-divider"></div>
+                    <div className="extra-item">
+                        <span className="extra-num">99%</span>
+                        <span className="extra-label">Trafności Analiz</span>
                     </div>
                 </div>
 
@@ -97,5 +123,5 @@ export default function Started() {
                 </button>
             </div>
         </>
-    );
+    )
 }
