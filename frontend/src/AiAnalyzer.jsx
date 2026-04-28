@@ -415,8 +415,8 @@ export default function AiAnalyzer() {
           </button>
         </div>
 
-        <div style={{ fontSize: '0.72rem', color: 'rgba(148,163,184,0.45)', textAlign: 'center', padding: '4px 0', marginBottom: '0.25rem', letterSpacing: '0.03em' }}>
-          Nie stanowi rekomendacji inwestycyjnej. Analiza techniczna i algorytmiczna — każda decyzja inwestycyjna należy wyłącznie do użytkownika.
+        <div style={{ fontSize: '0.7rem', color: 'rgba(148,163,184,0.5)', textAlign: 'center', padding: '5px 12px', marginBottom: '0.25rem', letterSpacing: '0.02em', background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.12)', borderRadius: '6px' }}>
+          ⚠ Niniejsze treści mają charakter wyłącznie edukacyjny i informacyjny. Nie stanowią rekomendacji inwestycyjnej w rozumieniu Rozporządzenia MAR (Rozporządzenie UE 596/2014) ani ustawy o obrocie instrumentami finansowymi. Każda decyzja inwestycyjna należy wyłącznie do użytkownika i podejmowana jest na jego własne ryzyko.
         </div>
 
         {!data && !loading && !error && (

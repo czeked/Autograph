@@ -797,7 +797,7 @@ app.post('/api/stock/analyze', async (req, res) => {
         const rrQualityLabel = preComputedRR >= 3.0 ? 'WYBITNY' : preComputedRR >= 2.0 ? 'ATRAKCYJNY' : preComputedRR >= 1.5 ? 'KORZYSTNY' : preComputedRR >= 1.0 ? 'AKCEPTOWALNY' : 'NIEKORZYSTNY';
 
         const promptFull = `Jestes obiektywnym, precyzyjnym analitykiem quant. Analizujesz spolke ${symbol} dla okresu ${timeframe}. DZISIEJSZA DATA: ${currentDate}.
-NIE zmyslaj danych. Uzywaj wylacznie dostarczonych wartosci. Jezyk odpowiedzi: POLSKI.
+NIE zmyslaj danych. Uzywaj wylacznie dostarczonych wartosci. Jezyk odpowiedzi: POLSKI. Pisz wylacznie poprawnym, profesjonalnym jezykiem polskim gieldowym. Zachowaj wszystkie polskie znaki diakrytyczne (ą, ę, ó, ś, ź, ż, ć, ń, ł). ZAKAZ uzywania angielskich slow tam gdzie istnieje polski odpowiednik (np. 'wsparcie' zamiast 'support', 'opor' zamiast 'resistance', 'trend wzrostowy' zamiast 'uptrend').
 
 === PELNY ZESTAW WSKAZNIKOW TECHNICZNYCH ===
 
@@ -939,7 +939,7 @@ ${(setupType === 'REVERSAL' || (ema50 < ema200)) ? `UWAGA — DEATH CROSS / TREN
 - Ostrzez ze "trend spadkowy ma statystyczna tendencje do kontynuacji do momentu pojawienia sie Golden Cross"
 - NIE LAGODZ tonu — uzytkownik MUSI wiedziec ze to ryzykowna sytuacja` : ''}
 
-summary: Napisz TRZY pelne akapity rozdzielone podwojna nowa linia (\n\n):
+summary: Napisz DOKLADNIE TRZY akapity rozdzielone podwojna nowa linia (\n\n). Kazdy akapit MAKSYMALNIE 3 zdania — zwiezle, konkretne, bez lania wody:
   Akapit 1 (TECHNICZNY): Aktualny stan na ${currentDate} — EMA cross, MACD, RSI, pozycja vs 52W High/Low, sila trendu ADX.
   Akapit 2 (KATALIZATORY I FUNDAMENTY): Wymien KONKRETNE nadchodzace wydarzenia ktore moga zmienic cene: najblizszy raport earnings (kiedy, czego sie spodziewac po ostatnim EPS surprise%), konferencje produktowe, zmiany regulacyjne, decyzje Fed, geopolityka — wszystko co jest widoczne w newsach i danych. Dodaj sentyment newsow (${quantStats.sent_bull_pct}% pozytywnych). Jesli nie ma bliskiego triggera — napisz to wprost i podaj co jest nastepnym kluczowym wydarzeniem w kalendarzu.
   Akapit 3 (REKOMENDACJA): Konkretne entry/SL/TP w dolarach, poziom przekonania, kluczowe ryzyko. NIE PODAWAJ R:R w tekscie — jest obliczany automatycznie i wyswietlany w widgecie. ZAKAZ wymieniania slow "bullScore", "bearScore", "Bias Score", "R:R", "stosunek ryzyka do zysku" ani zadnych wewnetrznych zmiennych systemowych — pisz tylko o wskaznikach technicznych, fundamentach i danych rynkowych.
@@ -990,7 +990,7 @@ sentiment_score: liczba ${Math.max(0, adjustedCompositeScore - 10)}-${Math.min(1
             try {
                 const model = genAI.getGenerativeModel({
                     model: AI_MODELS[mi],
-                    generationConfig: { responseMimeType: "application/json", responseSchema: AI_RESPONSE_SCHEMA, temperature: 0.2 },
+                    generationConfig: { responseMimeType: "application/json", responseSchema: AI_RESPONSE_SCHEMA, temperature: 0.1 },
                 });
                 const result = await Promise.race([model.generateContent(promptFull), aiTimeoutPromise()]);
                 parsedAnalysis = JSON.parse(result.response.text());
@@ -1108,6 +1108,12 @@ sentiment_score: liczba ${Math.max(0, adjustedCompositeScore - 10)}-${Math.min(1
         if (consistencyFlag && parsedAnalysis.quant_analysis?.confidence_level === 'WYSOKA') {
             parsedAnalysis.quant_analysis.confidence_level = 'SREDNIA';
             consistencyFlag += ' Pewność zdegradowana: WYSOKA→ŚREDNIA.';
+        }
+
+        // === I3: Auto-cap confidence at SREDNIA when >=2 conflicting signals ===
+        if (conflictSignals.length >= 2 && parsedAnalysis.quant_analysis?.confidence_level === 'WYSOKA') {
+            parsedAnalysis.quant_analysis.confidence_level = 'SREDNIA';
+            console.log(`[I3] ${conflictSignals.length} conflict signals detected — confidence capped WYSOKA→SREDNIA`);
         }
 
         // Chart series computed on filtered timeframe history (single source of truth for frontend)
