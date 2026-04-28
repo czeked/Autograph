@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useNotifications } from "./NotificationContext";
 
-import Dashboard from "./components/user/Dashboard";
+
 import Profile from "./components/user/Profile";
 import Notifications from "./components/user/Notifications";
 import Plans from "./components/user/Plans";
@@ -20,7 +20,7 @@ export default function UserPage() {
 
     const [hasChanges, setHasChanges] = useState(false);
     const [showWarning, setShowWarning] = useState(false);
-    const [activeSection, setActiveSection] = useState(location.state?.section || "dashboard"); // Pobierz z nawigacji
+    const [activeSection, setActiveSection] = useState(location.state?.section && location.state.section !== "dashboard" ? location.state.section : "profile"); // Default to profile, skip dashboard
     const [toast, setToast] = useState(null);
     const [pendingNavigation, setPendingNavigation] = useState(null);
     const [pendingSection, setPendingSection] = useState(null);
@@ -120,10 +120,7 @@ export default function UserPage() {
                         <hr />
 
                         <ul>
-                            <li className={activeSection === "dashboard" ? "active" : ""}
-                                onClick={() => handleClick("dashboard")}>
-                                <i className="fa-solid fa-house"></i> Panel główny
-                            </li>
+
 
                             <li className={activeSection === "notifications" ? "active" : ""}
                                 onClick={() => handleClick("notifications")}>
@@ -135,6 +132,11 @@ export default function UserPage() {
                                 ) : (
                                     <i className="fa-solid fa-bell-slash"></i>
                                 )} Powiadomienia
+                            </li>
+
+                            <li className={activeSection === "settings" ? "active" : ""}
+                                onClick={() => handleClick("settings")}>
+                                <i className="fa-solid fa-sliders"></i> Ustawienia modelu
                             </li>
                         </ul>
 
@@ -149,11 +151,6 @@ export default function UserPage() {
                             <li className={activeSection === "plans" ? "active" : ""}
                                 onClick={() => handleClick("plans")}>
                                 <i className="fa-regular fa-folder-open"></i> Plany
-                            </li>
-
-                            <li className={activeSection === "settings" ? "active" : ""}
-                                onClick={() => handleClick("settings")}>
-                                <i className="fa-solid fa-sliders"></i> Ustawienia modelu
                             </li>
                         </ul>
 
@@ -185,7 +182,7 @@ export default function UserPage() {
                 {/* 🔥 PRAWA STRONA */}
                 <div className="content">
 
-                    {activeSection === "dashboard" && <Dashboard />}
+
                     {activeSection === "notifications" && <Notifications setHasChanges={setHasChanges} currentPlan={localStorage.getItem("autograph_plan")} />}
                     {activeSection === "profile" && (
                         <Profile
