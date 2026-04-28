@@ -52,12 +52,12 @@ export default function DividendsPanel() {
         setLoading(true);
         setError("");
         try {
-            const res = await fetch("http://localhost:3001/api/dividends");
+            const res = await fetch("https://autograph-qrt6.onrender.com/api/dividends");
             const data = await res.json();
             if (data.success) {
                 setRawStocks(data.stocks);
                 if (data.lastRefresh) setLastRefresh(data.lastRefresh);
-                fetch("http://localhost:3001/api/dividends/news")
+                fetch("https://autograph-qrt6.onrender.com/api/dividends/news")
                     .then(r => r.json())
                     .then(nd => { if (nd.success) setMarketNews(nd.news); })
                     .catch(() => {});
@@ -78,7 +78,7 @@ export default function DividendsPanel() {
         setStockNews([]);
         setAiLoading(true);
         try {
-            const res = await fetch("http://localhost:3001/api/dividends/analyze", {
+            const res = await fetch("https://autograph-qrt6.onrender.com/api/dividends/analyze", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ticker: stock.ticker }),

@@ -157,7 +157,7 @@ function AiTrader() {
     setChartData([]);
 
     try {
-      const res = await fetch('http://localhost:3000/api/analyze', {
+      const res = await fetch('https://autograph-qrt6.onrender.com/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
