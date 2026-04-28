@@ -5,6 +5,7 @@ import cors from 'cors';
 import axios from 'axios';
 import { EventEmitter } from 'events';
 import { setupDividendRoutes, initDividends } from './dividends.js';
+import { setupStockRoutes } from './server.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +15,9 @@ app.use(express.json());
 
 // Mount dividend routes on main server
 setupDividendRoutes(app);
+
+// Mount stock/traditional market routes on main server
+setupStockRoutes(app);
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 

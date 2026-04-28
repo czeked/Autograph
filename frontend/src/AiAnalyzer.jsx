@@ -112,7 +112,7 @@ export default function AiAnalyzer() {
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
-      axios.get(`https://autograph-qrt6.onrender.com/api/search?q=${query}`)
+      axios.get(`https://autograph-qrt6.onrender.com/api/stock/search?q=${query}`)
         .then(res => setSuggestions(res.data)).catch(() => { });
     }, 500);
     return () => clearTimeout(delayDebounce);
@@ -128,7 +128,7 @@ export default function AiAnalyzer() {
     if (!tickerToFetch) return;
     setLoading(true); setError(''); setExpandedDay(null); setDayStreamText('');
     try {
-      const response = await axios.post('https://autograph-qrt6.onrender.com/api/analyze', {
+      const response = await axios.post('https://autograph-qrt6.onrender.com/api/stock/analyze', {
         ticker: tickerToFetch,
         timeframe: '1Y',
       }, { timeout: 120_000 });
@@ -167,7 +167,7 @@ export default function AiAnalyzer() {
     setDayLoading(true);
 
     try {
-      const response = await fetch('https://autograph-qrt6.onrender.com/api/analyze-day', {
+      const response = await fetch('https://autograph-qrt6.onrender.com/api/stock/analyze-day', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticker: symbol, date: dateStr })

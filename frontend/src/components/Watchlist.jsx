@@ -41,7 +41,7 @@ export default function Watchlist({ currentTicker, onSelect }) {
     if (!force && Date.now() - quotesTs.current < QUOTE_TTL) return;
     setLoading(true);
     const results = await Promise.allSettled(
-      tickers.map(t => axios.get(`https://autograph-qrt6.onrender.com/api/quote/${t}`).then(r => r.data))
+      tickers.map(t => axios.get(`https://autograph-qrt6.onrender.com/api/stock/quote/${t}`).then(r => r.data))
     );
     const map = {};
     results.forEach((r, i) => { if (r.status === 'fulfilled') map[tickers[i]] = r.value; });

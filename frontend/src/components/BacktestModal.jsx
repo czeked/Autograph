@@ -15,7 +15,7 @@ export default function BacktestModal({ ticker, onClose }) {
     if (cache.current[key]) { setResult(cache.current[key]); return; }
     setLoading(true); setError(''); setResult(null);
     try {
-      const r = await axios.post('https://autograph-qrt6.onrender.com/api/backtest', { ticker, slPct: +slPct, tpPct: +tpPct });
+      const r = await axios.post('https://autograph-qrt6.onrender.com/api/stock/backtest', { ticker, slPct: +slPct, tpPct: +tpPct });
       cache.current[key] = r.data;
       setResult(r.data);
     } catch (e) {

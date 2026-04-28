@@ -6,12 +6,6 @@ import axios from 'axios';
 import { calculateRSI, getSMA, calculateEMA, calculateEMASeries, calculateMACD, calculateBollingerBands, calculateATR, calculateADX, calculateStochRSI, calculateOBV, calculatePivotPoints, calculateFibonacci } from './indicators/index.js';
 import { AI_RESPONSE_SCHEMA } from './config/aiSchema.js';
 
-const app = express();
-const PORT = 3001;
-
-app.use(cors());
-app.use(express.json());
-
 // --- CACHE ---
 const analysisCache = new Map();
 const dayAnalysisCache = new Map();
@@ -57,7 +51,9 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'Brak_GEMINI_
 const FINNHUB_KEY = process.env.FINNHUB_API_KEY;
 const MASSIVE_KEY = process.env.MASSIVE_API_KEY;
 
-app.get('/api/search', async (req, res) => {
+export function setupStockRoutes(app) {
+
+app.get('/api/stock/search', async (req, res) => {
     const { q } = req.query;
     if (!q) return res.json([]);
     try {
@@ -66,7 +62,7 @@ app.get('/api/search', async (req, res) => {
     } catch (e) { res.json([]); }
 });
 
-app.post('/api/analyze', async (req, res) => {
+app.post('/api/stock/analyze', async (req, res) => {
     const { ticker, timeframe = '1Y', entryPrice, stopLoss } = req.body;
     const reqStart = Date.now();
 
@@ -1085,7 +1081,7 @@ sentiment_score: liczba ${Math.max(0, compositeScore - 10)}-${Math.min(100, comp
     }
 });
 
-app.post('/api/analyze-day', async (req, res) => {
+app.post('/api/stock/analyze-day', async (req, res) => {
     const { ticker, date } = req.body;
     if (!ticker || !date) return res.status(400).end();
 
@@ -1155,7 +1151,7 @@ Twoja odpowiedź dla ${ticker}:`;
 });
 
 // --- QUOTE (szybki kurs z cache lub Finnhub) ---
-app.get('/api/quote/:symbol', async (req, res) => {
+app.get('/api/stock/quote/:symbol', async (req, res) => {
     const symbol = req.params.symbol.toUpperCase().replace(/[^A-Z0-9.]/g, '');
     if (!symbol) return res.status(400).json({ error: 'Bad symbol' });
     const cached = analysisCache.get(`${symbol}_BASE`);
@@ -1173,7 +1169,7 @@ app.get('/api/quote/:symbol', async (req, res) => {
 });
 
 // --- BACKTEST (Golden Cross strategy na 2Y OHLCV) ---
-app.post('/api/backtest', (req, res) => {
+app.post('/api/stock/backtest', (req, res) => {
     const { ticker, slPct = 7, tpPct = 20 } = req.body;
     const symbol = (ticker || '').toUpperCase().trim();
     if (!symbol) return res.status(400).json({ error: 'Missing ticker' });
@@ -1224,4 +1220,15 @@ app.post('/api/backtest', (req, res) => {
     res.json({ symbol, trades, winRate: +(wins / trades.length * 100).toFixed(1), avgRet, totalRet, best, worst, totalTrades: trades.length, slPct, tpPct });
 });
 
-app.listen(PORT, () => console.log(`Specjalista do analizy ${PORT}`));
+} // end setupStockRoutes
+
+// ======================== STANDALONE MODE ========================
+const isMain = process.argv[1] && (process.argv[1].endsWith('server.js') || process.argv[1].endsWith('server'));
+if (isMain) {
+  const app = express();
+  const PORT = process.env.STOCK_PORT || 3001;
+  app.use(cors());
+  app.use(express.json());
+  setupStockRoutes(app);
+  app.listen(PORT, () => console.log(`✅ Stock Analyzer (standalone): http://localhost:${PORT}`));
+}
