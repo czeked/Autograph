@@ -141,21 +141,21 @@ function AiTrader() {
     try {
       const res = await axios.post('https://autograph-qrt6.onrender.com/api/analyze', { 
         ticker: value.toUpperCase(), 
-        currency: currency,
-        prompt: prompt || `Analiza ${value.toUpperCase()}/${currency}`
-      });
+        currency: currency
+      }, { timeout: 120000 });
 
       const data = res.data;
-      if (data.success) {
-        setMarketData(data.marketData);
-        setTicker(data.ticker);
+      if (data && (data.success || data.marketData)) {
+        const mData = data.marketData || data;
+        setMarketData(mData);
+        setTicker(data.ticker || value.toUpperCase());
         setChartData(data.chartData || []);
-        setAnalysis(data.analysis);
+        setAnalysis(data.analysis || data.summary || "Brak szczegółowej analizy.");
         
         // Notification dispatch
         const notifItems = [];
-        if (data.marketData.composite?.decision) {
-          notifItems.push({ type: "price", text: `🤖 ${data.ticker}: Sygnał Composite — ${data.marketData.composite.decision}`, ticker: data.ticker });
+        if (mData.composite?.decision) {
+          notifItems.push({ type: "price", text: `🤖 ${data.ticker || value.toUpperCase()}: Sygnał Composite — ${mData.composite.decision}`, ticker: data.ticker || value.toUpperCase() });
         }
         if (notifItems.length > 0) {
           window.dispatchEvent(new CustomEvent("autograph:notification", {
@@ -163,10 +163,10 @@ function AiTrader() {
           }));
         }
       } else {
-        setError(data.error || "Błąd analizy");
+        setError(data.error || "Błąd analizy - spróbuj ponownie później.");
       }
     } catch (err) {
-      setError(err.message || "Błąd połączenia z serwerem");
+      setError(err.response?.data?.error || err.message || "Błąd połączenia z serwerem Quantum.");
     } finally {
       setLoading(false);
     }
