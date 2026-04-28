@@ -14,20 +14,23 @@ export default function Started() {
 
     const handleSelectPlan = (planId) => {
         navigate('/user', { state: { section: 'plans' } });
-    };
+    }; ``
 
     return (
         <>
             <div className="div-hello" ref={helloRef}>
-                <p>
-                    Witaj w miejscu, w którym przyszłość analizy zależy od <span className="strong">Ciebie</span>.
-                </p>
+                <div className="hello-tx">
+                    <p>
+                        Witaj w miejscu, w którym przyszłość analizy zależy od <span className="strong">Ciebie</span>.
+                    </p>
 
-                <div className="tptext">
-                    Z Autograph'a korzysta już ponad 700 tys. zalogowanych użytkowników.
+                    <div className="tptext">
+                        Z Autograph'a korzysta już ponad 700 tys. zalogowanych użytkowników.
+                    </div>
+
+                    <p className="tptext-next">Ty też zacznij.</p>
                 </div>
 
-                <p className="tptext-next">Ty też zacznij.</p>
 
                 <button className="scroll-btn" onClick={() => scrollTo(offersRef)}>
                     <i className="fa-solid fa-arrow-down"></i>

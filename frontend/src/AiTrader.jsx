@@ -212,6 +212,35 @@ function AiTrader() {
         setMarketData(mappedMarketData);
         setTicker(data.ticker);
         setChartData(data.chartData || []);
+
+        // Dispatch notifications for the notification system
+        const notifItems = [];
+        const t = data.ticker;
+        if (mappedMarketData.rsi < 30) {
+          notifItems.push({ type: "price", text: `⚠️ ${t}: RSI ${mappedMarketData.rsi.toFixed(1)} — Wyprzedanie! Możliwe odbicie.`, ticker: t });
+        }
+        if (mappedMarketData.rsi > 70) {
+          notifItems.push({ type: "price", text: `⚠️ ${t}: RSI ${mappedMarketData.rsi.toFixed(1)} — Wykupienie! Ryzyko korekty.`, ticker: t });
+        }
+        if (mappedMarketData.changePercent && Math.abs(mappedMarketData.changePercent) > 3) {
+          const dir = mappedMarketData.changePercent > 0 ? "wzrósł" : "spadł";
+          notifItems.push({ type: "percent", text: `📊 ${t} ${dir} o ${Math.abs(mappedMarketData.changePercent).toFixed(2)}% w ciągu 24h`, ticker: t });
+        }
+        if (mappedMarketData.composite?.decision) {
+          const dec = mappedMarketData.composite.decision;
+          notifItems.push({ type: "price", text: `🤖 ${t}: Sygnał Composite — ${dec} (Score: ${mappedMarketData.composite.score})`, ticker: t });
+        }
+        if (mappedMarketData.news && mappedMarketData.news.length > 0) {
+          const importantNews = mappedMarketData.news.filter(n => n.isImportant);
+          if (importantNews.length > 0) {
+            notifItems.push({ type: "news", text: `📰 ${t}: ${importantNews.length} ważna wiadomość rynkowa`, ticker: t });
+          }
+        }
+        if (notifItems.length > 0) {
+          window.dispatchEvent(new CustomEvent("autograph:notification", {
+            detail: { source: "crypto", items: notifItems }
+          }));
+        }
       } else {
         setError(`❌ ${data.error}`);
       }

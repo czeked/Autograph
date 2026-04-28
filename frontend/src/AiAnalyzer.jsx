@@ -145,6 +145,31 @@ export default function AiAnalyzer() {
       setData(response.data);
       setActiveTab('glowna');
       setTimeframe('1Y'); // Resetujemy okno na pełny wgląd
+
+      // Dispatch notifications for the notification system
+      const d = response.data;
+      const notifItems = [];
+      const t = d.ticker || tickerToFetch;
+      if (d.analysis?.quant_analysis?.recommendation) {
+        const rec = d.analysis.quant_analysis.recommendation;
+        notifItems.push({ type: "percent", text: `📊 ${t}: Rekomendacja Quant — ${rec}`, ticker: t });
+      }
+      if (d.analysis?.sentiment_score != null) {
+        const s = d.analysis.sentiment_score;
+        const sLabel = s > 60 ? 'BYK' : s > 40 ? 'NEUTRALNY' : 'NIEDŹWIEDŹ';
+        notifItems.push({ type: "news", text: `🌡️ ${t}: Sentyment rynku — ${sLabel} (${s}/100)`, ticker: t });
+      }
+      if (d.analysis?.anomalies?.length > 0) {
+        notifItems.push({ type: "news", text: `⚡ ${t}: Wykryto ${d.analysis.anomalies.length} anomalii cenowych`, ticker: t });
+      }
+      if (d.setup_warning) {
+        notifItems.push({ type: "percent", text: `⚠️ ${t}: ${d.setup_warning}`, ticker: t });
+      }
+      if (notifItems.length > 0) {
+        window.dispatchEvent(new CustomEvent("autograph:notification", {
+          detail: { source: "stocks", items: notifItems }
+        }));
+      }
     } catch (err) {
       setError(err.response?.data?.error || err.message || "Błąd pobierania danych z rynku.");
     } finally {

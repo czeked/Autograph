@@ -1,8 +1,9 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 
-export default function Header() {
+export default function Header({ onNavigate }) {
     const navigate = useNavigate();
+    const location = useLocation();
     const [isMaximum, setIsMaximum] = useState(false);
 
     useEffect(() => {
@@ -20,17 +21,28 @@ export default function Header() {
         return () => window.removeEventListener("focus", handleFocus);
     }, []);
 
+    const handleNavigate = (path) => {
+        if (onNavigate) {
+            onNavigate(path);
+        } else {
+            navigate(path);
+        }
+    };
+
+
+
+
     return (
         <div className="header">
             <div className="icons">
-                <i className="fa-regular fa-user" title="Użytkownik" onClick={() => navigate("/user")}></i>
-                <i className="fa-solid fa-chart-column" title="Rynek tradycyjny" onClick={() => navigate("/autograph")}></i>
-                <i className="fa-brands fa-bitcoin" title="Kryptowaluty" onClick={() => navigate("/aitrader")}></i>
+                <i className={`fa-regular fa-user ${location.pathname === "/user" ? "selected" : ""}`} title="Użytkownik" onClick={() => handleNavigate("/user")}></i>
+                <i className={`fa-solid fa-chart-column ${location.pathname === "/autograph" ? "selected" : ""}`} title="Rynek tradycyjny" onClick={() => handleNavigate("/autograph")}></i>
+                <i className={`fa-brands fa-bitcoin ${location.pathname === "/aitrader" ? "selected" : ""}`} title="Kryptowaluty" onClick={() => handleNavigate("/aitrader")}></i>
                 {isMaximum && (
                     <i
-                        className="fa-solid fa-chart-pie ai-dividends-icon"
+                        className={`fa-solid fa-chart-pie ai-dividends-icon ${location.pathname === "/aidividends" ? "selected" : ""}`}
                         title="Spółki dywidendowe"
-                        onClick={() => navigate("/aidividends")}
+                        onClick={() => handleNavigate("/aidividends")}
                     ></i>
                 )}
             </div>

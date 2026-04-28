@@ -54,7 +54,7 @@
 .analyzer-container .header i.header-active {
   color: #58a6ff !important;
   text-shadow: 0 0 8px rgba(88, 166, 255, 0.4);
-}
+} 
 
 .analyzer-container .header h1 {
   font-family: 'Parfumerie Script', cursive;
