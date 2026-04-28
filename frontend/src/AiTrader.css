@@ -23,11 +23,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 40px 0 40px;
-  background-color: transparent;
+  padding: 0 40px;
+  background: rgba(13, 17, 23, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(48, 54, 61, 0.6);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 1000;
+  transition: background 0.3s ease;
 }
 
 .analyzer-container .icons {
@@ -3693,8 +3697,9 @@
 }
 
 .theme-light .header {
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.95);
   border-bottom-color: #d0d7de;
+  backdrop-filter: blur(12px);
 }
 
 .theme-light .header h1 {
@@ -3966,8 +3971,9 @@
 }
 
 .theme-oled .header {
-  background: #000000;
+  background: rgba(0, 0, 0, 0.97);
   border-bottom-color: #1a1a1a;
+  backdrop-filter: blur(12px);
 }
 
 .theme-oled .trader-toolbar {

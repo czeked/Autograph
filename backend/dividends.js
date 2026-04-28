@@ -451,6 +451,12 @@ Beta: ${stock.beta} | 52W Low: $${stock.fiftyTwoWeekLow} | 52W High: $${stock.fi
 
     const systemPrompt = `Rola: Analityk dywidendowy (income-first, NIE growth). TYLKO po polsku. ZERO markdown. Emoji tylko tam gdzie wskazane.
 
+KRYTYCZNE:
+- ZERO myślenia, ZERO self-correction, ZERO constraint checks w outputcie
+- NIE pisz "Check constraints", "Self-Correction", "Final check", "Wait", "Let me", "Refining", "Drafting"
+- NIE pisz nic przed [HEADER]. Pierwsza linia MUSI być [HEADER]
+- Produkujesz GOTOWY tekst dla klienta — żadnych notatek wewnętrznych
+
 ZASADY:
 - NIE powtarzaj danych liczbowych z UI (price, yield, P/E, payout, ROE)
 - Fokus na dywidendzie i decyzji inwestycyjnej
@@ -522,33 +528,79 @@ Efekt: jaka zmiana oceny/rekomendacji
 
     let aiAnalysis = await generateWithFallback(prompt, systemPrompt);
     
-    const lines = aiAnalysis.split('\n');
+    // ══════ AGRESYWNE CZYSZCZENIE ══════
+    // Dozwolone sekcje
+    const VALID_SECTIONS = new Set([
+      'HEADER','CONFIDENCE_REASON','PROS','CONS','NEUTRAL',
+      'NEWS','SCORES','TREND','SCENARIO_BULL','SCENARIO_BEAR','ALERT','ANOMALY'
+    ]);
     
-    // Znajdź [HEADER] lub fallback do "Score:" jako start
-    let cleanStart = -1;
-    for (let i = 0; i < lines.length; i++) {
-      const t = lines[i].trim();
-      if (t === '[HEADER]' || /^Score:\s/i.test(t)) {
-        cleanStart = i;
-        break;
-      }
-    }
+    // Wzorce AI thinking/self-correction do usunięcia
+    const JUNK_PATTERNS = [
+      /^(check|self[- ]?correct|final|wait|let me|refining|drafting|ready|one more|i (will|used|must|should|chose)|the (prompt|template|ui|output)|standard markdown)/i,
+      /^(in \[|my output|i'll|this is|the user|warning|note:|important:)/i,
+      /^[-*]\s*(polish|language|formatting|style|structure|emoji|no |check |avoid |ensure )/i,
+      /constraint/i,
+      /^(yes\.|correct\.|allowed\.)/i,
+    ];
     
-    if (cleanStart >= 0) {
-      // Znajdź koniec — po [ANOMALY] content, [ALERT] content, lub ostatnia sekcja
-      let cleanEnd = lines.length;
-      for (let i = lines.length - 1; i >= cleanStart; i--) {
-        const t = lines[i].trim();
-        if (t && !t.startsWith('[')) {
-          cleanEnd = i + 1;
-          break;
+    const rawLines = aiAnalysis.split('\n');
+    const cleanLines = [];
+    let inValidSection = false;
+    let foundHeader = false;
+    
+    for (const line of rawLines) {
+      const t = line.trim();
+      if (!t) { cleanLines.push(''); continue; }
+      
+      // Detect section markers
+      const secMatch = t.match(/^\[([\w_]+)\]$/);
+      if (secMatch) {
+        if (VALID_SECTIONS.has(secMatch[1])) {
+          inValidSection = true;
+          if (secMatch[1] === 'HEADER') foundHeader = true;
+          cleanLines.push(t);
+        } else {
+          inValidSection = false;
         }
+        continue;
       }
-      aiAnalysis = lines.slice(cleanStart, cleanEnd).join('\n');
+      
+      // Before [HEADER] found — skip everything (AI preamble/thinking)
+      if (!foundHeader) {
+        // Exception: if line starts with Score: treat as HEADER content
+        if (/^Score:\s/i.test(t)) {
+          foundHeader = true;
+          inValidSection = true;
+          cleanLines.push('[HEADER]');
+          cleanLines.push(t);
+        }
+        continue;
+      }
+      
+      // Check if line matches junk patterns
+      let isJunk = false;
+      for (const pat of JUNK_PATTERNS) {
+        if (pat.test(t)) { isJunk = true; break; }
+      }
+      if (isJunk) continue;
+      
+      // Skip lines that look like meta-commentary
+      if (t.startsWith('//') || t.startsWith('/*') || t.startsWith('```')) continue;
+      
+      if (inValidSection) {
+        cleanLines.push(t);
+      }
     }
     
-    // Usuń markdown artefakty, zachowaj section markers [HEADER] etc.
-    aiAnalysis = aiAnalysis.replace(/\*/g, '').replace(/_{2,}/g, '').replace(/#{1,}/g, '').trim();
+    // Remove trailing empty lines and markdown artifacts
+    aiAnalysis = cleanLines.join('\n')
+      .replace(/\*{1,2}/g, '')
+      .replace(/_{2,}/g, '')
+      .replace(/#{1,}\s/g, '')
+      .replace(/`{1,3}/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
     
     console.log(`  📰 Uwzględniono ${news.length} newsów w analizie ${ticker}`);
 

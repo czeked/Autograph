@@ -1043,7 +1043,7 @@ async function getMarketContext() {
     return macroCache.data;
   }
   try {
-    const globalRes = await axios.get('https://api.coingecko.com/api/v3/global', { timeout: 5000 });
+    const globalRes = await axiosWithRetry('https://api.coingecko.com/api/v3/global', { timeout: 8000 });
     const gd = globalRes.data?.data;
     const result = {
       btcDominance: gd?.market_cap_percentage?.btc ? +gd.market_cap_percentage.btc.toFixed(1) : null,
@@ -1251,6 +1251,25 @@ function analyzeMacroTrend(data) {
 
 // ======================== COINGECKO ========================
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function axiosWithRetry(url, options, maxRetries = 3) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await axios.get(url, options);
+    } catch (err) {
+      const status = err.response?.status;
+      if (status === 429 && attempt < maxRetries) {
+        const delay = Math.pow(2, attempt + 1) * 1000 + Math.random() * 1000;
+        console.log(`⏳ CoinGecko 429 rate limit — retry ${attempt + 1}/${maxRetries} po ${(delay / 1000).toFixed(1)}s`);
+        await sleep(delay);
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 async function getCoinGeckoData(ticker, currency = 'USD') {
   try {
     const coinId = COINGECKO_MAP[ticker.toUpperCase()];
@@ -1260,17 +1279,18 @@ async function getCoinGeckoData(ticker, currency = 'USD') {
 
     console.log(`🔄 CoinGecko: ${ticker} (${coinId})`);
 
-    // Pobierz prawdziwe OHLC + market_chart równolegle
-    const [ohlcRes, chartRes] = await Promise.all([
-      axios.get(`https://api.coingecko.com/api/v3/coins/${coinId}/ohlc`, {
-        params: { vs_currency: currency.toLowerCase(), days: 30 },
-        timeout: 10000
-      }),
-      axios.get(`https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`, {
-        params: { vs_currency: currency.toLowerCase(), days: 30, interval: 'daily' },
-        timeout: 10000
-      })
-    ]);
+    // Sequential calls with small delay to avoid 429 rate limits
+    const ohlcRes = await axiosWithRetry(`https://api.coingecko.com/api/v3/coins/${coinId}/ohlc`, {
+      params: { vs_currency: currency.toLowerCase(), days: 30 },
+      timeout: 15000
+    });
+
+    await sleep(1200);
+
+    const chartRes = await axiosWithRetry(`https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`, {
+      params: { vs_currency: currency.toLowerCase(), days: 30, interval: 'daily' },
+      timeout: 15000
+    });
 
     const volumes = chartRes.data.total_volumes?.map(v => parseFloat(v[1])) || [];
     const marketCaps = chartRes.data.market_caps?.map(m => parseFloat(m[1])) || [];
