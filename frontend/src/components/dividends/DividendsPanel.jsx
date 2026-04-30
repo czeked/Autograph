@@ -58,7 +58,36 @@ export default function DividendsPanel() {
             if (data.success) {
                 setRawStocks(data.stocks);
                 if (data.lastRefresh) setLastRefresh(data.lastRefresh);
+<<<<<<< HEAD
                 fetch(`${API_URL}/api/dividends/news`)
+=======
+
+                // Dispatch notifications for the notification system
+                const notifItems = [];
+                const enrichedStocks = data.stocks.map(enrichStock);
+                const buyStocks = enrichedStocks.filter(s => s.verdict === "KUPUJ");
+                if (buyStocks.length > 0) {
+                    const topBuy = buyStocks[0];
+                    notifItems.push({ type: "reports", text: `🏆 TOP Pick: ${topBuy.ticker} — ${topBuy.name} (Yield: ${topBuy.dividendYield?.toFixed(2)}%)`, ticker: topBuy.ticker });
+                }
+                const upcomingDiv = enrichedStocks
+                    .filter(s => s.exDivDate && s.exDivDate !== "N/A" && s.exDivDate !== "—")
+                    .sort((a, b) => new Date(a.exDivDate) - new Date(b.exDivDate));
+                if (upcomingDiv.length > 0) {
+                    const next = upcomingDiv[0];
+                    notifItems.push({ type: "day", text: `📅 Najbliższa dywidenda: ${next.ticker} — ex-div ${next.exDivDate}`, ticker: next.ticker });
+                }
+                if (buyStocks.length >= 3) {
+                    notifItems.push({ type: "percent", text: `📊 ${buyStocks.length} spółek z rekomendacją KUPUJ`, ticker: "" });
+                }
+                if (notifItems.length > 0) {
+                    window.dispatchEvent(new CustomEvent("autograph:notification", {
+                        detail: { source: "dividends", items: notifItems }
+                    }));
+                }
+
+                fetch("https://autograph-qrt6.onrender.com/api/dividends/news")
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
                     .then(r => r.json())
                     .then(nd => { if (nd.success) setMarketNews(nd.news); })
                     .catch(() => {});

@@ -6,7 +6,7 @@ export default function Footer() {
             <div className="texts">
                 <div className="version">
                     <h1>Autograph</h1>
-                    <p>wersja 1.92.17426</p>
+                    <p>wersja 2.14.29426</p>
                 </div>
 
                 <div className="motivation">

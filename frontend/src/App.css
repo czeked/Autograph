@@ -76,6 +76,7 @@
     background-color: transparent;
     z-index: 3;
     position: absolute;
+    pointer-events: none;
 }
 
 .icons {
@@ -88,6 +89,7 @@
     cursor: pointer;
     color: #fff !important;
     transition: color 0.3s, text-shadow 0.3s !important;
+    pointer-events: auto;
 }
 
 .header i:hover {
@@ -95,19 +97,24 @@
     text-shadow: 0 0 12px rgba(255, 215, 0, 0.6), 0 0 24px rgba(255, 215, 0, 0.3);
 }
 
+.header .icons i.selected {
+    color: #58a6ff !important;
+    text-shadow: 0 0 8px rgba(88, 166, 255, 0.4) !important;
+}
+
 .header h1 {
     font-family: 'Parfumerie Script', cursive;
     font-size: 64px;
     color: #fff;
     cursor: default;
+    pointer-events: auto;
 }
 
 .homepage {
-    background: linear-gradient(rgba(98, 62, 42, 0.4), rgba(98, 62, 42, 0.4)),
-        url("imgs/bg-grand.png");
-    background-repeat: no-repeat;
-    background-size: cover;
-    background-position: center;
+    background: #0a0a0a;
+    background: radial-gradient(circle at center, #1a1a1a 0%, #050505 100%);
+    position: relative;
+    overflow: hidden;
     height: 100vh;
     width: 100%;
     z-index: 1;
@@ -118,9 +125,52 @@
     color: #fff;
 }
 
+/* Central Glow following the mouse */
+.homepage::before {
+    content: '';
+    position: absolute;
+    top: var(--mouse-y, 50%);
+    left: var(--mouse-x, 50%);
+    transform: translate(-50%, -50%);
+    width: 900px;
+    height: 900px;
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.3) 0%, transparent 65%);
+    z-index: -1;
+    filter: blur(100px);
+    pointer-events: none;
+    transition: top 0.1s ease-out, left 0.1s ease-out; /* Smooth follow */
+}
+
+/* Floating Particles (Financial Rain effect) - Rising from bottom to top */
+.homepage::after {
+    content: '₿  Ξ  %  📈  $  Ł  ₮  📊  €  ₿  Ξ  £  %  ¥  ₿  Ξ  %  📈  $  Ł  ₮  📊  €  ₿  Ξ  £  %  ¥';
+    position: absolute;
+    bottom: -100%;
+    left: 0;
+    width: 100%;
+    height: 300%;
+    font-size: 26px;
+    color: rgba(255, 255, 255, 0.08);
+    white-space: pre-wrap;
+    word-spacing: 12vw;
+    line-height: 12vh;
+    z-index: -1;
+    pointer-events: none;
+    animation: risingIcons 25s linear infinite;
+}
+
+@keyframes risingIcons {
+    from { transform: translateY(0); }
+    to { transform: translateY(-33.33%); }
+}
+
+
+
 .homepage h1 {
     font-family: 'Parfumerie Script', cursive;
     font-size: 226px;
+    position: relative;
+    text-shadow: 0 0 30px rgba(255,255,255,0.1);
 }
 
 .homepage p {
@@ -278,45 +328,50 @@
 /* GETSTARTED PAGE */
 
 .div-hello {
-    background: url("imgs/bg-started1.png");
+    background-image: 
+    linear-gradient(to right, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 70%, rgba(0,0,0,0.8) 100%),
+    url("imgs/bg-started1.png");
     background-repeat: no-repeat;
     background-size: cover;
     background-position: center;
     height: 100vh;
     width: 100%;
+    font-family: 'Cy Grotesk Key', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+ 
+.hello-tx {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: center;
-    gap: 150px;
-    font-family: 'Cy Grotesk Key', sans-serif;
-
+    align-items: left;
+    gap: 50px;
 }
 
 .div-hello p {
-    font-size: 46px;
-    width: 35%;
+    font-family: 'Cy Grotesk Key', sans-serif;
+    font-size: 52px;
+    width: 48%;
     color: #fff;
     text-align: center;
 }
 
 .strong {
-    font-family: 'cy Grotesk Key Bold', sans-serif;
+    font-family: 'Cy Grotesk Grand Bold', sans-serif;
 }
 
 .tptext {
-    width: 100%;
-    background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6));
+    font-family: 'Cy Grotesk Key', sans-serif;
     color: #fff;
-    display: flex;
-    justify-content: center;
+    font-size: 32px;
+    width: 48%;
     text-align: center;
-    padding: 8px 34%;
-    font-size: 28px;
 }
 
-.tptext-next {
-    font-family: 'Cy Grotesk Key Bold', sans-serif;
+.hello-tx .tptext-next {
+    font-family: 'Cy Grotesk Grand Bold', sans-serif;
 }
 
 
@@ -325,67 +380,168 @@
 
 
 .div-offers {
-    background: linear-gradient(rgba(98, 62, 42, 0.4), rgba(98, 62, 42, 0.4)), url("imgs/bg-started2.png");
-    background-repeat: no-repeat;
-    background-size: cover;
-    background-position: center;
+    background: #0d0d17;
+    background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0d0d17 100%);
+    position: relative;
+    overflow: hidden;
     height: 100vh;
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 250px;
+    justify-content: flex-start;
+    padding-top: 80px;
+    gap: 100px;
+}
+
+.div-offers::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: radial-gradient(rgba(0, 168, 214, 0.1) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.3;
 }
 
 .div-offers h1 {
     font-family: 'Cy Grotesk Grand', sans-serif;
-    font-size: 34px;
-    text-transform: uppercase;
+    font-size: 64px;
     text-align: center;
-    padding: 40px 0 25px 0;
+    color: #fff;
+    margin-bottom: 5px;
+}
+
+.div-offers-subtitle {
+    text-align: center;
+    color: #00a8d6;
+    font-size: 14px;
+    font-family: 'Cy Grotesk Key', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
 }
 
 .icons-s {
-    display: flex;
-    justify-content: center;
-    flex-direction: row;
-    gap: 200px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 0 40px;
+    gap: 40px;
 }
 
 .icons-sep {
-    font-family: 'cy grotesk grand', sans-serif;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+    padding: 40px 30px;
+    border-radius: 20px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    align-items: center;
     text-align: center;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+}
+
+.icons-sep:hover {
+    transform: translateY(-10px);
+    background: rgba(255,255,255,0.06);
+    border-color: #00a8d6;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
 }
 
 .icons-sep i {
-    text-align: center;
     font-size: 48px;
-    margin-bottom: 10px;
+    color: #00a8d6;
+    margin-bottom: 25px;
+}
+
+.icons-sep h3 {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    color: #fff;
+    font-size: 22px;
+    margin-bottom: 15px;
+    text-transform: uppercase;
 }
 
 .icons-sep p {
-    text-align: center;
-    font-size: 32px;
-    width: 400px;
+    font-family: 'Cy Grotesk Key', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #b0b0b0;
+    width: 100% !important;
 }
+
+.offers-extra {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 60px;
+    margin-top: 40px;
+    padding: 30px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 100px;
+    border: 1px solid rgba(255,255,255,0.05);
+    max-width: 900px;
+    margin: 40px auto 0;
+}
+
+.extra-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.extra-num {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 38px;
+    color: #fff;
+    line-height: 1;
+}
+
+.extra-label {
+    font-family: 'Cy Grotesk Key', sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #00a8d6;
+    margin-top: 5px;
+}
+
+.extra-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(255,255,255,0.1);
+}
+
+
 
 
 
 
 
 .div-plans {
-    background: linear-gradient(rgba(98, 62, 42, 0.4), rgba(98, 62, 42, 0.4)), url("imgs/bg-started3.png");
-    background-repeat: no-repeat;
-    background-size: cover;
-    background-position: center;
+    background: linear-gradient(135deg, #020205 0%, #15152b 50%, #020205 100%);
+    position: relative;
+    overflow: hidden;
     height: 100vh;
     width: 100%;
 }
 
+.div-plans::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 80% 20%, rgba(0, 168, 214, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 10% 90%, rgba(167, 139, 250, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.4) 100%);
+    pointer-events: none;
+}
+
 .div-plans h1 {
-    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-family: 'Cy Grotesk Grand Bold', sans-serif;
     font-size: 58px;
     text-transform: uppercase;
     text-align: center;
@@ -422,11 +578,12 @@
 
 .block-plan:nth-child(2) button {
     background-color: #ffd700;
+    transition: background-color .3s;
 }
 
 .block-plan:nth-child(2) button:hover {
     background-color: #ddb500;
-    transition: background-color .3s;
+    
 }
 
 .block-plan i {
@@ -434,7 +591,7 @@
 }
 
 .block-plan h2 {
-    font-family: 'Cy Grotesk Key', sans-serif;
+    font-family: 'Cy Grotesk Grand', sans-serif;
     padding: 40px 0 10px 0;
     font-size: 36px;
 }
@@ -448,18 +605,40 @@
 .block-plan button {
     font-family: 'Cy Grotesk Grand Bold', sans-serif;
     color: #fff;
-    background-color: #574335;
+    background-color: #440557;
     font-size: 24px;
     text-transform: uppercase;
     padding: 12px 40px;
     cursor: pointer;
     border-radius: 20px;
     border: none;
+    transition: background-color .3s;
 }
 
 .block-plan button:hover {
-    background-color: #796557;
-    transition: background-color .3s;
+    background-color: #662779;
+    
+}
+
+.back-to-top-btn {
+    display: block;
+    margin: 50px auto 0 auto;
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.back-to-top-btn:hover {
+    background: #fff;
+    color: #000;
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(255, 255, 255, 0.1);
 }
 
 .div-plans .plans-logo {
@@ -495,9 +674,6 @@
 
 
 
-
-
-
 /* USER PAGE */
 
 .user-side {
@@ -509,6 +685,23 @@
     display: flex;
     flex-direction: column;
     font-family: 'Cy Grotesk Key', sans-serif;
+}
+
+.user-side-scrollable {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin-bottom: 65px; /* Dodatkowe miejsce by content nie chował się pod przyciskiem */
+    display: flex;
+    flex-direction: column;
+}
+
+.user-side-scrollable::-webkit-scrollbar {
+    width: 4px;
+}
+.user-side-scrollable::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 4px;
 }
 
 /* USER HEADER */
@@ -656,7 +849,7 @@
 }
 
 .save-btn {
-    margin-top: auto;
+    margin-top: 270px;
     padding: 12px;
     border: none;
     border-radius: 8px;
@@ -722,13 +915,19 @@
 
 .layout {
     display: flex;
+    padding-top: 120px;
+    background: linear-gradient(to right, #212121 0%, #212121 235px, #1d1d1d 285px, #1d1d1d 100%);
+    height: 100vh;
+    overflow: hidden;
 }
 
 .content {
     flex: 1;
     padding: 30px;
     background: #1d1d1d;
-    min-height: 100vh;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .scroll-btn {
@@ -799,108 +998,256 @@
 
 
 
-.panel-plans h1 {
-    font-family: 'Cy Grotesk Grand Bold', sans-serif;
-    font-size: 48px;
-}
 
 
 
 
 
-.panel-profile h1 {
-    font-family: 'Cy Grotesk Grand Bold', sans-serif;
-    font-size: 48px;
-}
 
-.profile-tab {
-    display: flex;
-    flex-direction: row;
-    gap: 50px;
-}
-
-.profile-card,
-.profile-img {
-    width: 50%;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    justify-content: center;
-}
-
-.profile-card input {
-    padding: 20px;
-    border: none;
-    border-radius: 25px;
-    background-color: #3e3e3e;
+/* ── MODERN PROFILE SECTION ── */
+/* ── MODERN USER PANELS ── */
+.panel-profile, 
+.panel-notifications, 
+.panel-settings, 
+.panel-help {
+    padding: 0 20px 40px 20px; /* Removed top padding to allow header to move up */
     color: #fff;
-    font-family: 'Cy Grotesk Key', sans-serif;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.panel-plans{
+    max-width: 1600px;
+}
+
+.panel-profile {
+    max-width: 1000px;
+}
+
+/* ── MODERN PANEL HEADERS ── */
+.panel-header {
+    text-align: center;
+    margin-top: -10px;
+    margin-bottom: 50px;
+}
+
+.panel-header h1 {
+    font-family: 'Cy Grotesk Grand Bold', sans-serif;
+    font-size: 52px;
+    margin-bottom: 10px;
+    background: none;
+    -webkit-text-fill-color: #fff;
+    line-height: 1.1;
+}
+
+.panel-header p {
+    color: #888;
     font-size: 16px;
-    width: 80%;
+    font-family: 'Cy Grotesk Key', sans-serif;
 }
 
-.profile-img {
-    align-items: center;
-}
-
-.profile-img img {
-    width: 160px;
-    height: 160px;
-    border-radius: 50%;
-    
-}
-
-.profile-img button {
-    padding: 10px;
-    border: none;
+.profile-main-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 40px;
     border-radius: 20px;
-    background-color: #3e3e3e;
-    color: #fff;
-    font-family: 'Cy Grotesk Grand', sans-serif;
-    font-size: 14px;
-    width: 16%;
+    margin-bottom: 40px;
+    backdrop-filter: blur(10px);
+}
+
+.avatar-section {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    margin-bottom: 40px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.avatar-wrapper {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    overflow: hidden;
     cursor: pointer;
 }
 
-.profile-img button:hover {
-    background-color: #333;
-    transition: background-color .3s;
+.avatar-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
-.profile-tab-sec {
-    padding-right: 50px;
+.avatar-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: 0.3s;
 }
 
-.profile-tab-sec h1 {
-    margin: 50px 0 15px 0;
+.avatar-wrapper:hover .avatar-overlay {
+    opacity: 1;
+}
+
+.avatar-overlay i {
     font-size: 24px;
+    color: #fff;
 }
 
-.profile-tab-sec span {
-    font-size: 14px;
+.avatar-info h3 {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 18px;
+    margin-bottom: 5px;
+}
+
+.avatar-info p {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 15px;
+}
+
+.upload-btn {
+    background: rgba(0, 168, 214, 0.1);
+    border: 1px solid rgba(0, 168, 214, 0.2);
+    color: #00a8d6;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: 'Cy Grotesk Key Bold', sans-serif;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.upload-btn:hover {
+    background: rgba(0, 168, 214, 0.2);
+    transform: translateY(-2px);
+}
+
+.profile-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.form-group label {
+    font-family: 'Cy Grotesk Key Bold', sans-serif;
+    font-size: 13px;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon i {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #555;
+}
+
+.form-group input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 14px 15px;
+    border-radius: 12px;
+    color: #fff;
     font-family: 'Cy Grotesk Key', sans-serif;
-
+    font-size: 15px;
+    outline: none;
+    transition: 0.3s;
 }
 
-
-
-
-.panel-settings h1 {
-    font-family: 'Cy Grotesk Grand Bold', sans-serif;
-    font-size: 48px;
+.input-with-icon input {
+    padding-left: 45px;
 }
 
+.form-group input:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #00a8d6;
+    box-shadow: 0 0 15px rgba(0, 168, 214, 0.1);
+}
 
+.profile-secondary-section {
+    margin-top: 20px;
+}
 
-
-
-
-
-.panel-notifications h1 {
-    font-family: 'Cy Grotesk Grand Bold', sans-serif;
-    font-size: 48px;
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     margin-bottom: 25px;
 }
+
+.section-title i {
+    font-size: 20px;
+    color: #00a8d6;
+}
+
+.section-title h2 {
+    font-family: 'Cy Grotesk Grand', sans-serif;
+    font-size: 22px;
+}
+
+.security-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 30px;
+    border-radius: 20px;
+}
+
+.security-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.security-footer p {
+    font-size: 13px;
+    color: #555;
+}
+
+.security-footer a {
+    color: #00a8d6;
+    text-decoration: none;
+    font-size: 13px;
+    font-family: 'Cy Grotesk Key Bold', sans-serif;
+}
+
+.security-footer a:hover {
+    text-decoration: underline;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1021,13 +1368,11 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-        to bottom,
-        rgba(00,00,00,0) 0%,
-        rgba(30,30,30,0.5) 20%,
-        rgba(30,30,30,0.8) 40%,
-        rgba(30,30,30,1) 100%
-    );
+    background: linear-gradient(to bottom,
+            rgba(00, 00, 00, 0) 0%,
+            rgba(30, 30, 30, 0.5) 20%,
+            rgba(30, 30, 30, 0.8) 40%,
+            rgba(30, 30, 30, 1) 100%);
     pointer-events: none;
     z-index: 2;
 }
@@ -1126,7 +1471,417 @@
     color: #ef4444;
 }
 
+/* ============================================================
+   NOTIFICATION BANNER — Top of screen
+   ============================================================ */
+@keyframes notif-banner-slide-in {
+    0% { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+    100% { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
 
+@keyframes notif-banner-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+}
+
+@keyframes notif-bell-ring {
+    0% { transform: rotate(0deg); }
+    10% { transform: rotate(14deg); }
+    20% { transform: rotate(-14deg); }
+    30% { transform: rotate(10deg); }
+    40% { transform: rotate(-10deg); }
+    50% { transform: rotate(6deg); }
+    60% { transform: rotate(-4deg); }
+    70% { transform: rotate(2deg); }
+    80% { transform: rotate(-1deg); }
+    100% { transform: rotate(0deg); }
+}
+
+.notification-banner {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 99999;
+    animation: notif-banner-slide-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    cursor: pointer;
+    max-width: 700px;
+    width: 90%;
+}
+
+.notification-banner-inner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 20px;
+    background: rgba(30, 30, 30, 0.92);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.05),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    position: relative;
+    overflow: hidden;
+}
+
+.notification-banner-inner::before {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #06b6d4);
+    animation: notif-banner-pulse 2s ease-in-out infinite;
+}
+
+.notification-banner-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.notification-bell-pulse {
+    color: #60a5fa;
+    font-size: 18px;
+    animation: notif-bell-ring 1s ease-in-out;
+}
+
+.notification-banner-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.notification-banner-label {
+    font-size: 11px;
+    color: #888;
+    letter-spacing: 0.04em;
+    font-family: 'Cy Grotesk Key', sans-serif;
+}
+
+.notification-banner-source {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Cy Grotesk Grand', sans-serif;
+}
+
+.notification-banner-source-icon {
+    font-size: 16px;
+}
+
+.notification-banner-preview {
+    flex: 1;
+    font-size: 13px;
+    color: #aaa;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'Cy Grotesk Key', sans-serif;
+    padding: 0 8px;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.notification-banner-close {
+    background: rgba(255, 255, 255, 0.06);
+    border: none;
+    color: #888;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.notification-banner-close:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+/* ============================================================
+   NOTIFICATION FEED — Items in UserPage
+   ============================================================ */
+.notify-feed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.notify-feed-header h3 {
+    margin: 0;
+}
+
+.notify-feed-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.notify-action-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #aaa;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.notify-action-btn:hover {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.3);
+    color: #60a5fa;
+}
+
+.notify-action-btn--danger:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+/* Empty state */
+.notify-empty {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 40px 20px;
+    border-radius: 16px;
+    color: #666;
+    text-align: center;
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.notify-empty-icon {
+    font-size: 36px;
+    color: #444;
+    margin-bottom: 8px;
+}
+
+.notify-empty p {
+    font-size: 16px;
+    color: #888;
+    margin: 0;
+    font-family: 'Cy Grotesk Grand', sans-serif;
+}
+
+.notify-empty-hint {
+    font-size: 13px;
+    color: #555;
+    font-family: 'Cy Grotesk Key', sans-serif;
+}
+
+/* Items list */
+.notify-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.notify-items-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.notify-items-list::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+
+/* Single notification item */
+.notify-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.notify-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.notify-item--unread {
+    background: rgba(59, 130, 246, 0.04);
+    border-color: rgba(59, 130, 246, 0.12);
+}
+
+.notify-item--unread::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, #3b82f6, #8b5cf6);
+    border-radius: 3px 0 0 3px;
+}
+
+.notify-item-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 18px;
+}
+
+.notify-item-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.notify-item-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.notify-source-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.03em;
+    font-family: 'Cy Grotesk Key', sans-serif;
+}
+
+.notify-source-badge--crypto {
+    background: rgba(247, 147, 26, 0.12);
+    color: #f7931a;
+    border: 1px solid rgba(247, 147, 26, 0.2);
+}
+
+.notify-source-badge--stocks {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.notify-source-badge--dividends {
+    background: rgba(139, 92, 246, 0.12);
+    color: #8b5cf6;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.notify-source-badge--system {
+    background: rgba(100, 116, 139, 0.12);
+    color: #94a3b8;
+    border: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+.notify-badge-new {
+    font-size: 10px;
+    font-weight: 700;
+    color: #60a5fa;
+    background: rgba(59, 130, 246, 0.15);
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: 'Cy Grotesk Key', sans-serif;
+}
+
+.notify-item-text {
+    font-size: 14px;
+    color: #ddd;
+    line-height: 1.45;
+    margin: 0;
+    font-family: 'Cy Grotesk Key', sans-serif;
+}
+
+.notify-item-ticker {
+    font-size: 11px;
+    font-weight: 700;
+    color: #60a5fa;
+    background: rgba(59, 130, 246, 0.1);
+    padding: 1px 6px;
+    border-radius: 4px;
+    width: fit-content;
+    font-family: 'Cy Grotesk Key', sans-serif;
+}
+
+.notify-item-time {
+    font-size: 11px;
+    color: #555;
+    font-family: 'Cy Grotesk Key', sans-serif;
+}
+
+.notify-item .remove-btn {
+    align-self: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.notify-item:hover .remove-btn {
+    opacity: 1;
+}
+
+/* ============================================================
+   SIDEBAR NOTIFICATION BADGE
+   ============================================================ */
+.sidebar-notif-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.sidebar-notif-badge {
+    position: absolute;
+    top: -6px;
+    right: -10px;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+    font-family: 'Cy Grotesk Key', sans-serif;
+    line-height: 1;
+}
 
 
 .panel-help h1 {
@@ -1659,7 +2414,7 @@
     gap: 20px;
 }
 
-.div-panel-title > i {
+.div-panel-title>i {
     font-size: 52px;
     color: #a78bfa;
     text-shadow: 0 0 20px rgba(167, 139, 250, 0.4);
@@ -1726,11 +2481,6 @@
     transform: translateY(-2px);
 }
 
-.div-stat-clickable:hover {
-    border-color: rgba(59, 130, 246, 0.5) !important;
-    background: rgba(59, 130, 246, 0.08) !important;
-}
-
 .div-stat-card > i {
     font-size: 26px;
     color: #a78bfa;
@@ -1739,7 +2489,7 @@
     flex-shrink: 0;
 }
 
-.div-stat-card > div {
+.div-stat-card>div {
     display: flex;
     flex-direction: column;
     gap: 2px;

@@ -5,15 +5,19 @@ import API_URL from './config';
 
 function AiTrader() {
   const navigate = useNavigate();
-  const [searchTicker, setSearchTicker] = useState('BTC');
-  const [currency, setCurrency] = useState('USD');
+  const [searchTicker, setSearchTicker] = useState(() => localStorage.getItem('aitrader_search_ticker') || 'BTC');
+  const [currency, setCurrency] = useState(() => localStorage.getItem('aitrader_currency') || 'USD');
   const [prompt, setPrompt] = useState('');
-  const [analysis, setAnalysis] = useState('');
+  const [analysis, setAnalysis] = useState(() => localStorage.getItem('aitrader_last_analysis') || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [marketData, setMarketData] = useState(null);
-  const [ticker, setTicker] = useState('');
-  const [chartData, setChartData] = useState([]);
+  const [marketData, setMarketData] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('aitrader_last_market_data')) || null; } catch { return null; }
+  });
+  const [ticker, setTicker] = useState(() => localStorage.getItem('aitrader_last_ticker') || '');
+  const [chartData, setChartData] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('aitrader_last_chart_data')) || []; } catch { return []; }
+  });
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [livePrice, setLivePrice] = useState(null);
@@ -37,6 +41,16 @@ function AiTrader() {
   useEffect(() => {
     localStorage.setItem('ai_trader_theme', theme);
   }, [theme]);
+
+  // Persist session data
+  useEffect(() => {
+    if (analysis) localStorage.setItem('aitrader_last_analysis', analysis);
+    if (marketData) localStorage.setItem('aitrader_last_market_data', JSON.stringify(marketData));
+    if (ticker) localStorage.setItem('aitrader_last_ticker', ticker);
+    if (chartData && chartData.length > 0) localStorage.setItem('aitrader_last_chart_data', JSON.stringify(chartData));
+    localStorage.setItem('aitrader_currency', currency);
+    localStorage.setItem('aitrader_search_ticker', searchTicker);
+  }, [analysis, marketData, ticker, chartData, currency, searchTicker]);
 
   const toggleFavorite = (crypto) => {
     setFavorites(prev => {
@@ -238,6 +252,35 @@ function AiTrader() {
         setMarketData(mappedMarketData);
         setTicker(data.ticker);
         setChartData(data.chartData || []);
+
+        // Dispatch notifications for the notification system
+        const notifItems = [];
+        const t = data.ticker;
+        if (mappedMarketData.rsi < 30) {
+          notifItems.push({ type: "price", text: `⚠️ ${t}: RSI ${mappedMarketData.rsi.toFixed(1)} — Wyprzedanie! Możliwe odbicie.`, ticker: t });
+        }
+        if (mappedMarketData.rsi > 70) {
+          notifItems.push({ type: "price", text: `⚠️ ${t}: RSI ${mappedMarketData.rsi.toFixed(1)} — Wykupienie! Ryzyko korekty.`, ticker: t });
+        }
+        if (mappedMarketData.changePercent && Math.abs(mappedMarketData.changePercent) > 3) {
+          const dir = mappedMarketData.changePercent > 0 ? "wzrósł" : "spadł";
+          notifItems.push({ type: "percent", text: `📊 ${t} ${dir} o ${Math.abs(mappedMarketData.changePercent).toFixed(2)}% w ciągu 24h`, ticker: t });
+        }
+        if (mappedMarketData.composite?.decision) {
+          const dec = mappedMarketData.composite.decision;
+          notifItems.push({ type: "price", text: `🤖 ${t}: Sygnał Composite — ${dec} (Score: ${mappedMarketData.composite.score})`, ticker: t });
+        }
+        if (mappedMarketData.news && mappedMarketData.news.length > 0) {
+          const importantNews = mappedMarketData.news.filter(n => n.isImportant);
+          if (importantNews.length > 0) {
+            notifItems.push({ type: "news", text: `📰 ${t}: ${importantNews.length} ważna wiadomość rynkowa`, ticker: t });
+          }
+        }
+        if (notifItems.length > 0) {
+          window.dispatchEvent(new CustomEvent("autograph:notification", {
+            detail: { source: "crypto", items: notifItems }
+          }));
+        }
       } else {
         const errMsg = data.error || 'Nieznany błąd serwera';
         if (res.status === 500) {

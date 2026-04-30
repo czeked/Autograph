@@ -49,7 +49,10 @@ export default function Plans({ showToast }) {
 
     return (
         <div className="panel-plans">
-            <h1>Twoje Plany</h1>
+            <div className="panel-header">
+                <h1>Twoje Plany</h1>
+                <p>Wybierz pakiet dopasowany do Twoich potrzeb i odblokuj pełną moc AI.</p>
+            </div>
 
             {currentPlan ? (
                 <div className="current-plan-box">
@@ -114,7 +117,7 @@ export default function Plans({ showToast }) {
 
                 {/* PRO PLAN */}
                 <div className="box-frame" style={currentPlan === 'pro' ? { transform: 'scale(1)' } : {}}>
-                    {currentPlan === 'pro' ? <span style={{ color: '#22c55e' }}>Aktywny</span> : <span>Polecany</span>}
+                    
                     <div className="block-plan" style={{ background: currentPlan === 'pro' ? '#2a201b' : 'transparent' }}>
                         <i className="fa-solid fa-medal"></i>
                         <h2>Professional Plan</h2>

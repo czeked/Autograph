@@ -93,13 +93,15 @@ const SkeletonCard = ({ height = 120, label = '' }) => (
 export default function AiAnalyzer() {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
-  const [symbol, setSymbol] = useState('');
+  const [symbol, setSymbol] = useState(() => localStorage.getItem('aianalyzer_last_symbol') || '');
 
-  const [timeframe, setTimeframe] = useState('1M');
+  const [timeframe, setTimeframe] = useState(() => localStorage.getItem('aianalyzer_last_timeframe') || '1M');
   const timeframes = ['1W', '1M', '3M', '6M', '1Y'];
 
 
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('aianalyzer_last_data')) || null; } catch { return null; }
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -114,12 +116,20 @@ export default function AiAnalyzer() {
   const [showPrefsModal, setShowPrefsModal] = useState(() => !localStorage.getItem(PREFS_LS_KEY));
   const [showBB, setShowBB] = useState(false);
   const [showMACD, setShowMACD] = useState(true);
-  const [activeTab, setActiveTab] = useState('sygnal');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('aianalyzer_last_active_tab') || 'sygnal');
   const DEFAULT_GLOWNA_ORDER = ['indicators','quant','aiscan','bullbear','trendmatrix','globaldata','fundamentals','anomalies'];
   const [glownaOrder, setGlownaOrder] = useState(() => { try { const s = localStorage.getItem('ag_glowna_order'); if (s) return JSON.parse(s); } catch {} return DEFAULT_GLOWNA_ORDER; });
   const [editingOrder, setEditingOrder] = useState(false);
   const moveGlownaSection = (id, dir) => setGlownaOrder(prev => { const a = [...prev]; const i = a.indexOf(id); const j = i + dir; if (j < 0 || j >= a.length) return prev; [a[i], a[j]] = [a[j], a[i]]; localStorage.setItem('ag_glowna_order', JSON.stringify(a)); return [...a]; });
   const anomalyRef = React.useRef(null);
+
+  // Persist session data
+  useEffect(() => {
+    if (symbol) localStorage.setItem('aianalyzer_last_symbol', symbol);
+    if (data) localStorage.setItem('aianalyzer_last_data', JSON.stringify(data));
+    if (activeTab) localStorage.setItem('aianalyzer_last_active_tab', activeTab);
+    if (timeframe) localStorage.setItem('aianalyzer_last_timeframe', timeframe);
+  }, [symbol, data, activeTab, timeframe]);
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
@@ -146,6 +156,31 @@ export default function AiAnalyzer() {
       setData(response.data);
       setActiveTab('glowna');
       setTimeframe('1Y'); // Resetujemy okno na pełny wgląd
+
+      // Dispatch notifications for the notification system
+      const d = response.data;
+      const notifItems = [];
+      const t = d.ticker || tickerToFetch;
+      if (d.analysis?.quant_analysis?.recommendation) {
+        const rec = d.analysis.quant_analysis.recommendation;
+        notifItems.push({ type: "percent", text: `📊 ${t}: Rekomendacja Quant — ${rec}`, ticker: t });
+      }
+      if (d.analysis?.sentiment_score != null) {
+        const s = d.analysis.sentiment_score;
+        const sLabel = s > 60 ? 'BYK' : s > 40 ? 'NEUTRALNY' : 'NIEDŹWIEDŹ';
+        notifItems.push({ type: "news", text: `🌡️ ${t}: Sentyment rynku — ${sLabel} (${s}/100)`, ticker: t });
+      }
+      if (d.analysis?.anomalies?.length > 0) {
+        notifItems.push({ type: "news", text: `⚡ ${t}: Wykryto ${d.analysis.anomalies.length} anomalii cenowych`, ticker: t });
+      }
+      if (d.setup_warning) {
+        notifItems.push({ type: "percent", text: `⚠️ ${t}: ${d.setup_warning}`, ticker: t });
+      }
+      if (notifItems.length > 0) {
+        window.dispatchEvent(new CustomEvent("autograph:notification", {
+          detail: { source: "stocks", items: notifItems }
+        }));
+      }
     } catch (err) {
       setError(err.response?.data?.error || err.message || "Błąd pobierania danych z rynku.");
     } finally {

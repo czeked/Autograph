@@ -1,6 +1,7 @@
 {
   "allStocks": [
     {
+<<<<<<< HEAD
       "ticker": "T",
       "name": "AT&T Inc.",
       "sector": "Communication Services",
@@ -71,6 +72,42 @@
       "ipoDate": "1983-11-21",
       "image": "https://images.financialmodelingprep.com/symbol/VZ.png",
       "score": 83
+=======
+      "ticker": "KO",
+      "name": "The Coca-Cola Company",
+      "sector": "Consumer Defensive",
+      "sectorPl": "Dobra konsumpcyjne",
+      "industry": "Beverages - Non-Alcoholic",
+      "logo": "fa-solid fa-wine-bottle",
+      "price": 75.44,
+      "changePercent": -1.55,
+      "marketCap": 324705076000,
+      "dividendYield": 2.73,
+      "dividendPerShare": 2.06,
+      "payoutRatio": 67,
+      "exDivDate": "N/A",
+      "divDate": "N/A",
+      "fiveYearAvgYield": 2.73,
+      "peRatio": 24.76,
+      "forwardPE": 0,
+      "pegRatio": 0,
+      "beta": 0.36,
+      "fiftyTwoWeekHigh": 82,
+      "fiftyTwoWeekLow": 65.35,
+      "roe": 44.35,
+      "debtToEquity": 0,
+      "freeCashflow": 5298646768.944677,
+      "revenueGrowth": 0,
+      "earningsGrowth": 4.04,
+      "profitMargin": 27.34,
+      "currency": "USD",
+      "description": "The Coca-Cola Company, a beverage company, manufactures, markets, and sells various nonalcoholic beverages worldwide. The company provides sparkling soft drinks, sparkling flavors; water, sports, coffee, and tea; juice, value-added dairy, and plant-based beverages; and other beverages. It also offers beverage concentrates and syrups, as well as fountain syrups to fountain retailers, such as restaurants and convenience stores. The company sells its products under the Coca-Cola, Diet Coke/Coca-Cola Light, Coca-Cola Zero Sugar, caffeine free Diet Coke, Cherry Coke, Fanta Orange, Fanta Zero Orange, Fanta Zero Sugar, Fanta Apple, Sprite, Sprite Zero Sugar, Simply Orange, Simply Apple, Simply Grapefruit, Fresca, Schweppes, Thums Up, Aquarius, Ayataka, BODYARMOR, Ciel, Costa, Dasani, dogadan, FUZE TEA, Georgia, glacéau smartwater, glacéau vitaminwater, Gold Peak, Ice Dew, I LOHAS, Powerade, Topo Chico, AdeS, Del Valle, fairlife, innocent, Minute Maid, and Minute Maid Pulpy brands. It operates through a network of independent bottling partners, distributors, wholesalers, and retailers, as well as through bottling and distribution operators. The company was founded in 1886 and is headquartered in Atlanta, Georgia.",
+      "exchange": "NYSE",
+      "country": "US",
+      "ipoDate": "1919-09-05",
+      "image": "https://images.financialmodelingprep.com/symbol/KO.png",
+      "score": 81
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
     },
     {
       "ticker": "JNJ",
@@ -79,16 +116,28 @@
       "sectorPl": "Ochrona zdrowia",
       "industry": "Drug Manufacturers - General",
       "logo": "fa-solid fa-heart-pulse",
+<<<<<<< HEAD
       "price": 227.35,
       "changePercent": -0.19,
       "marketCap": 547281467000,
       "dividendYield": 2.29,
+=======
+      "price": 225.34,
+      "changePercent": -0.95,
+      "marketCap": 542442954800,
+      "dividendYield": 2.31,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "dividendPerShare": 5.2,
       "payoutRatio": 59.5,
       "exDivDate": "N/A",
       "divDate": "N/A",
+<<<<<<< HEAD
       "fiveYearAvgYield": 2.29,
       "peRatio": 26.42,
+=======
+      "fiveYearAvgYield": 2.31,
+      "peRatio": 26.19,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "forwardPE": 0,
       "pegRatio": 0,
       "beta": 0.33,
@@ -98,7 +147,7 @@
       "debtToEquity": 0,
       "freeCashflow": 17521316602.548714,
       "revenueGrowth": 0,
-      "earningsGrowth": 3.78,
+      "earningsGrowth": 3.82,
       "profitMargin": 21.83,
       "currency": "USD",
       "description": "Johnson & Johnson, together with its subsidiaries, researches and develops, manufactures, and sells various products in the healthcare field worldwide, but strategically separated its Consumer Health business into Kenvue Inc. in 2023 to focus on its higher-growth, innovation-driven segments; the former Consumer Health brands (including TYLENOL, LISTERINE, and BAND-AID) are now owned by Kenvue. The company's core focus is now split between its Innovative Medicine (formerly Pharmaceutical) segment, which offers prescription products for complex diseases such as rheumatoid arthritis, various cancers, HIV/AIDS, and neurodegenerative disorders; and its MedTech (Medical Devices) segment, which provides advanced technology solutions including electrophysiology products, neurovascular care products, orthopaedics (hips, knees, spine), advanced surgery solutions, and disposable contact lenses under the ACUVUE brand. Company's two remaining segments primarily serve hospitals, healthcare professionals, wholesalers, and retailers, continuing its mission of advancing human health since its founding in 1886 and its current basing in New Brunswick, New Jersey.",
@@ -151,16 +200,26 @@
       "sectorPl": "Technologia",
       "industry": "Software - Infrastructure",
       "logo": "fa-solid fa-microchip",
+<<<<<<< HEAD
       "price": 424.46,
       "changePercent": -1.12,
       "marketCap": 3151882909800,
+=======
+      "price": 424.82,
+      "changePercent": 0.05,
+      "marketCap": 3154556136600,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "dividendYield": 0.82,
       "dividendPerShare": 3.48,
       "payoutRatio": 20.6,
       "exDivDate": "N/A",
       "divDate": "N/A",
       "fiveYearAvgYield": 0.82,
+<<<<<<< HEAD
       "peRatio": 25.17,
+=======
+      "peRatio": 26.47,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "forwardPE": 0,
       "pegRatio": 0,
       "beta": 1.11,
@@ -181,6 +240,7 @@
       "score": 74
     },
     {
+<<<<<<< HEAD
       "ticker": "AAPL",
       "name": "Apple Inc.",
       "sector": "Technology",
@@ -289,22 +349,36 @@
       "score": 70
     },
     {
+=======
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "ticker": "PEP",
       "name": "PepsiCo, Inc.",
       "sector": "Consumer Defensive",
       "sectorPl": "Dobra konsumpcyjne",
       "industry": "Beverages - Non-Alcoholic",
       "logo": "fa-solid fa-wine-bottle",
+<<<<<<< HEAD
       "price": 155.29,
       "changePercent": -0.64,
       "marketCap": 212272257796,
       "dividendYield": 3.66,
+=======
+      "price": 154.1,
+      "changePercent": -0.86,
+      "marketCap": 210645598084,
+      "dividendYield": 3.69,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "dividendPerShare": 5.69,
       "payoutRatio": 88.3,
       "exDivDate": "N/A",
       "divDate": "N/A",
+<<<<<<< HEAD
       "fiveYearAvgYield": 3.66,
       "peRatio": 24.28,
+=======
+      "fiveYearAvgYield": 3.69,
+      "peRatio": 24.09,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "forwardPE": 0,
       "pegRatio": 0,
       "beta": 0.41,
@@ -312,9 +386,13 @@
       "fiftyTwoWeekLow": 127.6,
       "roe": 43.94,
       "debtToEquity": 0,
+<<<<<<< HEAD
       "freeCashflow": 8841617957.031061,
+=======
+      "freeCashflow": 8841617957.058294,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "revenueGrowth": 0,
-      "earningsGrowth": 4.12,
+      "earningsGrowth": 4.15,
       "profitMargin": 9.16,
       "currency": "USD",
       "description": "PepsiCo, Inc. manufactures, markets, distributes, and sells various beverages and convenient foods worldwide. The company operates through seven segments: Frito-Lay North America; Quaker Foods North America; PepsiCo Beverages North America; Latin America; Europe; Africa, Middle East and South Asia; and Asia Pacific, Australia and New Zealand and China Region. It provides dips, cheese-flavored snacks, and spreads, as well as corn, potato, and tortilla chips; cereals, rice, pasta, mixes and syrups, granola bars, grits, oatmeal, rice cakes, simply granola, and side dishes; beverage concentrates, fountain syrups, and finished goods; ready-to-drink tea, coffee, and juices; dairy products; and sparkling water makers and related products. It serves wholesale and other distributors, foodservice customers, grocery stores, drug stores, convenience stores, discount/dollar stores, mass merchandisers, membership stores, hard discounters, e-commerce retailers and authorized independent bottlers, and others through a network of direct-store-delivery, customer warehouse, and distributor networks, as well as directly to consumers through e-commerce platforms and retailers. The company was founded in 1898 and is headquartered in Purchase, New York.",
@@ -325,6 +403,7 @@
       "score": 66
     },
     {
+<<<<<<< HEAD
       "ticker": "GS",
       "name": "The Goldman Sachs Group, Inc.",
       "sector": "Financial Services",
@@ -361,22 +440,36 @@
       "score": 66
     },
     {
+=======
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "ticker": "XOM",
       "name": "Exxon Mobil Corporation",
       "sector": "Energy",
       "sectorPl": "Energia",
       "industry": "Oil & Gas Integrated",
       "logo": "fa-solid fa-gas-pump",
+<<<<<<< HEAD
       "price": 154.67,
       "changePercent": 2.73,
       "marketCap": 642895135200,
       "dividendYield": 2.61,
+=======
+      "price": 148.19,
+      "changePercent": -0.48,
+      "marketCap": 615960626400,
+      "dividendYield": 2.73,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "dividendPerShare": 4.04,
       "payoutRatio": 59.7,
       "exDivDate": "N/A",
       "divDate": "N/A",
+<<<<<<< HEAD
       "fiveYearAvgYield": 2.61,
       "peRatio": 23.22,
+=======
+      "fiveYearAvgYield": 2.73,
+      "peRatio": 22.25,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "forwardPE": 0,
       "pegRatio": 0,
       "beta": 0.29,
@@ -386,7 +479,11 @@
       "debtToEquity": 0,
       "freeCashflow": 22660977769.56823,
       "revenueGrowth": 0,
+<<<<<<< HEAD
       "earningsGrowth": 4.31,
+=======
+      "earningsGrowth": 4.49,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "profitMargin": 8.91,
       "currency": "USD",
       "description": "Exxon Mobil Corporation explores for and produces crude oil and natural gas in the United States and internationally. It operates through Upstream, Downstream, and Chemical segments. The company is also involved in the manufacture, trade, transport, and sale of crude oil, natural gas, petroleum products, petrochemicals, and other specialty products; manufactures and sells petrochemicals, including olefins, polyolefins, aromatics, and various other petrochemicals; and captures and stores carbon, hydrogen, and biofuels. As of December 31, 2021, it had approximately 20,528 net operated wells with proved reserves. The company was founded in 1870 and is headquartered in Irving, Texas.",
@@ -403,16 +500,28 @@
       "sectorPl": "Ochrona zdrowia",
       "industry": "Drug Manufacturers - General",
       "logo": "fa-solid fa-heart-pulse",
+<<<<<<< HEAD
       "price": 26.27,
       "changePercent": -0.77,
       "marketCap": 149433115509,
       "dividendYield": 6.55,
+=======
+      "price": 26.81,
+      "changePercent": -0.7,
+      "marketCap": 152504827818,
+      "dividendYield": 6.42,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "dividendPerShare": 1.72,
       "payoutRatio": 125.8,
       "exDivDate": "N/A",
       "divDate": "N/A",
+<<<<<<< HEAD
       "fiveYearAvgYield": 6.55,
       "peRatio": 19.21,
+=======
+      "fiveYearAvgYield": 6.42,
+      "peRatio": 19.61,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "forwardPE": 0,
       "pegRatio": 0,
       "beta": 0.39,
@@ -420,9 +529,15 @@
       "fiftyTwoWeekLow": 21.97,
       "roe": 8.67,
       "debtToEquity": 0,
+<<<<<<< HEAD
       "freeCashflow": 9084939239.348833,
       "revenueGrowth": 0,
       "earningsGrowth": 5.2,
+=======
+      "freeCashflow": 9084939239.309307,
+      "revenueGrowth": 0,
+      "earningsGrowth": 5.1,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "profitMargin": 12.42,
       "currency": "USD",
       "description": "Pfizer Inc. discovers, develops, manufactures, markets, distributes, and sells biopharmaceutical products worldwide. It offers medicines and vaccines in various therapeutic areas, including cardiovascular metabolic and women's health under the Premarin family and Eliquis brands; biologics, small molecules, immunotherapies, and biosimilars under the Ibrance, Xtandi, Sutent, Inlyta, Retacrit, Lorbrena, and Braftovi brands; and sterile injectable and anti-infective medicines, and oral COVID-19 treatment under the Sulperazon, Medrol, Zavicefta, Zithromax, Vfend, Panzyga, and Paxlovid brands. The company also provides medicines and vaccines in various therapeutic areas, such as pneumococcal disease, meningococcal disease, tick-borne encephalitis, and COVID-19 under the Comirnaty/BNT162b2, Nimenrix, FSME/IMMUN-TicoVac, Trumenba, and the Prevnar family brands; biosimilars for chronic immune and inflammatory diseases under the Xeljanz, Enbrel, Inflectra, Eucrisa/Staquis, and Cibinqo brands; and amyloidosis, hemophilia, and endocrine diseases under the Vyndaqel/Vyndamax, BeneFIX, and Genotropin brands. In addition, the company is involved in the contract manufacturing business. It serves wholesalers, retailers, hospitals, clinics, government agencies, pharmacies, and individual provider offices, as well as disease control and prevention centers. The company has collaboration agreements with Bristol-Myers Squibb Company; Astellas Pharma US, Inc.; Myovant Sciences Ltd.; Akcea Therapeutics, Inc; Merck KGaA; Valneva SE; BioNTech SE; and Arvinas, Inc. Pfizer Inc. was founded in 1849 and is headquartered in New York, New York.",
@@ -439,16 +554,28 @@
       "sectorPl": "Energia",
       "industry": "Oil & Gas Integrated",
       "logo": "fa-solid fa-gas-pump",
+<<<<<<< HEAD
       "price": 192.21,
       "changePercent": 2.04,
       "marketCap": 383533911900,
       "dividendYield": 3.6,
+=======
+      "price": 184.79,
+      "changePercent": -0.23,
+      "marketCap": 368728118100,
+      "dividendYield": 3.74,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "dividendPerShare": 6.91,
       "payoutRatio": 103.7,
       "exDivDate": "N/A",
       "divDate": "N/A",
+<<<<<<< HEAD
       "fiveYearAvgYield": 3.6,
       "peRatio": 31.11,
+=======
+      "fiveYearAvgYield": 3.74,
+      "peRatio": 29.91,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "forwardPE": 0,
       "pegRatio": 0,
       "beta": 0.59,
@@ -475,16 +602,28 @@
       "sectorPl": "Ochrona zdrowia",
       "industry": "Drug Manufacturers - General",
       "logo": "fa-solid fa-heart-pulse",
+<<<<<<< HEAD
       "price": 204.35,
       "changePercent": 3.37,
       "marketCap": 361446106000,
       "dividendYield": 3.3,
+=======
+      "price": 197.38,
+      "changePercent": -0.67,
+      "marketCap": 349117848800,
+      "dividendYield": 3.41,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "dividendPerShare": 6.74,
       "payoutRatio": 320.3,
       "exDivDate": "N/A",
       "divDate": "N/A",
+<<<<<<< HEAD
       "fiveYearAvgYield": 3.3,
       "peRatio": 99.61,
+=======
+      "fiveYearAvgYield": 3.41,
+      "peRatio": 83.16,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "forwardPE": 0,
       "pegRatio": 0,
       "beta": 0.36,
@@ -494,8 +633,13 @@
       "debtToEquity": 0,
       "freeCashflow": 18647190968.41697,
       "revenueGrowth": 0,
+<<<<<<< HEAD
       "earningsGrowth": 1,
       "profitMargin": 5.79,
+=======
+      "earningsGrowth": 1.2,
+      "profitMargin": 6.91,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
       "currency": "USD",
       "description": "AbbVie Inc. discovers, develops, manufactures, and sells pharmaceuticals in the worldwide. The company offers HUMIRA, a therapy administered as an injection for autoimmune and intestinal Behçet's diseases; SKYRIZI to treat moderate to severe plaque psoriasis in adults; RINVOQ, a JAK inhibitor for the treatment of moderate to severe active rheumatoid arthritis in adult patients; IMBRUVICA to treat adult patients with chronic lymphocytic leukemia (CLL), small lymphocytic lymphoma (SLL), and VENCLEXTA, a BCL-2 inhibitor used to treat adults with CLL or SLL; and MAVYRET to treat patients with chronic HCV genotype 1-6 infection. It also provides CREON, a pancreatic enzyme therapy for exocrine pancreatic insufficiency; Synthroid used in the treatment of hypothyroidism; Linzess/Constella to treat irritable bowel syndrome with constipation and chronic idiopathic constipation; Lupron for the palliative treatment of advanced prostate cancer, endometriosis and central precocious puberty, and patients with anemia caused by uterine fibroids; and Botox therapeutic. In addition, the company offers ORILISSA, a nonpeptide small molecule gonadotropin-releasing hormone antagonist for women with moderate to severe endometriosis pain; Duopa and Duodopa, a levodopa-carbidopa intestinal gel to treat Parkinson's disease; Lumigan/Ganfort, a bimatoprost ophthalmic solution for the reduction of elevated intraocular pressure (IOP) in patients with open angle glaucoma (OAG) or ocular hypertension; Ubrelvy to treat migraine with or without aura in adults; Alphagan/ Combigan, an alpha-adrenergic receptor agonist for the reduction of IOP in patients with OAG; and Restasis, a calcineurin inhibitor immunosuppressant to increase tear production, as well as other eye care products. AbbVie Inc. has a research collaboration with Dragonfly Therapeutics, Inc. The company was incorporated in 2012 and is headquartered in North Chicago, Illinois.",
       "exchange": "NYSE",
@@ -505,7 +649,11 @@
       "score": 39
     }
   ],
+<<<<<<< HEAD
   "lastRefresh": "2026-04-30T09:07:28.112Z",
+=======
+  "lastRefresh": "2026-04-28T10:33:02.831Z",
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
   "stockCache": {
     "fmp_JNJ": {
       "data": {
@@ -515,16 +663,28 @@
         "sectorPl": "Ochrona zdrowia",
         "industry": "Drug Manufacturers - General",
         "logo": "fa-solid fa-heart-pulse",
+<<<<<<< HEAD
         "price": 227.35,
         "changePercent": -0.19,
         "marketCap": 547281467000,
         "dividendYield": 2.29,
+=======
+        "price": 225.34,
+        "changePercent": -0.95,
+        "marketCap": 542442954800,
+        "dividendYield": 2.31,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "dividendPerShare": 5.2,
         "payoutRatio": 59.5,
         "exDivDate": "N/A",
         "divDate": "N/A",
+<<<<<<< HEAD
         "fiveYearAvgYield": 2.29,
         "peRatio": 26.42,
+=======
+        "fiveYearAvgYield": 2.31,
+        "peRatio": 26.19,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "forwardPE": 0,
         "pegRatio": 0,
         "beta": 0.33,
@@ -534,7 +694,7 @@
         "debtToEquity": 0,
         "freeCashflow": 17521316602.548714,
         "revenueGrowth": 0,
-        "earningsGrowth": 3.78,
+        "earningsGrowth": 3.82,
         "profitMargin": 21.83,
         "currency": "USD",
         "description": "Johnson & Johnson, together with its subsidiaries, researches and develops, manufactures, and sells various products in the healthcare field worldwide, but strategically separated its Consumer Health business into Kenvue Inc. in 2023 to focus on its higher-growth, innovation-driven segments; the former Consumer Health brands (including TYLENOL, LISTERINE, and BAND-AID) are now owned by Kenvue. The company's core focus is now split between its Innovative Medicine (formerly Pharmaceutical) segment, which offers prescription products for complex diseases such as rheumatoid arthritis, various cancers, HIV/AIDS, and neurodegenerative disorders; and its MedTech (Medical Devices) segment, which provides advanced technology solutions including electrophysiology products, neurovascular care products, orthopaedics (hips, knees, spine), advanced surgery solutions, and disposable contact lenses under the ACUVUE brand. Company's two remaining segments primarily serve hospitals, healthcare professionals, wholesalers, and retailers, continuing its mission of advancing human health since its founding in 1886 and its current basing in New Brunswick, New Jersey.",
@@ -544,7 +704,11 @@
         "image": "https://images.financialmodelingprep.com/symbol/JNJ.png",
         "score": 76
       },
+<<<<<<< HEAD
       "ts": 1777540043667
+=======
+      "ts": 1777372378899
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
     },
     "fmp_ABBV": {
       "data": {
@@ -554,16 +718,28 @@
         "sectorPl": "Ochrona zdrowia",
         "industry": "Drug Manufacturers - General",
         "logo": "fa-solid fa-heart-pulse",
+<<<<<<< HEAD
         "price": 204.35,
         "changePercent": 3.37,
         "marketCap": 361446106000,
         "dividendYield": 3.3,
+=======
+        "price": 197.38,
+        "changePercent": -0.67,
+        "marketCap": 349117848800,
+        "dividendYield": 3.41,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "dividendPerShare": 6.74,
         "payoutRatio": 320.3,
         "exDivDate": "N/A",
         "divDate": "N/A",
+<<<<<<< HEAD
         "fiveYearAvgYield": 3.3,
         "peRatio": 99.61,
+=======
+        "fiveYearAvgYield": 3.41,
+        "peRatio": 83.16,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "forwardPE": 0,
         "pegRatio": 0,
         "beta": 0.36,
@@ -573,8 +749,13 @@
         "debtToEquity": 0,
         "freeCashflow": 18647190968.41697,
         "revenueGrowth": 0,
+<<<<<<< HEAD
         "earningsGrowth": 1,
         "profitMargin": 5.79,
+=======
+        "earningsGrowth": 1.2,
+        "profitMargin": 6.91,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "currency": "USD",
         "description": "AbbVie Inc. discovers, develops, manufactures, and sells pharmaceuticals in the worldwide. The company offers HUMIRA, a therapy administered as an injection for autoimmune and intestinal Behçet's diseases; SKYRIZI to treat moderate to severe plaque psoriasis in adults; RINVOQ, a JAK inhibitor for the treatment of moderate to severe active rheumatoid arthritis in adult patients; IMBRUVICA to treat adult patients with chronic lymphocytic leukemia (CLL), small lymphocytic lymphoma (SLL), and VENCLEXTA, a BCL-2 inhibitor used to treat adults with CLL or SLL; and MAVYRET to treat patients with chronic HCV genotype 1-6 infection. It also provides CREON, a pancreatic enzyme therapy for exocrine pancreatic insufficiency; Synthroid used in the treatment of hypothyroidism; Linzess/Constella to treat irritable bowel syndrome with constipation and chronic idiopathic constipation; Lupron for the palliative treatment of advanced prostate cancer, endometriosis and central precocious puberty, and patients with anemia caused by uterine fibroids; and Botox therapeutic. In addition, the company offers ORILISSA, a nonpeptide small molecule gonadotropin-releasing hormone antagonist for women with moderate to severe endometriosis pain; Duopa and Duodopa, a levodopa-carbidopa intestinal gel to treat Parkinson's disease; Lumigan/Ganfort, a bimatoprost ophthalmic solution for the reduction of elevated intraocular pressure (IOP) in patients with open angle glaucoma (OAG) or ocular hypertension; Ubrelvy to treat migraine with or without aura in adults; Alphagan/ Combigan, an alpha-adrenergic receptor agonist for the reduction of IOP in patients with OAG; and Restasis, a calcineurin inhibitor immunosuppressant to increase tear production, as well as other eye care products. AbbVie Inc. has a research collaboration with Dragonfly Therapeutics, Inc. The company was incorporated in 2012 and is headquartered in North Chicago, Illinois.",
         "exchange": "NYSE",
@@ -583,7 +764,11 @@
         "image": "https://images.financialmodelingprep.com/symbol/ABBV.png",
         "score": 39
       },
+<<<<<<< HEAD
       "ts": 1777540043809
+=======
+      "ts": 1777372379032
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
     },
     "fmp_PFE": {
       "data": {
@@ -593,16 +778,28 @@
         "sectorPl": "Ochrona zdrowia",
         "industry": "Drug Manufacturers - General",
         "logo": "fa-solid fa-heart-pulse",
+<<<<<<< HEAD
         "price": 26.27,
         "changePercent": -0.77,
         "marketCap": 149433115509,
         "dividendYield": 6.55,
+=======
+        "price": 26.81,
+        "changePercent": -0.7,
+        "marketCap": 152504827818,
+        "dividendYield": 6.42,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "dividendPerShare": 1.72,
         "payoutRatio": 125.8,
         "exDivDate": "N/A",
         "divDate": "N/A",
+<<<<<<< HEAD
         "fiveYearAvgYield": 6.55,
         "peRatio": 19.21,
+=======
+        "fiveYearAvgYield": 6.42,
+        "peRatio": 19.61,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "forwardPE": 0,
         "pegRatio": 0,
         "beta": 0.39,
@@ -610,9 +807,15 @@
         "fiftyTwoWeekLow": 21.97,
         "roe": 8.67,
         "debtToEquity": 0,
+<<<<<<< HEAD
         "freeCashflow": 9084939239.348833,
         "revenueGrowth": 0,
         "earningsGrowth": 5.2,
+=======
+        "freeCashflow": 9084939239.309307,
+        "revenueGrowth": 0,
+        "earningsGrowth": 5.1,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "profitMargin": 12.42,
         "currency": "USD",
         "description": "Pfizer Inc. discovers, develops, manufactures, markets, distributes, and sells biopharmaceutical products worldwide. It offers medicines and vaccines in various therapeutic areas, including cardiovascular metabolic and women's health under the Premarin family and Eliquis brands; biologics, small molecules, immunotherapies, and biosimilars under the Ibrance, Xtandi, Sutent, Inlyta, Retacrit, Lorbrena, and Braftovi brands; and sterile injectable and anti-infective medicines, and oral COVID-19 treatment under the Sulperazon, Medrol, Zavicefta, Zithromax, Vfend, Panzyga, and Paxlovid brands. The company also provides medicines and vaccines in various therapeutic areas, such as pneumococcal disease, meningococcal disease, tick-borne encephalitis, and COVID-19 under the Comirnaty/BNT162b2, Nimenrix, FSME/IMMUN-TicoVac, Trumenba, and the Prevnar family brands; biosimilars for chronic immune and inflammatory diseases under the Xeljanz, Enbrel, Inflectra, Eucrisa/Staquis, and Cibinqo brands; and amyloidosis, hemophilia, and endocrine diseases under the Vyndaqel/Vyndamax, BeneFIX, and Genotropin brands. In addition, the company is involved in the contract manufacturing business. It serves wholesalers, retailers, hospitals, clinics, government agencies, pharmacies, and individual provider offices, as well as disease control and prevention centers. The company has collaboration agreements with Bristol-Myers Squibb Company; Astellas Pharma US, Inc.; Myovant Sciences Ltd.; Akcea Therapeutics, Inc; Merck KGaA; Valneva SE; BioNTech SE; and Arvinas, Inc. Pfizer Inc. was founded in 1849 and is headquartered in New York, New York.",
@@ -622,7 +825,11 @@
         "image": "https://images.financialmodelingprep.com/symbol/PFE.png",
         "score": 53
       },
+<<<<<<< HEAD
       "ts": 1777540043952
+=======
+      "ts": 1777372379164
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
     },
     "fmp_KO": {
       "data": {
@@ -632,15 +839,26 @@
         "sectorPl": "Dobra konsumpcyjne",
         "industry": "Beverages - Non-Alcoholic",
         "logo": "fa-solid fa-wine-bottle",
+<<<<<<< HEAD
         "price": 78.87,
         "changePercent": 0.66,
         "marketCap": 339468310500,
         "dividendYield": 2.61,
+=======
+        "price": 75.44,
+        "changePercent": -1.55,
+        "marketCap": 324705076000,
+        "dividendYield": 2.73,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "dividendPerShare": 2.06,
         "payoutRatio": 80.1,
         "exDivDate": "N/A",
         "divDate": "N/A",
+<<<<<<< HEAD
         "fiveYearAvgYield": 2.61,
+=======
+        "fiveYearAvgYield": 2.73,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "peRatio": 24.76,
         "forwardPE": 0,
         "pegRatio": 0,
@@ -652,7 +870,11 @@
         "freeCashflow": 12568278079.962809,
         "revenueGrowth": 0,
         "earningsGrowth": 4.04,
+<<<<<<< HEAD
         "profitMargin": 27.8,
+=======
+        "profitMargin": 27.34,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "currency": "USD",
         "description": "The Coca-Cola Company, a beverage company, manufactures, markets, and sells various nonalcoholic beverages worldwide. The company provides sparkling soft drinks, sparkling flavors; water, sports, coffee, and tea; juice, value-added dairy, and plant-based beverages; and other beverages. It also offers beverage concentrates and syrups, as well as fountain syrups to fountain retailers, such as restaurants and convenience stores. The company sells its products under the Coca-Cola, Diet Coke/Coca-Cola Light, Coca-Cola Zero Sugar, caffeine free Diet Coke, Cherry Coke, Fanta Orange, Fanta Zero Orange, Fanta Zero Sugar, Fanta Apple, Sprite, Sprite Zero Sugar, Simply Orange, Simply Apple, Simply Grapefruit, Fresca, Schweppes, Thums Up, Aquarius, Ayataka, BODYARMOR, Ciel, Costa, Dasani, dogadan, FUZE TEA, Georgia, glacéau smartwater, glacéau vitaminwater, Gold Peak, Ice Dew, I LOHAS, Powerade, Topo Chico, AdeS, Del Valle, fairlife, innocent, Minute Maid, and Minute Maid Pulpy brands. It operates through a network of independent bottling partners, distributors, wholesalers, and retailers, as well as through bottling and distribution operators. The company was founded in 1886 and is headquartered in Atlanta, Georgia.",
         "exchange": "NYSE",
@@ -661,7 +883,11 @@
         "image": "https://images.financialmodelingprep.com/symbol/KO.png",
         "score": 76
       },
+<<<<<<< HEAD
       "ts": 1777540044707
+=======
+      "ts": 1777372379779
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
     },
     "fmp_PEP": {
       "data": {
@@ -671,16 +897,28 @@
         "sectorPl": "Dobra konsumpcyjne",
         "industry": "Beverages - Non-Alcoholic",
         "logo": "fa-solid fa-wine-bottle",
+<<<<<<< HEAD
         "price": 155.29,
         "changePercent": -0.64,
         "marketCap": 212272257796,
         "dividendYield": 3.66,
+=======
+        "price": 154.1,
+        "changePercent": -0.86,
+        "marketCap": 210645598084,
+        "dividendYield": 3.69,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "dividendPerShare": 5.69,
         "payoutRatio": 88.3,
         "exDivDate": "N/A",
         "divDate": "N/A",
+<<<<<<< HEAD
         "fiveYearAvgYield": 3.66,
         "peRatio": 24.28,
+=======
+        "fiveYearAvgYield": 3.69,
+        "peRatio": 24.09,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "forwardPE": 0,
         "pegRatio": 0,
         "beta": 0.41,
@@ -688,9 +926,13 @@
         "fiftyTwoWeekLow": 127.6,
         "roe": 43.94,
         "debtToEquity": 0,
+<<<<<<< HEAD
         "freeCashflow": 8841617957.031061,
+=======
+        "freeCashflow": 8841617957.058294,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "revenueGrowth": 0,
-        "earningsGrowth": 4.12,
+        "earningsGrowth": 4.15,
         "profitMargin": 9.16,
         "currency": "USD",
         "description": "PepsiCo, Inc. manufactures, markets, distributes, and sells various beverages and convenient foods worldwide. The company operates through seven segments: Frito-Lay North America; Quaker Foods North America; PepsiCo Beverages North America; Latin America; Europe; Africa, Middle East and South Asia; and Asia Pacific, Australia and New Zealand and China Region. It provides dips, cheese-flavored snacks, and spreads, as well as corn, potato, and tortilla chips; cereals, rice, pasta, mixes and syrups, granola bars, grits, oatmeal, rice cakes, simply granola, and side dishes; beverage concentrates, fountain syrups, and finished goods; ready-to-drink tea, coffee, and juices; dairy products; and sparkling water makers and related products. It serves wholesale and other distributors, foodservice customers, grocery stores, drug stores, convenience stores, discount/dollar stores, mass merchandisers, membership stores, hard discounters, e-commerce retailers and authorized independent bottlers, and others through a network of direct-store-delivery, customer warehouse, and distributor networks, as well as directly to consumers through e-commerce platforms and retailers. The company was founded in 1898 and is headquartered in Purchase, New York.",
@@ -700,7 +942,11 @@
         "image": "https://images.financialmodelingprep.com/symbol/PEP.png",
         "score": 66
       },
+<<<<<<< HEAD
       "ts": 1777540044892
+=======
+      "ts": 1777372379907
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
     },
     "fmp_XOM": {
       "data": {
@@ -710,16 +956,28 @@
         "sectorPl": "Energia",
         "industry": "Oil & Gas Integrated",
         "logo": "fa-solid fa-gas-pump",
+<<<<<<< HEAD
         "price": 154.67,
         "changePercent": 2.73,
         "marketCap": 642895135200,
         "dividendYield": 2.61,
+=======
+        "price": 148.19,
+        "changePercent": -0.48,
+        "marketCap": 615960626400,
+        "dividendYield": 2.73,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "dividendPerShare": 4.04,
         "payoutRatio": 59.7,
         "exDivDate": "N/A",
         "divDate": "N/A",
+<<<<<<< HEAD
         "fiveYearAvgYield": 2.61,
         "peRatio": 23.22,
+=======
+        "fiveYearAvgYield": 2.73,
+        "peRatio": 22.25,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "forwardPE": 0,
         "pegRatio": 0,
         "beta": 0.29,
@@ -729,7 +987,11 @@
         "debtToEquity": 0,
         "freeCashflow": 22660977769.56823,
         "revenueGrowth": 0,
+<<<<<<< HEAD
         "earningsGrowth": 4.31,
+=======
+        "earningsGrowth": 4.49,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "profitMargin": 8.91,
         "currency": "USD",
         "description": "Exxon Mobil Corporation explores for and produces crude oil and natural gas in the United States and internationally. It operates through Upstream, Downstream, and Chemical segments. The company is also involved in the manufacture, trade, transport, and sale of crude oil, natural gas, petroleum products, petrochemicals, and other specialty products; manufactures and sells petrochemicals, including olefins, polyolefins, aromatics, and various other petrochemicals; and captures and stores carbon, hydrogen, and biofuels. As of December 31, 2021, it had approximately 20,528 net operated wells with proved reserves. The company was founded in 1870 and is headquartered in Irving, Texas.",
@@ -739,7 +1001,11 @@
         "image": "https://images.financialmodelingprep.com/symbol/XOM.png",
         "score": 60
       },
+<<<<<<< HEAD
       "ts": 1777540045479
+=======
+      "ts": 1777372380413
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
     },
     "fmp_CVX": {
       "data": {
@@ -749,16 +1015,28 @@
         "sectorPl": "Energia",
         "industry": "Oil & Gas Integrated",
         "logo": "fa-solid fa-gas-pump",
+<<<<<<< HEAD
         "price": 192.21,
         "changePercent": 2.04,
         "marketCap": 383533911900,
         "dividendYield": 3.6,
+=======
+        "price": 184.79,
+        "changePercent": -0.23,
+        "marketCap": 368728118100,
+        "dividendYield": 3.74,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "dividendPerShare": 6.91,
         "payoutRatio": 103.7,
         "exDivDate": "N/A",
         "divDate": "N/A",
+<<<<<<< HEAD
         "fiveYearAvgYield": 3.6,
         "peRatio": 31.11,
+=======
+        "fiveYearAvgYield": 3.74,
+        "peRatio": 29.91,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "forwardPE": 0,
         "pegRatio": 0,
         "beta": 0.59,
@@ -778,7 +1056,11 @@
         "image": "https://images.financialmodelingprep.com/symbol/CVX.png",
         "score": 46
       },
+<<<<<<< HEAD
       "ts": 1777540045619
+=======
+      "ts": 1777372380542
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
     },
     "fmp_MSFT": {
       "data": {
@@ -788,16 +1070,26 @@
         "sectorPl": "Technologia",
         "industry": "Software - Infrastructure",
         "logo": "fa-solid fa-microchip",
+<<<<<<< HEAD
         "price": 424.46,
         "changePercent": -1.12,
         "marketCap": 3151882909800,
+=======
+        "price": 424.82,
+        "changePercent": 0.05,
+        "marketCap": 3154556136600,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "dividendYield": 0.82,
         "dividendPerShare": 3.48,
         "payoutRatio": 20.6,
         "exDivDate": "N/A",
         "divDate": "N/A",
         "fiveYearAvgYield": 0.82,
+<<<<<<< HEAD
         "peRatio": 25.17,
+=======
+        "peRatio": 26.47,
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
         "forwardPE": 0,
         "pegRatio": 0,
         "beta": 1.11,
@@ -817,7 +1109,11 @@
         "image": "https://images.financialmodelingprep.com/symbol/MSFT.png",
         "score": 74
       },
+<<<<<<< HEAD
       "ts": 1777540046036
+=======
+      "ts": 1777372380921
+>>>>>>> 491b1bad46fe0076b6afc8cf56f23e31dba5677d
     },
     "fmp_AAPL": {
       "data": {
