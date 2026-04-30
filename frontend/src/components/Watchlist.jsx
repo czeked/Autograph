@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Star, X, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import API_URL from '../config';
 
 const LS_KEY = 'autograph_watchlist';
 
@@ -41,7 +42,7 @@ export default function Watchlist({ currentTicker, onSelect }) {
     if (!force && Date.now() - quotesTs.current < QUOTE_TTL) return;
     setLoading(true);
     const results = await Promise.allSettled(
-      tickers.map(t => axios.get(`https://autograph-qrt6.onrender.com/api/stock/quote/${t}`).then(r => r.data))
+      tickers.map(t => axios.get(`${API_URL}/api/stock/quote/${t}`).then(r => r.data))
     );
     const map = {};
     results.forEach((r, i) => { if (r.status === 'fulfilled') map[tickers[i]] = r.value; });

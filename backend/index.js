@@ -4,6 +4,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import cors from 'cors';
 import axios from 'axios';
 import { EventEmitter } from 'events';
+import WebSocket from 'ws';
 import { setupDividendRoutes, initDividends } from './dividends.js';
 import { setupStockRoutes } from './server.js';
 
@@ -65,7 +66,7 @@ async function generateWithFallback(prompt, systemPrompt) {
 const dataCache = {};
 const newsCache = {};
 const newsEmitter = new EventEmitter();
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = 15 * 60 * 1000; // 15 min (avoid CoinGecko 429)
 const NEWS_CACHE_TTL = 15 * 60 * 1000;
 const NEWS_CHECK_INTERVAL = 5 * 60 * 1000; // Sprawdzaj co 5 minut
 
@@ -661,14 +662,15 @@ function analyzeSentiment(text) {
   let positive = positiveWords.filter(word => lower.includes(word)).length;
   let negative = negativeWords.filter(word => lower.includes(word)).length;
 
-  if (positive > negative) return 'POZYTYWNA 📈';
-  if (negative > positive) return 'NEGATYWNA 📉';
-  return 'NEUTRALNA ➡️';
+  if (positive > negative) return '📈 POZYTYWNA';
+  if (negative > positive) return '📉 NEGATYWNA';
+  return '➡️ NEUTRALNA';
 }
 
 // ======================== FEAR & GREED ========================
 
 let fngCache = { value: null, timestamp: 0 };
+let fngHistoryCache = { data: null, timestamp: 0 };
 
 async function getFearAndGreed() {
   if (fngCache.value && (Date.now() - fngCache.timestamp) < 30 * 60 * 1000) {
@@ -685,6 +687,75 @@ async function getFearAndGreed() {
     console.log('⚠️ Fear & Greed API niedostępne');
   }
   return { value: 50, classification: 'Neutral' };
+}
+
+async function getFearAndGreedHistory(days = 30) {
+  if (fngHistoryCache.data && (Date.now() - fngHistoryCache.timestamp) < 60 * 60 * 1000) {
+    return fngHistoryCache.data;
+  }
+  try {
+    const res = await axios.get(`https://api.alternative.me/fng/?limit=${days}`, { timeout: 8000 });
+    if (res.data?.data) {
+      const series = res.data.data.map(d => ({
+        value: parseInt(d.value),
+        timestamp: parseInt(d.timestamp) * 1000,
+        classification: d.value_classification
+      })).reverse(); // oldest first
+      fngHistoryCache = { data: series, timestamp: Date.now() };
+      return series;
+    }
+  } catch (e) {
+    console.log('⚠️ Fear & Greed History API niedostępne');
+  }
+  return [];
+}
+
+function makeDayKey(date) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+}
+
+function buildSentimentSeries(chartData, fngHistory, news) {
+  // Map F&G data by UTC date key (YYYY-MM-DD) for reliable matching
+  const fngByDay = {};
+  for (const fg of fngHistory) {
+    const dayKey = makeDayKey(new Date(fg.timestamp));
+    const val = parseInt(fg.value, 10);
+    if (!isNaN(val)) fngByDay[dayKey] = val;
+  }
+
+  const fngKeys = Object.keys(fngByDay);
+  const chartKeys = chartData.slice(0, 5).map(c => c.timestamp ? makeDayKey(new Date(c.timestamp * 1000)) : '?');
+  console.log(`📊 Sentiment DEBUG: fngByDay=${fngKeys.length} keys [${fngKeys.slice(0, 5).join(', ')}], chartDays=[${chartKeys.join(', ')}]`);
+
+  // News sentiment score: +1 positive, -1 negative, 0 neutral
+  const newsScoreTotal = news.reduce((acc, n) => {
+    if (n.sentiment?.includes('POZYTYWNA')) return acc + 1;
+    if (n.sentiment?.includes('NEGATYWNA')) return acc - 1;
+    return acc;
+  }, 0);
+  const newsNorm = news.length > 0 ? Math.max(-1, Math.min(1, newsScoreTotal / Math.max(news.length, 1))) : 0;
+
+  let matched = 0;
+  // Build per-candle sentiment (0-100 scale matching F&G)
+  const series = chartData.map((candle) => {
+    let fgVal;
+    if (candle.timestamp) {
+      const dayKey = makeDayKey(new Date(candle.timestamp * 1000));
+      fgVal = fngByDay[dayKey];
+      if (fgVal !== undefined) matched++;
+    }
+    if (fgVal === undefined) fgVal = 50; // default neutral
+
+    // Ensure numeric
+    fgVal = parseInt(fgVal, 10) || 50;
+
+    // Blend F&G (80%) with news sentiment (20%) for combined score
+    const newsComponent = (newsNorm + 1) * 50; // convert -1..1 to 0..100
+    const combined = Math.round(fgVal * 0.8 + newsComponent * 0.2);
+    return Math.max(0, Math.min(100, combined));
+  });
+  console.log(`📊 Sentiment: ${matched}/${chartData.length} matched | sample values: [${series.slice(0, 5).join(', ')}]`);
+  return series;
 }
 
 // ======================== COMPOSITE SCORING (DYNAMIC WEIGHTS) ========================
@@ -793,14 +864,19 @@ function calculateCompositeScore(data) {
   const finalScore = Math.round(trendContrib + momentumContrib + volumeContrib + sentimentContrib);
   const normalized = Math.max(-100, Math.min(100, finalScore));
 
-  let decision;
-  if (normalized > 30) decision = 'KUPUJ';
-  else if (normalized > 10) decision = 'LEKKI KUPUJ';
-  else if (normalized < -30) decision = 'SPRZEDAJ';
-  else if (normalized < -10) decision = 'LEKKI SPRZEDAJ';
-  else decision = 'TRZYMAJ';
+  // Confidence = weighted function of score strength + signal agreement
+  const signalAgreement = Math.max(signals.bullish, signals.bearish) / Math.max(1, signals.bullish + signals.bearish + signals.neutral);
+  const confidence = Math.min(95, Math.round(Math.abs(normalized) * 0.6 + signalAgreement * 100 * 0.4));
 
-  const confidence = Math.min(95, Math.abs(normalized) + Math.max(signals.bullish, signals.bearish) * 5);
+  let decision;
+  if (confidence < 40) {
+    decision = 'OBSERWUJ';
+  } else if (normalized > 50) decision = 'KUPUJ';
+  else if (normalized > 25) decision = 'LEKKI KUPUJ';
+  else if (normalized < -50) decision = 'SPRZEDAJ';
+  else if (normalized < -25) decision = 'LEKKI SPRZEDAJ';
+  else decision = confidence < 60 ? 'OBSERWUJ' : 'TRZYMAJ';
+
   const risk = Math.abs(normalized) < 20 ? 'wysokie' : Math.abs(normalized) < 50 ? 'średnie' : 'niskie';
 
   const allDetails = [];
@@ -991,15 +1067,25 @@ function generateScenarios(data) {
 function calculateRiskManagement(data, scenarios) {
   const { price, atr } = data;
   const base = scenarios.base;
+  const isLong = base.direction === 'bullish';
 
-  // SL = invalidation of base scenario (NOT random)
-  const stopLoss = +base.invalidation;
+  // Primary SL = invalidation of base scenario
+  let stopLoss = +base.invalidation;
+  let takeProfit1 = +base.target;
 
-  // TP = target of base scenario
-  const takeProfit1 = +base.target;
+  // Sanity check: SL must be on correct side of price
+  // For LONG: SL < price, TP > price
+  // For SHORT: SL > price, TP < price
+  if (isLong) {
+    if (stopLoss >= price) stopLoss = +(price - atr * 2).toFixed(2);
+    if (takeProfit1 <= price) takeProfit1 = +(price + atr * 1.5).toFixed(2);
+  } else {
+    if (stopLoss <= price) stopLoss = +(price + atr * 2).toFixed(2);
+    if (takeProfit1 >= price) takeProfit1 = +(price - atr * 1.5).toFixed(2);
+  }
 
   // TP2 = extended target (3x ATR)
-  const takeProfit2 = base.direction === 'bullish'
+  const takeProfit2 = isLong
     ? +(price + atr * 3).toFixed(2)
     : +(price - atr * 3).toFixed(2);
 
@@ -1007,11 +1093,21 @@ function calculateRiskManagement(data, scenarios) {
   const risk = Math.abs(price - stopLoss);
   const reward1 = Math.abs(takeProfit1 - price);
   const reward2 = Math.abs(takeProfit2 - price);
-  const rrRatio1 = risk > 0 ? +(reward1 / risk).toFixed(2) : 0;
-  const rrRatio2 = risk > 0 ? +(reward2 / risk).toFixed(2) : 0;
+
+  // If R/R < 1.0, tighten SL using ATR to guarantee minimum R/R of 1.0
+  if (risk > 0 && reward1 / risk < 1.0) {
+    const tighterSL = isLong
+      ? +(price - reward1).toFixed(2)       // SL = entry - reward (R/R = 1.0)
+      : +(price + reward1).toFixed(2);
+    stopLoss = tighterSL;
+  }
+
+  const finalRisk = Math.abs(price - stopLoss);
+  const rrRatio1 = finalRisk > 0 ? +(reward1 / finalRisk).toFixed(2) : 0;
+  const rrRatio2 = finalRisk > 0 ? +(reward2 / finalRisk).toFixed(2) : 0;
 
   // Max loss %
-  const maxLossPercent = price > 0 ? +((risk / price) * 100).toFixed(2) : 0;
+  const maxLossPercent = price > 0 ? +((finalRisk / price) * 100).toFixed(2) : 0;
 
   // Position size recommendation
   let positionSize;
@@ -1019,17 +1115,27 @@ function calculateRiskManagement(data, scenarios) {
   else if (maxLossPercent < 5) positionSize = '1-3% portfela';
   else positionSize = '0.5-1% portfela (wysokie ryzyko)';
 
+  // Trade readiness filter
+  const tradeReady = rrRatio1 >= 1.5;
+  let tradeReason = '';
+  if (!tradeReady) {
+    tradeReason = `Słaby R/R (${rrRatio1}:1 < 1.5:1). Brak optymalnych warunków do wejścia.`;
+  }
+
   return {
     entry: +price.toFixed(2),
-    stopLoss,
-    takeProfit1,
+    stopLoss: +stopLoss,
+    takeProfit1: +takeProfit1,
     takeProfit2,
     riskRewardRatio1: rrRatio1,
     riskRewardRatio2: rrRatio2,
     maxLossPercent,
     positionSize,
     direction: base.direction,
-    methodology: 'SL = invalidacja scenariusza bazowego. TP1 = target bazowy. TP2 = 3×ATR.'
+    tradeReady,
+    tradeReason,
+    kMultiplier: finalRisk > 0 ? +(finalRisk / atr).toFixed(1) : 2.0,
+    methodology: `SL = invalidacja scenariusza bazowego (skorygowany dla min R/R ≥ 1.0). TP1 = target bazowy. TP2 = 3×ATR. Kierunek: ${isLong ? 'LONG' : 'SHORT'}.`
   };
 }
 
@@ -1057,7 +1163,7 @@ async function axiosWithRetry(url, options, maxRetries = 3) {
 // ======================== MACRO CONTEXT ========================
 
 let macroCache = { data: null, timestamp: 0 };
-const MACRO_CACHE_TTL = 15 * 60 * 1000;
+const MACRO_CACHE_TTL = 30 * 60 * 1000; // 30 min
 
 async function getMarketContext() {
   if (macroCache.data && (Date.now() - macroCache.timestamp) < MACRO_CACHE_TTL) {
@@ -1287,7 +1393,7 @@ async function getCoinGeckoData(ticker, currency = 'USD') {
       timeout: 15000
     });
 
-    await sleep(1200);
+    await sleep(4000);
 
     const chartRes = await axiosWithRetry(`https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`, {
       params: { vs_currency: currency.toLowerCase(), days: 30, interval: 'daily' },
@@ -1391,10 +1497,11 @@ async function getMarketData(ticker, currency = 'USD') {
     }
 
     const geckoData = await getCoinGeckoData(symbol, currency);
-    const [newsRaw, fearGreed, macroContext] = await Promise.all([
+    const [newsRaw, fearGreed, macroContext, fngHistory] = await Promise.all([
       getCryptoNews(symbol),
       getFearAndGreed(),
-      getMarketContext()
+      getMarketContext(),
+      getFearAndGreedHistory(30)
     ]);
 
     // Enrich news with deterministic impact/direction
@@ -1424,11 +1531,13 @@ async function getMarketData(ticker, currency = 'USD') {
     const sma50Series = calculateOverlaySMASeries(closes, 50);
     const bbOverlaySeries = calculateOverlayBBSeries(closes);
 
+    const priceTimestamp = Date.now();
     const data = {
       ticker: symbol,
       pair: `${symbol}-${currency}`,
       currency: currency,
       price: geckoData.currentPrice,
+      priceTimestamp,
       change: geckoData.change,
       changePercent: geckoData.changePercent,
       high,
@@ -1458,7 +1567,7 @@ async function getMarketData(ticker, currency = 'USD') {
       marketCap: geckoData.marketCap,
       patterns: patterns,
       fibonacci: fibonacci,
-      overlays: { rsiSeries, ema12Series, ema26Series, sma20Series, sma50Series, bbSeries: bbOverlaySeries },
+      overlays: { rsiSeries, ema12Series, ema26Series, sma20Series, sma50Series, bbSeries: bbOverlaySeries, sentimentSeries: buildSentimentSeries(geckoData.chartData, fngHistory, news) },
       news: news,
       importantNews: news.filter(n => n.isImportant),
       lastUpdate: new Date().toISOString(),
@@ -1523,7 +1632,19 @@ app.post('/api/analyze', async (req, res) => {
 
     console.log(`📊 Analizuję: ${ticker}/${currency}`);
 
-    const data = await getMarketData(ticker, currency);
+    let data;
+    try {
+      data = await getMarketData(ticker, currency);
+    } catch (fetchErr) {
+      // If CoinGecko 429 — serve stale cache if available
+      const cacheKey = `${ticker.toUpperCase()}-${currency}`;
+      if (dataCache[cacheKey]?.data) {
+        console.log(`⚠️ CoinGecko 429 — serving stale cache for ${cacheKey}`);
+        data = dataCache[cacheKey].data;
+      } else {
+        throw fetchErr;
+      }
+    }
 
     const newsText = data.news.length > 0
       ? `\n📰 WIADOMOŚCI:\n${data.news.slice(0, 3).map(n => `- ${n.importanceLevel} ${n.title} (${n.sentiment})`).join('\n')}`
@@ -1556,25 +1677,51 @@ Pytanie: ${prompt || 'Analiza techniczna'}`;
     const systemPrompt = `Jesteś profesjonalnym traderem krypto z 10-letnim doświadczeniem. Masz dane z 12 wskaźników + composite score algorytmiczny.
 ZASADY: TYLKO po polsku. Bez markdown. Używaj emoji. NIE pisz przemyśleń. TYLKO gotowa analiza.
 
+⚠️ KRYTYCZNA ZASADA SPÓJNOŚCI:
+Composite Score algorytmu: ${data.composite.score}/100 → ${data.composite.decision}
+Twoja decyzja MUSI być SPÓJNA z kierunkiem composite score:
+- Score > 25 = KUPUJ / LEKKI KUPUJ (LONG)
+- Score < -25 = SPRZEDAJ / LEKKI SPRZEDAJ (SHORT)
+- Score -25 do 25 przy pewności ≥ 60% = TRZYMAJ
+- Score -25 do 25 przy pewności < 60% = OBSERWUJ (czekaj na silniejszy sygnał)
+NIGDY nie dawaj sygnału SPRZEDAJ gdy score jest dodatni, ani KUPUJ gdy score jest ujemny.
+Decyzja algorytmu: ${data.composite.decision} (pewność: ${data.composite.confidence}%).
+${data.composite.decision === 'OBSERWUJ' ? 'Pewność poniżej progu — NIE rekomenduj otwierania pozycji. Zalecaj obserwację rynku.' : ''}
+
+🧭 KIERUNEK TRADE: ${data.riskManagement?.direction === 'bullish' ? 'LONG (kupno)' : 'SHORT (sprzedaż)'}
+Wszystkie sekcje MUSZĄ używać tego samego kierunku. SL, TP, scenariusze — WSZYSTKO pod ${data.riskManagement?.direction === 'bullish' ? 'LONG' : 'SHORT'}.
+${!data.riskManagement?.tradeReady ? '⛔ TRADE NIE GOTOWY: ' + data.riskManagement?.tradeReason + ' Zamiast setupu napisz: "Brak optymalnych warunków do wejścia."' : ''}
+
 SEKCJE:
 1️⃣ TREND I MOMENTUM — RSI, StochRSI, MACD, SAR, ADX. Siła trendu 1-10. Czy ADX potwierdza?
 2️⃣ ŚREDNIE I BOLLINGER — EMA/SMA crossover + pozycja w Bollingerze. Squeeze = zbliżający się ruch.
 3️⃣ WSPARCIE I OPÓR — Pivot Points S1/S2/R1/R2 + BB jako dynamiczny S/R.
 4️⃣ WOLUMEN I OBV — Czy wolumen potwierdza trend? Dywergencja OBV = ostrzeżenie!
 5️⃣ DYWERGENCJE — RSI i OBV divergence = najsilniejsze sygnały reversal. Oceń ważność.
-6️⃣ SENTYMENT — Fear & Greed Index. Extreme Fear = szansa kupna. Extreme Greed = ryzyko.
+6️⃣ SENTYMENT — Fear & Greed Index + sentyment newsów (${data.newsAggregation?.label || 'brak'}).
 7️⃣ WIADOMOŚCI — Wpływ na cenę krótko/długoterminowo.
 8️⃣ SCENARIUSZE — Byczy/niedźwiedzi z konkretnymi cenami i prawdopodobieństwem %.
-9️⃣ ZARZĄDZANIE POZYCJĄ — Entry, stop-loss (na podstawie ATR), take-profit. R:R ratio.
+9️⃣ ZARZĄDZANIE POZYCJĄ — UŻYJ DOKŁADNIE TYCH WARTOŚCI (obliczone algorytmicznie):
+* Kierunek: ${data.riskManagement?.direction === 'bullish' ? 'LONG' : 'SHORT'}
+* Entry: ${data.riskManagement?.entry} ${currency}
+* Stop-Loss: ${data.riskManagement?.stopLoss} ${currency}
+* Take-Profit (TP1): ${data.riskManagement?.takeProfit1} ${currency}
+* Take-Profit (TP2): ${data.riskManagement?.takeProfit2} ${currency}
+* R:R ratio: ${data.riskManagement?.riskRewardRatio1}:1
+${!data.riskManagement?.tradeReady ? '* ⛔ Setup nieoptymalny — zalecaj obserwację.' : '* ✅ Setup optymalny — gotowy do wejścia.'}
+NIE WYMYŚLAJ WŁASNYCH WARTOŚCI SL/TP! Użyj powyższych liczb dokładnie.
 
 🔟 DECYZJA TRADINGOWA
-Composite Score algorytmu: ${data.composite.score} → ${data.composite.decision}
-Czy zgadzasz się z algorytmem? Podaj swoją ocenę:
-Sygnał: KUPUJ / SPRZEDAJ / TRZYMAJ
+Composite Score: ${data.composite.score} → ${data.composite.decision}
+Sygnał: (SPÓJNY z composite score — ${data.composite.decision})
+Pewność: ${data.composite.confidence}% (algorytmiczna — nie zmieniaj!)
 Siła trendu: X/10
 Ryzyko: ${data.composite.risk}
-Pewność: ${data.composite.confidence}%
-Uzasadnienie: dlaczego zgadzasz się lub nie z composite score.`;
+Argumenty (dokładnie 3):
+1. [Najsilniejszy argument techniczny]
+2. [Argument z sentymentu/newsów]
+3. [Argument z wolumenu/on-chain]
+Uzasadnienie: krótkie wyjaśnienie dlaczego ten kierunek.`;
 
     // Próbuj wygenerować analizę AI z fallback
     let aiAnalysis = '';
@@ -1606,6 +1753,7 @@ Uzasadnienie: dlaczego zgadzasz się lub nie z composite score.`;
       analysis: aiAnalysis,
       marketData: {
         price: data.price,
+        priceTimestamp: data.priceTimestamp,
         change: data.change,
         changePercent: data.changePercent,
         marketCap: data.marketCap,
@@ -1678,6 +1826,21 @@ app.get('/', (req, res) => {
   res.json({ status: "✅ Online - COINGECKO + FINNHUB + GEMMA 4 AI" });
 });
 
+app.get('/api/debug/sentiment', async (req, res) => {
+  try {
+    const fng = await getFearAndGreedHistory(30);
+    const sample = fng.slice(0, 5).map(f => ({
+      date: makeDayKey(new Date(f.timestamp)),
+      value: f.value,
+      type: typeof f.value,
+      classification: f.classification
+    }));
+    res.json({ total: fng.length, sample, cacheKeys: Object.keys(dataCache) });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
 const server = app.listen(PORT, async () => {
   console.log(`\n✅ Backend: http://localhost:${PORT}`);
   console.log(`📊 CoinGecko API - OHLC 30 dni`);
@@ -1700,5 +1863,255 @@ app.get('/api/news', async (req, res) => {
     res.json(newsData);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ======================== ORDER BOOK (Binance Depth) ========================
+
+let orderBookCache = {};
+
+app.get('/api/orderbook', async (req, res) => {
+  try {
+    const ticker = (req.query.ticker || 'BTC').toUpperCase();
+    const symbol = `${ticker}USDT`;
+    const cacheKey = symbol;
+
+    if (orderBookCache[cacheKey] && (Date.now() - orderBookCache[cacheKey].timestamp) < 15000) {
+      return res.json(orderBookCache[cacheKey].data);
+    }
+
+    const response = await axios.get('https://api.binance.com/api/v3/depth', {
+      params: { symbol, limit: 50 },
+      timeout: 8000
+    });
+
+    const bids = response.data.bids.map(([price, qty]) => ({
+      price: parseFloat(price),
+      quantity: parseFloat(qty),
+      total: parseFloat(price) * parseFloat(qty)
+    }));
+
+    const asks = response.data.asks.map(([price, qty]) => ({
+      price: parseFloat(price),
+      quantity: parseFloat(qty),
+      total: parseFloat(price) * parseFloat(qty)
+    }));
+
+    const allQtys = [...bids, ...asks].map(o => o.quantity);
+    const avgQty = allQtys.reduce((a, b) => a + b, 0) / allQtys.length;
+    const wallThreshold = avgQty * 5;
+
+    const bidWalls = bids.filter(b => b.quantity >= wallThreshold).sort((a, b) => b.quantity - a.quantity).slice(0, 5);
+    const askWalls = asks.filter(a => a.quantity >= wallThreshold).sort((a, b) => b.quantity - a.quantity).slice(0, 5);
+
+    let bidCum = 0, askCum = 0;
+    const bidDepth = bids.map(b => { bidCum += b.total; return { ...b, cumulative: bidCum }; });
+    const askDepth = asks.map(a => { askCum += a.total; return { ...a, cumulative: askCum }; });
+
+    const totalBidVol = bids.reduce((s, b) => s + b.total, 0);
+    const totalAskVol = asks.reduce((s, a) => s + a.total, 0);
+    const imbalance = totalBidVol / (totalBidVol + totalAskVol);
+
+    const result = {
+      symbol,
+      timestamp: Date.now(),
+      bids: bidDepth.slice(0, 25),
+      asks: askDepth.slice(0, 25),
+      bidWalls,
+      askWalls,
+      totalBidVolume: totalBidVol,
+      totalAskVolume: totalAskVol,
+      imbalance: +(imbalance * 100).toFixed(1),
+      imbalanceLabel: imbalance > 0.6 ? 'BYCZA DOMINACJA' : imbalance < 0.4 ? 'NIEDŹWIEDZIA DOMINACJA' : 'RÓWNOWAGA',
+      spread: asks[0] ? +(asks[0].price - bids[0].price).toFixed(2) : 0,
+      midPrice: asks[0] && bids[0] ? +((asks[0].price + bids[0].price) / 2).toFixed(2) : 0
+    };
+
+    orderBookCache[cacheKey] = { data: result, timestamp: Date.now() };
+    res.json(result);
+  } catch (error) {
+    console.error('Order Book error:', error.message);
+    res.status(500).json({ error: 'Order book unavailable: ' + error.message });
+  }
+});
+
+// ======================== WHALE WATCH (WebSocket Real-Time) ========================
+
+// WebSocket imported at top of file
+
+// Dynamic whale threshold per ticker (USD)
+const WHALE_THRESHOLDS = {
+  BTC: 500000,
+  ETH: 250000,
+  SOL: 100000,
+  BNB: 100000,
+  XRP: 100000,
+  ADA: 50000,
+  DOGE: 50000,
+  DEFAULT: 50000
+};
+
+function getWhaleThreshold(ticker) {
+  return WHALE_THRESHOLDS[ticker.toUpperCase()] || WHALE_THRESHOLDS.DEFAULT;
+}
+
+// Rolling window: keep whale trades from last 30 minutes
+const WHALE_WINDOW_MS = 30 * 60 * 1000;
+const whaleStreams = {};  // { symbol: { ws, trades[], stats, threshold } }
+
+function createWhaleStream(ticker) {
+  const symbol = `${ticker.toUpperCase()}USDT`;
+  const symbolLower = symbol.toLowerCase();
+  const threshold = getWhaleThreshold(ticker.toUpperCase());
+
+  if (whaleStreams[symbol]?.ws?.readyState === WebSocket.OPEN) {
+    return; // already streaming
+  }
+
+  const state = {
+    ws: null,
+    trades: [],
+    threshold,
+    totalAnalyzed: 0,
+    startedAt: Date.now(),
+    lastTradeAt: null
+  };
+
+  function connect() {
+    const wsUrl = `wss://stream.binance.com:9443/ws/${symbolLower}@aggTrade`;
+    console.log(`🐋 Whale Watch: connecting to ${symbol} aggTrade stream...`);
+
+    const ws = new WebSocket(wsUrl);
+    state.ws = ws;
+
+    ws.on('open', () => {
+      console.log(`🐋 Whale Watch: ${symbol} stream LIVE (threshold: $${(threshold/1000).toFixed(0)}K)`);
+    });
+
+    ws.on('message', (raw) => {
+      try {
+        const d = JSON.parse(raw);
+        const price = parseFloat(d.p);
+        const qty = parseFloat(d.q);
+        const total = price * qty;
+        state.totalAnalyzed++;
+        state.lastTradeAt = Date.now();
+
+        if (total >= threshold) {
+          const trade = {
+            price,
+            quantity: qty,
+            total,
+            time: d.T || Date.now(),
+            isBuyerMaker: d.m,
+            timeStr: new Date(d.T || Date.now()).toLocaleTimeString('pl-PL'),
+            side: d.m ? 'SELL' : 'BUY',
+            sideLabel: d.m ? 'Sprzedaz' : 'Kupno',
+            totalFormatted: total >= 1000000 ? '$' + (total / 1000000).toFixed(2) + 'M' : '$' + (total / 1000).toFixed(1) + 'K'
+          };
+          state.trades.push(trade);
+          console.log(`🐋 WHALE ${symbol}: ${trade.side} ${trade.totalFormatted} @ $${price.toLocaleString()}`);
+        }
+
+        // Prune old trades outside rolling window
+        const cutoff = Date.now() - WHALE_WINDOW_MS;
+        state.trades = state.trades.filter(t => t.time >= cutoff);
+      } catch { /* ignore parse errors */ }
+    });
+
+    ws.on('close', () => {
+      console.log(`🐋 Whale Watch: ${symbol} stream closed — reconnecting in 5s...`);
+      setTimeout(connect, 5000);
+    });
+
+    ws.on('error', (err) => {
+      console.error(`🐋 Whale Watch: ${symbol} error: ${err.message}`);
+      ws.close();
+    });
+  }
+
+  connect();
+  whaleStreams[symbol] = state;
+}
+
+function stopWhaleStream(symbol) {
+  if (whaleStreams[symbol]?.ws) {
+    whaleStreams[symbol].ws.close();
+    delete whaleStreams[symbol];
+  }
+}
+
+app.get('/api/whales', (req, res) => {
+  try {
+    const ticker = (req.query.ticker || 'BTC').toUpperCase();
+    const symbol = `${ticker}USDT`;
+    const threshold = getWhaleThreshold(ticker);
+
+    // Start stream if not running
+    if (!whaleStreams[symbol] || whaleStreams[symbol].ws?.readyState !== WebSocket.OPEN) {
+      createWhaleStream(ticker);
+    }
+
+    const state = whaleStreams[symbol];
+    if (!state) {
+      return res.json({
+        symbol,
+        timestamp: Date.now(),
+        whaleThreshold: threshold,
+        whaleTrades: [],
+        whaleCount: 0, buyCount: 0, sellCount: 0,
+        buyVolume: 0, sellVolume: 0,
+        whalePressure: 50, pressureLabel: 'NEUTRALNA',
+        summary: `Uruchamianie strumienia ${symbol}... dane pojawią się za chwilę.`,
+        avgTradeSize: 0,
+        totalTradesAnalyzed: 0,
+        streamActive: false,
+        windowMinutes: WHALE_WINDOW_MS / 60000
+      });
+    }
+
+    const whaleTrades = [...state.trades].sort((a, b) => b.total - a.total).slice(0, 20);
+    const buyWhales = whaleTrades.filter(t => t.side === 'BUY');
+    const sellWhales = whaleTrades.filter(t => t.side === 'SELL');
+    const buyVolume = buyWhales.reduce((s, t) => s + t.total, 0);
+    const sellVolume = sellWhales.reduce((s, t) => s + t.total, 0);
+    const totalWhaleVol = buyVolume + sellVolume;
+    const whalePressure = totalWhaleVol > 0 ? (buyVolume / totalWhaleVol) * 100 : 50;
+
+    const streamAge = Math.round((Date.now() - state.startedAt) / 60000);
+
+    let summary = '';
+    if (whaleTrades.length === 0) {
+      summary = `Brak transakcji >${(threshold / 1000).toFixed(0)}K USD w ostatnich ${Math.min(streamAge, 30)} min. Rynek spokojny.`;
+    } else if (whalePressure > 65) {
+      summary = `BYCZA PRESJA — ${buyWhales.length} wielorybich kupna ($${(buyVolume / 1000).toFixed(0)}K) vs ${sellWhales.length} sprzedaży ($${(sellVolume / 1000).toFixed(0)}K) w ${Math.min(streamAge, 30)} min.`;
+    } else if (whalePressure < 35) {
+      summary = `NIEDŹWIEDZIA PRESJA — ${sellWhales.length} wielorybich sprzedaży ($${(sellVolume / 1000).toFixed(0)}K) vs ${buyWhales.length} kupna ($${(buyVolume / 1000).toFixed(0)}K) w ${Math.min(streamAge, 30)} min.`;
+    } else {
+      summary = `RÓWNOWAGA — ${buyWhales.length} kupna ($${(buyVolume / 1000).toFixed(0)}K) vs ${sellWhales.length} sprzedaży ($${(sellVolume / 1000).toFixed(0)}K) w ${Math.min(streamAge, 30)} min.`;
+    }
+
+    res.json({
+      symbol,
+      timestamp: Date.now(),
+      whaleThreshold: threshold,
+      whaleTrades,
+      whaleCount: whaleTrades.length,
+      buyCount: buyWhales.length,
+      sellCount: sellWhales.length,
+      buyVolume,
+      sellVolume,
+      whalePressure: +whalePressure.toFixed(1),
+      pressureLabel: whalePressure > 65 ? 'BYCZA' : whalePressure < 35 ? 'NIEDŹWIEDZIA' : 'NEUTRALNA',
+      summary,
+      avgTradeSize: 0,
+      totalTradesAnalyzed: state.totalAnalyzed,
+      streamActive: state.ws?.readyState === WebSocket.OPEN,
+      streamAgeMinutes: streamAge,
+      windowMinutes: WHALE_WINDOW_MS / 60000
+    });
+  } catch (error) {
+    console.error('Whale Watch error:', error.message);
+    res.status(500).json({ error: 'Whale data unavailable: ' + error.message });
   }
 });

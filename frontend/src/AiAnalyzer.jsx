@@ -1,6 +1,7 @@
 import './AiAnalyzer.css';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
+import API_URL from './config';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, BarController, Title, Tooltip, Filler, Legend as ChartLegend
 } from 'chart.js';
@@ -122,7 +123,7 @@ export default function AiAnalyzer() {
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
-      axios.get(`https://autograph-qrt6.onrender.com/api/stock/search?q=${query}`)
+      axios.get(`${API_URL}/api/stock/search?q=${query}`)
         .then(res => setSuggestions(res.data)).catch(() => { });
     }, 500);
     return () => clearTimeout(delayDebounce);
@@ -138,7 +139,7 @@ export default function AiAnalyzer() {
     if (!tickerToFetch) return;
     setLoading(true); setError(''); setExpandedDay(null); setDayStreamText('');
     try {
-      const response = await axios.post('https://autograph-qrt6.onrender.com/api/stock/analyze', {
+      const response = await axios.post(`${API_URL}/api/stock/analyze`, {
         ticker: tickerToFetch,
         timeframe: '1Y',
       }, { timeout: 120_000 });
@@ -178,7 +179,7 @@ export default function AiAnalyzer() {
     setDayLoading(true);
 
     try {
-      const response = await fetch('https://autograph-qrt6.onrender.com/api/stock/analyze-day', {
+      const response = await fetch(`${API_URL}/api/stock/analyze-day`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticker: symbol, date: dateStr })

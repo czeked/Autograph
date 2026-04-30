@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { X, FlaskConical } from 'lucide-react';
+import API_URL from '../config';
 
 export default function BacktestModal({ ticker, onClose }) {
   const [slPct, setSlPct] = useState(7);
@@ -15,7 +16,7 @@ export default function BacktestModal({ ticker, onClose }) {
     if (cache.current[key]) { setResult(cache.current[key]); return; }
     setLoading(true); setError(''); setResult(null);
     try {
-      const r = await axios.post('https://autograph-qrt6.onrender.com/api/stock/backtest', { ticker, slPct: +slPct, tpPct: +tpPct });
+      const r = await axios.post(`${API_URL}/api/stock/backtest`, { ticker, slPct: +slPct, tpPct: +tpPct });
       cache.current[key] = r.data;
       setResult(r.data);
     } catch (e) {

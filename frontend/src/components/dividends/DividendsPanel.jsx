@@ -5,6 +5,7 @@ import StatsOverview from "./StatsOverview";
 import StockModal from "./StockModal";
 import TopPick from "./TopPick";
 import { enrichStock } from "./dividendUtils";
+import API_URL from '../../config';
 
 const STRATEGY_TABS = [
     { key: "all",       label: "Wszystkie",      icon: "fa-solid fa-layer-group" },
@@ -52,12 +53,12 @@ export default function DividendsPanel() {
         setLoading(true);
         setError("");
         try {
-            const res = await fetch("https://autograph-qrt6.onrender.com/api/dividends");
+            const res = await fetch(`${API_URL}/api/dividends`);
             const data = await res.json();
             if (data.success) {
                 setRawStocks(data.stocks);
                 if (data.lastRefresh) setLastRefresh(data.lastRefresh);
-                fetch("https://autograph-qrt6.onrender.com/api/dividends/news")
+                fetch(`${API_URL}/api/dividends/news`)
                     .then(r => r.json())
                     .then(nd => { if (nd.success) setMarketNews(nd.news); })
                     .catch(() => {});
@@ -78,7 +79,7 @@ export default function DividendsPanel() {
         setStockNews([]);
         setAiLoading(true);
         try {
-            const res = await fetch("https://autograph-qrt6.onrender.com/api/dividends/analyze", {
+            const res = await fetch(`${API_URL}/api/dividends/analyze`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ticker: stock.ticker }),

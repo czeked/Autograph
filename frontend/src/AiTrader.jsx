@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AiTrader.css';
+import API_URL from './config';
 
 function AiTrader() {
   const navigate = useNavigate();
@@ -28,6 +29,8 @@ function AiTrader() {
   const [focusMode, setFocusMode] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
   const [riskCapital, setRiskCapital] = useState('');
+  const [orderBook, setOrderBook] = useState(null);
+  const [whaleData, setWhaleData] = useState(null);
   const wsRef = useRef(null);
   const prevPriceRef = useRef(null);
 
@@ -115,12 +118,33 @@ function AiTrader() {
       const interval = setInterval(() => {
         console.log('🔄 Auto-odświeżanie...');
         handleSearch(ticker);
-      }, 5 * 60 * 1000);
+      }, 15 * 60 * 1000);
 
       return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketData, ticker]);
+
+  useEffect(() => {
+    if (!ticker) return;
+    const fetchOrderBook = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/orderbook?ticker=${ticker}`);
+        if (res.ok) setOrderBook(await res.json());
+      } catch { /* silent */ }
+    };
+    const fetchWhales = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/whales?ticker=${ticker}`);
+        if (res.ok) setWhaleData(await res.json());
+      } catch { /* silent */ }
+    };
+    fetchOrderBook();
+    fetchWhales();
+    const obInterval = setInterval(fetchOrderBook, 60000);
+    const whaleInterval = setInterval(fetchWhales, 10000);
+    return () => { clearInterval(obInterval); clearInterval(whaleInterval); };
+  }, [ticker]);
 
   const handleSearchChange = (value) => {
     const upperValue = value.toUpperCase();
@@ -152,12 +176,9 @@ function AiTrader() {
     
     setLoading(true);
     setError('');
-    setAnalysis('');
-    setMarketData(null);
-    setChartData([]);
 
     try {
-      const res = await fetch('https://autograph-qrt6.onrender.com/api/analyze', {
+      const res = await fetch(`${API_URL}/api/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -166,6 +187,11 @@ function AiTrader() {
           prompt: prompt || `Analiza ${value.toUpperCase()}/${currency} na dzień ${new Date().toLocaleDateString('pl-PL')}`
         }),
       });
+
+      if (res.status === 429) {
+        setError('⏳ Za dużo zapytań — API wymaga przerwy. Spróbuj ponownie za 1-2 minuty.');
+        return;
+      }
 
       const data = await res.json();
 
@@ -213,10 +239,19 @@ function AiTrader() {
         setTicker(data.ticker);
         setChartData(data.chartData || []);
       } else {
-        setError(`❌ ${data.error}`);
+        const errMsg = data.error || 'Nieznany błąd serwera';
+        if (res.status === 500) {
+          setError(`❌ Błąd serwera: ${errMsg}. Backend mógł przekroczyć limit API lub AI nie odpowiada.`);
+        } else {
+          setError(`❌ ${errMsg}`);
+        }
       }
     } catch (err) {
-      setError(`❌ ${err.message}`);
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        setError('❌ Brak połączenia z backendem. Sprawdź czy serwer działa na localhost:3000');
+      } else {
+        setError(`❌ ${err.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -382,10 +417,30 @@ function AiTrader() {
       {error && <div className="error-message">{error}</div>}
 
       {loading && (
-        <div className="loading-overlay">
-          <div className="loading-spinner"></div>
-          <p>Pobieranie danych z CoinGecko i Finnhub...</p>
-          <p className="loading-sub">Analiza Gemma 4 AI w toku</p>
+        <div className="skeleton-dashboard">
+          <div className="skeleton-header">
+            <div className="skeleton-pulse skeleton-title"></div>
+            <div className="skeleton-pulse skeleton-subtitle"></div>
+          </div>
+          <div className="skeleton-price-row">
+            {[1,2,3,4].map(i => <div key={i} className="skeleton-pulse skeleton-price-card"></div>)}
+          </div>
+          <div className="skeleton-main-grid">
+            <div className="skeleton-pulse skeleton-chart"></div>
+            <div className="skeleton-side">
+              <div className="skeleton-pulse skeleton-score-card"></div>
+              <div className="skeleton-pulse skeleton-mini-card"></div>
+              <div className="skeleton-pulse skeleton-mini-card"></div>
+            </div>
+          </div>
+          <div className="skeleton-analysis-grid">
+            {[1,2,3,4,5,6].map(i => <div key={i} className="skeleton-pulse skeleton-analysis-card"></div>)}
+          </div>
+          <div className="skeleton-loading-text">
+            <div className="loading-spinner"></div>
+            <p>Pobieranie danych z CoinGecko i Finnhub...</p>
+            <p className="loading-sub">Analiza Gemma 4 AI w toku</p>
+          </div>
         </div>
       )}
 
@@ -574,8 +629,8 @@ function AiTrader() {
                       </span>
                     )}
                   </div>
-                  <span className={`composite-decision ${marketData.composite.decision.includes('KUPUJ') ? 'decision-buy' : marketData.composite.decision.includes('SPRZEDAJ') ? 'decision-sell' : 'decision-hold'}`}>
-                    {marketData.composite.decision}
+                  <span className={`composite-decision ${marketData.composite.decision.includes('KUPUJ') ? 'decision-buy' : marketData.composite.decision.includes('SPRZEDAJ') ? 'decision-sell' : marketData.composite.decision === 'OBSERWUJ' ? 'decision-observe' : 'decision-hold'}`}>
+                    {marketData.composite.decision === 'OBSERWUJ' ? '👁️ OBSERWUJ' : marketData.composite.decision}
                   </span>
                 </div>
                 <div className="composite-body">
@@ -585,9 +640,51 @@ function AiTrader() {
                       <span className={`explicit-score-value ${marketData.composite.score > 0 ? 'pos' : marketData.composite.score < 0 ? 'neg' : ''}`}>
                         {marketData.composite.score > 0 ? '+' : ''}{marketData.composite.score}
                       </span>
-                      <span className="explicit-conf-label">Confidence:</span>
-                      <span className="explicit-conf-value">{marketData.composite.confidence}%</span>
                     </div>
+                    {/* Confidence Gauge */}
+                    {(() => {
+                      const conf = marketData.composite.confidence || 0;
+                      const gaugeColor = conf >= 71 ? '#3fb950' : conf >= 41 ? '#d29922' : '#f85149';
+                      const gaugeLabel = conf >= 71 ? 'Silny sygnał' : conf >= 41 ? 'Średni' : 'Słaby sygnał';
+                      const angle = (conf / 100) * 180;
+                      const rad = (a) => (a - 180) * Math.PI / 180;
+                      const r = 40;
+                      const cx = 50, cy = 48;
+                      const x1 = cx + r * Math.cos(rad(0));
+                      const y1 = cy + r * Math.sin(rad(0));
+                      const x2 = cx + r * Math.cos(rad(angle));
+                      const y2 = cy + r * Math.sin(rad(angle));
+                      const largeArc = angle > 180 ? 1 : 0;
+                      const needleRad = rad(angle);
+                      const nx = cx + (r - 8) * Math.cos(needleRad);
+                      const ny = cy + (r - 8) * Math.sin(needleRad);
+                      // Find main driver
+                      let mainDriver = '';
+                      if (marketData.composite.breakdown) {
+                        const entries = Object.entries(marketData.composite.breakdown)
+                          .filter(([, v]) => v && v.contribution !== undefined)
+                          .sort(([, a], [, b]) => Math.abs(b.contribution) - Math.abs(a.contribution));
+                        if (entries.length > 0) mainDriver = entries[0][0];
+                      }
+                      return (
+                        <div className="confidence-gauge-wrap">
+                          <svg viewBox="0 0 100 58" className="confidence-gauge-svg">
+                            <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
+                              fill="none" stroke="#21262d" strokeWidth="8" strokeLinecap="round" />
+                            <path d={`M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`}
+                              fill="none" stroke={gaugeColor} strokeWidth="8" strokeLinecap="round" />
+                            <line x1={cx} y1={cy} x2={nx} y2={ny}
+                              stroke={gaugeColor} strokeWidth="2" strokeLinecap="round" />
+                            <circle cx={cx} cy={cy} r="3" fill={gaugeColor} />
+                            <text x={cx} y={cy + 14} textAnchor="middle" fill={gaugeColor} fontSize="11" fontWeight="800" fontFamily="monospace">{conf}%</text>
+                          </svg>
+                          <div className="gauge-meta">
+                            <span className="gauge-label" style={{ color: gaugeColor }}>{gaugeLabel}</span>
+                            {mainDriver && <span className="gauge-driver">Driver: <strong>{mainDriver}</strong></span>}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* MATHEMATICAL BREAKDOWN PER CATEGORY */}
@@ -642,29 +739,42 @@ function AiTrader() {
                   {marketData.composite.breakdown && (
                     <div className="why-section">
                       <button className="why-btn" onClick={() => setShowWhy(!showWhy)}>
-                        {showWhy ? '🔽 Ukryj wyjaśnienie' : '❓ Dlaczego?'}
+                        {showWhy ? '🔽 Ukryj argumenty' : '🧠 Dlaczego? — Mapa dowodowa'}
                       </button>
                       {showWhy && (
                         <div className="why-content">
-                          <div className="why-header">3 kluczowe argumenty za decyzją:</div>
+                          <div className="why-header">Argumenty za decyzją „{marketData.composite.decision}":</div>
                           {Object.entries(marketData.composite.breakdown)
-                            .filter(([, cat]) => cat && cat.contribution !== undefined)
+                            .filter(([, cat]) => cat && cat.signals && cat.signals.length > 0)
                             .sort(([, a], [, b]) => Math.abs(b.contribution) - Math.abs(a.contribution))
-                            .slice(0, 3)
-                            .map(([key, cat], i) => (
-                              <div key={key} className="why-item">
-                                <span className="why-num">{i + 1}</span>
-                                <div className="why-detail">
-                                  <span className="why-title">{key}</span>
-                                  <span className="why-desc">
-                                    Raw: {(cat.raw / 100).toFixed(2)} × Waga: {(cat.weight / 100).toFixed(2)}
-                                  </span>
-                                  <span className={`why-impact ${cat.contribution > 0 ? 'positive' : 'negative'}`}>
-                                    Wpływ: {cat.contribution > 0 ? '+' : ''}{cat.contribution}
-                                  </span>
+                            .map(([key, cat], i) => {
+                              const catLabels = { trend: '📈 Trend', momentum: '⚡ Momentum', volume: '📊 Wolumen', sentiment: '😱 Sentyment' };
+                              return (
+                                <div key={key} className={`why-item ${cat.contribution > 0 ? 'why-bullish' : cat.contribution < 0 ? 'why-bearish' : 'why-neutral'}`}>
+                                  <span className="why-num">{i + 1}</span>
+                                  <div className="why-detail">
+                                    <div className="why-title-row">
+                                      <span className="why-title">{catLabels[key] || key}</span>
+                                      <span className={`why-impact ${cat.contribution > 0 ? 'positive' : 'negative'}`}>
+                                        {cat.contribution > 0 ? '+' : ''}{cat.contribution} pkt
+                                      </span>
+                                    </div>
+                                    <div className="why-signals">
+                                      {cat.signals.map((sig, si) => (
+                                        <span key={si} className="why-signal-tag">{sig}</span>
+                                      ))}
+                                    </div>
+                                    <div className="why-bar-container">
+                                      <div className={`why-bar ${cat.contribution > 0 ? 'bar-green' : 'bar-red'}`} style={{ width: `${Math.min(Math.abs(cat.contribution) * 2, 100)}%` }}></div>
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
+                          <div className="why-formula">
+                            <span className="why-formula-label">Formuła:</span>
+                            <span className="why-formula-text">{marketData.composite.formula}</span>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -708,9 +818,23 @@ function AiTrader() {
                           const min = Math.min(...pts);
                           const max = Math.max(...pts);
                           const range = max - min || 1;
+                          const w = pts.length * 10;
                           const path = pts.map((v, i) => `${i === 0 ? 'M' : 'L'} ${i * 10} ${38 - ((v - min) / range) * 36}`).join(' ');
+                          const areaPath = path + ` L ${(pts.length - 1) * 10} 40 L 0 40 Z`;
                           const lastVal = pts[pts.length - 1];
-                          return <path d={path} fill="none" stroke={lastVal >= 100 ? '#3fb950' : '#f85149'} strokeWidth="2" />;
+                          const color = lastVal >= 100 ? '#3fb950' : '#f85149';
+                          return (
+                            <>
+                              <defs>
+                                <linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2={`${w}`} gradientUnits="userSpaceOnUse">
+                                  <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+                                  <stop offset="100%" stopColor={color} stopOpacity="0.03" />
+                                </linearGradient>
+                              </defs>
+                              <path d={areaPath} fill="url(#eqGrad)" />
+                              <path d={path} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" />
+                            </>
+                          );
                         })()}
                       </svg>
                     </div>
@@ -719,6 +843,34 @@ function AiTrader() {
               </div>
             )}
           </div>
+
+          {/* Signal Conflict Warning */}
+          {(() => {
+            if (!marketData.composite || !analysis) return null;
+            const compositeDir = marketData.composite.score > 10 ? 'buy' : marketData.composite.score < -10 ? 'sell' : 'hold';
+            const aiSignal = /KUPUJ|BUY|LONG/i.test(analysis) ? 'buy' : /SPRZEDAJ|SELL|SHORT/i.test(analysis) ? 'sell' : 'hold';
+            const conflict = (compositeDir === 'buy' && aiSignal === 'sell') || (compositeDir === 'sell' && aiSignal === 'buy');
+            const partial = (compositeDir === 'hold' && aiSignal !== 'hold') || (aiSignal === 'hold' && compositeDir !== 'hold');
+            if (!conflict && !partial) return null;
+            return (
+              <div className={`signal-conflict-banner ${conflict ? 'conflict-high' : 'conflict-partial'}`}>
+                <div className="conflict-icon">{conflict ? '⚠️' : 'ℹ️'}</div>
+                <div className="conflict-body">
+                  <div className="conflict-title">{conflict ? 'Konflikt sygnałów: Wysokie ryzyko' : 'Rozbieżność sygnałów'}</div>
+                  <div className="conflict-desc">
+                    <span className="conflict-tag">Composite: <strong>{marketData.composite.decision}</strong> (Score {marketData.composite.score > 0 ? '+' : ''}{marketData.composite.score})</span>
+                    <span className="conflict-vs">vs</span>
+                    <span className="conflict-tag">Gemma AI: <strong>{aiSignal === 'buy' ? 'KUPUJ' : aiSignal === 'sell' ? 'SPRZEDAJ' : 'TRZYMAJ'}</strong></span>
+                  </div>
+                  <div className="conflict-advice">
+                    {conflict
+                      ? 'Wskaźniki techniczne i AI dają przeciwne sygnały. Zachowaj szczególną ostrożność — nie otwieraj pozycji bez dodatkowego potwierdzenia.'
+                      : 'Jeden z systemów sugeruje neutralność, drugi widzi kierunek. Zmniejsz wielkość pozycji lub czekaj na zbieżność sygnałów.'}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Micro/Macro Trend Recommendations */}
           {(marketData.microTrend || marketData.macroTrend) && (
@@ -895,54 +1047,103 @@ function AiTrader() {
           )}
 
           {/* Risk Management */}
-          {marketData.riskManagement && (
+          {marketData.riskManagement && (() => {
+            const rm = marketData.riskManagement;
+            const isLong = rm.direction === 'bullish';
+            const decision = marketData.composite?.decision;
+            const isObserve = decision === 'OBSERWUJ';
+            const isHold = decision === 'TRZYMAJ';
+            const noSetup = isObserve || !rm.tradeReady;
+            const entry = rm.entry;
+            const sl = rm.stopLoss;
+            const tp1 = rm.takeProfit1;
+            const tp2 = rm.takeProfit2;
+            const rr = parseFloat(rm.riskRewardRatio1) || 0;
+            const rrColor = rr >= 2 ? '#3fb950' : rr >= 1.5 ? '#58a6ff' : rr >= 1 ? '#d29922' : '#f85149';
+            const rrIcon = rr >= 2 ? '🟢' : rr >= 1.5 ? '🔵' : rr >= 1 ? '🟡' : '🔴';
+            const priceTime = marketData.priceTimestamp ? new Date(marketData.priceTimestamp).toLocaleTimeString('pl-PL') : null;
+            return (
             <div className="risk-section">
               <h3>🛡️ Risk Management</h3>
               <div className="risk-body">
-                <div className="risk-badges-row">
-                  <div className="risk-badge badge-sl">
-                    <span className="rb-lbl">Stop Loss</span>
-                    <span className="rb-val">{formatPrice(marketData.riskManagement.stopLoss)}</span>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+                  <div style={{ background: isLong ? 'rgba(63,185,80,0.12)' : 'rgba(248,81,73,0.12)', color: isLong ? '#3fb950' : '#f85149', border: `1px solid ${isLong ? 'rgba(63,185,80,0.3)' : 'rgba(248,81,73,0.3)'}`, borderRadius: 8, padding: '6px 16px', fontWeight: 700, fontSize: '0.85rem' }}>
+                    {isLong ? '📈 LONG' : '📉 SHORT'}
                   </div>
+                  {priceTime && <span style={{ fontSize: '0.7rem', color: '#484f58' }}>Cena z: {priceTime}</span>}
+                </div>
+
+                {noSetup && (
+                  <div style={{ background: 'rgba(248,81,73,0.08)', border: '1px solid rgba(248,81,73,0.3)', borderRadius: 8, padding: '12px 16px', marginBottom: 14, fontSize: '0.85rem', color: '#f85149' }}>
+                    ⛔ {isObserve
+                      ? `Pewność algorytmu: ${marketData.composite?.confidence}% (< 60%) — sygnał zbyt słaby. OBSERWUJ rynek, nie otwieraj pozycji.`
+                      : rm.tradeReason || 'Brak optymalnych warunków do wejścia (słaby R/R).'}
+                  </div>
+                )}
+
+                {isHold && !noSetup && (
+                  <div style={{ background: 'rgba(210,153,34,0.1)', border: '1px solid rgba(210,153,34,0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: '0.82rem', color: '#d29922' }}>
+                    ⚠️ TRZYMAJ — wartości poniżej to scenariusz bazowy, nie aktywna rekomendacja.
+                  </div>
+                )}
+
+                <div className="risk-badges-row" style={noSetup ? { opacity: 0.45, pointerEvents: 'none' } : {}}>
                   <div className="risk-badge badge-entry">
                     <span className="rb-lbl">Entry</span>
-                    <span className="rb-val">{formatPrice(marketData.riskManagement.entry)}</span>
+                    <span className="rb-val">{formatPrice(entry)}</span>
+                  </div>
+                  <div className="risk-badge badge-sl">
+                    <span className="rb-lbl">Stop Loss</span>
+                    <span className="rb-val">{formatPrice(sl)}</span>
+                    <span style={{ fontSize: '0.65rem', color: '#8b949e' }}>{isLong ? '(poniżej entry)' : '(powyżej entry)'}</span>
                   </div>
                   <div className="risk-badge badge-tp">
                     <span className="rb-lbl">Take Profit (TP1)</span>
-                    <span className="rb-val">{formatPrice(marketData.riskManagement.takeProfit1)}</span>
+                    <span className="rb-val">{formatPrice(tp1)}</span>
+                    <span style={{ fontSize: '0.65rem', color: '#8b949e' }}>{isLong ? '(powyżej entry)' : '(poniżej entry)'}</span>
                   </div>
                   <div className="risk-badge badge-tp">
                     <span className="rb-lbl">Take Profit (TP2)</span>
-                    <span className="rb-val">{formatPrice(marketData.riskManagement.takeProfit2)}</span>
+                    <span className="rb-val">{formatPrice(tp2)}</span>
                   </div>
                 </div>
 
-                <div className="rr-bar-section">
+                <div className="rr-bar-section" style={noSetup ? { opacity: 0.45 } : {}}>
+                  <div className="rr-header-row">
+                    <span className="rr-formula">R/R = |TP − Entry| / |Entry − SL|</span>
+                    <span className="rr-ratio-badge" style={{ background: rrColor + '20', color: rrColor, borderColor: rrColor + '40' }}>
+                      {rrIcon} R/R {rr.toFixed(2)}
+                    </span>
+                  </div>
                   <div className="rr-labels">
                     <span className="rr-risk-lbl">Ryzyko (1)</span>
-                    <span className="rr-reward-lbl">Potencjał Zysku ({marketData.riskManagement.riskRewardRatio1})</span>
+                    <span className="rr-reward-lbl">Zysk ({rr.toFixed(2)})</span>
                   </div>
                   <div className="rr-visual-bar">
                     <div className="rr-risk-fill" style={{ flex: 1 }}></div>
-                    <div className="rr-reward-fill" style={{ flex: marketData.riskManagement.riskRewardRatio1 }}></div>
+                    <div className="rr-reward-fill" style={{ flex: rr, background: rrColor }}></div>
                   </div>
+                  {rr >= 2 && <div className="rr-good-note">✅ Doskonały R/R ≥ 2.0</div>}
+                  {rr >= 1.5 && rr < 2 && <div style={{ color: '#58a6ff', fontSize: '0.78rem', marginTop: 4 }}>🔵 Dobry R/R ≥ 1.5 — setup akceptowalny</div>}
+                  {rr >= 1 && rr < 1.5 && <div style={{ color: '#d29922', fontSize: '0.78rem', marginTop: 4 }}>🟡 R/R poniżej progu 1.5 — nie rekomendujemy wejścia</div>}
+                  {rr < 1 && <div className="rr-bad-note">⚠️ Niski R/R — nie otwieraj pozycji</div>}
                 </div>
 
                 <div className="risk-stats">
                   <div className="risk-stat">
                     <span className="rs-label">Max Loss</span>
-                    <span className="rs-value negative">-{marketData.riskManagement.maxLossPercent}%</span>
+                    <span className="rs-value negative">-{rm.maxLossPercent}%</span>
                   </div>
                   <div className="risk-stat">
                     <span className="rs-label">Pozycja</span>
-                    <span className="rs-value">{marketData.riskManagement.positionSize}</span>
+                    <span className="rs-value">{rm.positionSize}</span>
                   </div>
                 </div>
-                <div className="risk-methodology">📐 {marketData.riskManagement.methodology}</div>
+                <div className="risk-methodology">📐 {rm.methodology}</div>
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {/* Risk Calculator */}
           {marketData.riskManagement && (
@@ -987,6 +1188,55 @@ function AiTrader() {
             </div>
           )}
 
+          {/* ATR-based Stop Loss Calculator */}
+          {marketData.atr && marketData.price && (
+            <div className="risk-calc-section atr-sl-section">
+              <h3>📏 ATR Stop Loss Calculator</h3>
+              <div className="atr-sl-body">
+                {(() => {
+                  const atr = marketData.atr;
+                  const price = marketData.price;
+                  const atrPercent = ((atr / price) * 100).toFixed(2);
+                  const sl1x = price - atr;
+                  const sl1_5x = price - atr * 1.5;
+                  const sl2x = price - atr * 2;
+                  const sl3x = price - atr * 3;
+                  const levels = [
+                    { mult: '1.0×', sl: sl1x, risk: ((atr / price) * 100).toFixed(2), style: 'aggressive', label: 'Agresywny' },
+                    { mult: '1.5×', sl: sl1_5x, risk: ((atr * 1.5 / price) * 100).toFixed(2), style: 'standard', label: 'Standardowy' },
+                    { mult: '2.0×', sl: sl2x, risk: ((atr * 2 / price) * 100).toFixed(2), style: 'conservative', label: 'Konserwatywny' },
+                    { mult: '3.0×', sl: sl3x, risk: ((atr * 3 / price) * 100).toFixed(2), style: 'safe', label: 'Bezpieczny' },
+                  ];
+                  return (
+                    <>
+                      <div className="atr-info-row">
+                        <div className="atr-stat"><span className="atr-stat-label">ATR (14)</span><span className="atr-stat-value">{formatPrice(atr)} {currency}</span></div>
+                        <div className="atr-stat"><span className="atr-stat-label">ATR %</span><span className="atr-stat-value">{atrPercent}%</span></div>
+                        <div className="atr-stat"><span className="atr-stat-label">Cena</span><span className="atr-stat-value">{formatPrice(price)} {currency}</span></div>
+                        <div className="atr-stat"><span className="atr-stat-label">Zmienność</span><span className={`atr-stat-value ${parseFloat(atrPercent) > 5 ? 'highlight-red' : parseFloat(atrPercent) > 2 ? 'highlight-blue' : 'highlight-green'}`}>{parseFloat(atrPercent) > 5 ? 'Wysoka' : parseFloat(atrPercent) > 2 ? 'Średnia' : 'Niska'}</span></div>
+                      </div>
+                      <div className="atr-formula-row">
+                        <span className="atr-formula">Stop Loss = Cena − (ATR × Mnożnik)</span>
+                      </div>
+                      <div className="atr-levels-grid">
+                        {levels.map((lv, i) => (
+                          <div key={i} className={`atr-level-card atr-${lv.style}`}>
+                            <div className="atr-level-header">
+                              <span className="atr-mult">{lv.mult} ATR</span>
+                              <span className="atr-style-badge">{lv.label}</span>
+                            </div>
+                            <div className="atr-level-sl">{formatPrice(lv.sl)} {currency}</div>
+                            <div className="atr-level-risk">Ryzyko: -{lv.risk}%</div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
           {/* Chart with type switcher */}
           {chartData.length > 0 && (
             <div className="chart-section">
@@ -1014,6 +1264,7 @@ function AiTrader() {
                     <button className={`overlay-btn ${activeOverlays.has('ema') ? 'active' : ''}`} onClick={() => toggleOverlay('ema')}>EMA</button>
                     <button className={`overlay-btn ${activeOverlays.has('sma') ? 'active' : ''}`} onClick={() => toggleOverlay('sma')}>SMA</button>
                     <button className={`overlay-btn ${activeOverlays.has('bb') ? 'active' : ''}`} onClick={() => toggleOverlay('bb')}>BB</button>
+                    <button className={`overlay-btn sentiment-btn ${activeOverlays.has('sentiment') ? 'active' : ''}`} onClick={() => toggleOverlay('sentiment')}>Sentiment</button>
                   </div>
                   <div className="chart-legend">
                     <span className="legend-item green">▮ Wzrost</span>
@@ -1021,7 +1272,7 @@ function AiTrader() {
                   </div>
                 </div>
               </div>
-              <ChartComponent data={chartData} chartType={chartType} overlays={marketData?.overlays} fibonacci={marketData?.fibonacci} activeOverlays={activeOverlays} />
+              <ChartComponent data={chartData} chartType={chartType} overlays={marketData?.overlays} fibonacci={marketData?.fibonacci} activeOverlays={activeOverlays} focusMode={focusMode} scenarios={marketData?.scenarios} riskManagement={marketData?.riskManagement} aiLevels={{ support1: marketData?.support1, support2: marketData?.support2, resistance1: marketData?.resistance1, resistance2: marketData?.resistance2, entry: marketData?.riskManagement?.entry, stopLoss: marketData?.riskManagement?.stopLoss, takeProfit1: marketData?.riskManagement?.takeProfit1, takeProfit2: marketData?.riskManagement?.takeProfit2 }} />
             </div>
           )}
         </div>
@@ -1034,6 +1285,146 @@ function AiTrader() {
 
       {/* AI Analysis */}
       {analysis && <AnalysisDisplay analysis={analysis} ticker={ticker} currency={currency} />}
+
+      {/* Order Book Heatmap */}
+      {orderBook && (
+        <div className="orderbook-section">
+          <h3>📊 Order Book Heatmap — {orderBook.symbol}</h3>
+          <div className="ob-summary">
+            <div className="ob-stat">
+              <span className="ob-stat-label">Mid Price</span>
+              <span className="ob-stat-value">${orderBook.midPrice?.toLocaleString()}</span>
+            </div>
+            <div className="ob-stat">
+              <span className="ob-stat-label">Spread</span>
+              <span className="ob-stat-value">${orderBook.spread}</span>
+            </div>
+            <div className={`ob-stat ob-imbalance ${orderBook.imbalance > 55 ? 'bullish' : orderBook.imbalance < 45 ? 'bearish' : 'neutral'}`}>
+              <span className="ob-stat-label">Imbalance</span>
+              <span className="ob-stat-value">{orderBook.imbalance}% Bid</span>
+              <span className="ob-stat-tag">{orderBook.imbalanceLabel}</span>
+            </div>
+          </div>
+          <div className="ob-imbalance-bar">
+            <div className="ob-bid-fill" style={{ width: `${orderBook.imbalance}%` }}></div>
+            <div className="ob-ask-fill" style={{ width: `${100 - orderBook.imbalance}%` }}></div>
+            <span className="ob-bar-label ob-bar-bid">Bids {orderBook.imbalance}%</span>
+            <span className="ob-bar-label ob-bar-ask">Asks {(100 - orderBook.imbalance).toFixed(1)}%</span>
+          </div>
+          <div className="ob-depth-grid">
+            <div className="ob-side ob-bids">
+              <h4>Bids (Kupno)</h4>
+              {orderBook.bids?.slice(0, 15).map((b, i) => {
+                const maxCum = orderBook.bids[orderBook.bids.length - 1]?.cumulative || 1;
+                const pct = (b.cumulative / maxCum) * 100;
+                const isWall = orderBook.bidWalls?.some(w => w.price === b.price);
+                return (
+                  <div key={`bid-${i}`} className={`ob-row ${isWall ? 'ob-wall' : ''}`}>
+                    <div className="ob-row-bg ob-bid-bg" style={{ width: `${pct}%` }}></div>
+                    <span className="ob-price">${b.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                    <span className="ob-qty">{b.quantity.toFixed(4)}</span>
+                    <span className="ob-total">${(b.total / 1000).toFixed(1)}K</span>
+                    {isWall && <span className="ob-wall-tag">WALL</span>}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="ob-side ob-asks">
+              <h4>Asks (Sprzedaz)</h4>
+              {orderBook.asks?.slice(0, 15).map((a, i) => {
+                const maxCum = orderBook.asks[orderBook.asks.length - 1]?.cumulative || 1;
+                const pct = (a.cumulative / maxCum) * 100;
+                const isWall = orderBook.askWalls?.some(w => w.price === a.price);
+                return (
+                  <div key={`ask-${i}`} className={`ob-row ${isWall ? 'ob-wall' : ''}`}>
+                    <div className="ob-row-bg ob-ask-bg" style={{ width: `${pct}%` }}></div>
+                    <span className="ob-price">${a.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                    <span className="ob-qty">{a.quantity.toFixed(4)}</span>
+                    <span className="ob-total">${(a.total / 1000).toFixed(1)}K</span>
+                    {isWall && <span className="ob-wall-tag">WALL</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          {(orderBook.bidWalls?.length > 0 || orderBook.askWalls?.length > 0) && (
+            <div className="ob-walls-summary">
+              <h4>Order Walls</h4>
+              <div className="ob-walls-grid">
+                {orderBook.bidWalls?.map((w, i) => (
+                  <div key={`bw-${i}`} className="ob-wall-card ob-wall-bid">
+                    <span className="wall-side">BID</span>
+                    <span className="wall-price">${w.price.toLocaleString()}</span>
+                    <span className="wall-size">{w.quantity.toFixed(4)} ({(w.total / 1000).toFixed(0)}K)</span>
+                  </div>
+                ))}
+                {orderBook.askWalls?.map((w, i) => (
+                  <div key={`aw-${i}`} className="ob-wall-card ob-wall-ask">
+                    <span className="wall-side">ASK</span>
+                    <span className="wall-price">${w.price.toLocaleString()}</span>
+                    <span className="wall-size">{w.quantity.toFixed(4)} ({(w.total / 1000).toFixed(0)}K)</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="ob-refresh-note">Auto-refresh co 60s</div>
+        </div>
+      )}
+
+      {/* Whale Watch */}
+      {whaleData && (
+        <div className="whale-section">
+          <h3>🐋 Whale Watch — {whaleData.symbol}
+            {whaleData.streamActive && <span style={{ fontSize: '0.6em', color: '#3fb950', marginLeft: 10, verticalAlign: 'middle' }}>● LIVE</span>}
+            {!whaleData.streamActive && <span style={{ fontSize: '0.6em', color: '#d29922', marginLeft: 10, verticalAlign: 'middle' }}>⏳ Łączenie...</span>}
+          </h3>
+          <div className="whale-summary">
+            <div className="whale-summary-text">{whaleData.summary}</div>
+            <div className="whale-stats">
+              <div className={`whale-pressure-card ${whaleData.pressureLabel === 'BYCZA' ? 'bullish' : whaleData.pressureLabel === 'NIEDŹWIEDZIA' ? 'bearish' : 'neutral'}`}>
+                <span className="wp-label">Whale Pressure</span>
+                <span className="wp-value">{whaleData.whalePressure}%</span>
+                <span className="wp-tag">{whaleData.pressureLabel}</span>
+              </div>
+              <div className="whale-stat">
+                <span className="ws-val whale-buy">{whaleData.buyCount}</span>
+                <span className="ws-lbl">Kupno</span>
+                <span className="ws-vol">${whaleData.buyVolume >= 1000000 ? (whaleData.buyVolume / 1000000).toFixed(1) + 'M' : (whaleData.buyVolume / 1000).toFixed(0) + 'K'}</span>
+              </div>
+              <div className="whale-stat">
+                <span className="ws-val whale-sell">{whaleData.sellCount}</span>
+                <span className="ws-lbl">Sprzedaż</span>
+                <span className="ws-vol">${whaleData.sellVolume >= 1000000 ? (whaleData.sellVolume / 1000000).toFixed(1) + 'M' : (whaleData.sellVolume / 1000).toFixed(0) + 'K'}</span>
+              </div>
+              <div className="whale-stat">
+                <span className="ws-val">{whaleData.totalTradesAnalyzed?.toLocaleString()}</span>
+                <span className="ws-lbl">Przeskanowano</span>
+                <span className="ws-vol">Próg: ${(whaleData.whaleThreshold / 1000).toFixed(0)}K</span>
+              </div>
+            </div>
+          </div>
+          {whaleData.whaleTrades?.length > 0 && (
+            <div className="whale-trades">
+              <h4>Ostatnie transakcje wielorybów ({whaleData.whaleCount}) — okno {whaleData.windowMinutes || 30} min</h4>
+              <div className="whale-trades-list">
+                {whaleData.whaleTrades.slice(0, 10).map((t, i) => (
+                  <div key={`wt-${i}`} className={`whale-trade-row whale-${t.side.toLowerCase()}`}>
+                    <span className="wt-side">{t.side === 'BUY' ? '🟢' : '🔴'} {t.sideLabel}</span>
+                    <span className="wt-amount">{t.totalFormatted}</span>
+                    <span className="wt-price">${t.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                    <span className="wt-qty">{t.quantity.toFixed(4)}</span>
+                    <span className="wt-time">{t.timeStr}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="whale-refresh-note">
+            {whaleData.streamActive ? '🔴 Binance aggTrade WebSocket (real-time)' : '⏳ Uruchamianie strumienia...'} | Odświeżanie co 10s | Okno: {whaleData.windowMinutes || 30} min | Próg: ${(whaleData.whaleThreshold / 1000).toFixed(0)}K
+          </div>
+        </div>
+      )}
 
       <footer className="app-footer">
         <div className="footer-brand">Autograph</div>
@@ -1059,6 +1450,7 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
   const getSignal = (t) => {
     if (/KUPUJ|BUY|LONG/i.test(t)) return 'buy';
     if (/SPRZEDAJ|SELL|SHORT/i.test(t)) return 'sell';
+    if (/OBSERWUJ|WAIT|WATCH/i.test(t)) return 'observe';
     if (/TRZYMAJ|HOLD|NEUTRAL/i.test(t)) return 'hold';
     return null;
   };
@@ -1212,6 +1604,19 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
     );
   };
 
+  // Traffic light per section: analyze content for bullish/bearish/neutral signals
+  const getTrafficLight = (section) => {
+    const text = [section.title || '', ...section.lines].join(' ').toLowerCase();
+    const bullish = /byczy|wzrost|kupuj|buy|long|silny|potwierdza|rosnący|pozytywn|bycz|rośnie|powyżej|utrzymuje/i.test(text);
+    const bearish = /niedźwiedzi|spadek|sprzedaj|sell|short|słaby|malejący|negatywn|niedzwiedz|spada|poniżej|traci/i.test(text);
+    const divergence = /dywergencj|divergen|rozbieżn/i.test(text);
+    if (divergence) return { icon: '🟡', color: '#d29922', label: 'Uwaga' };
+    if (bullish && bearish) return { icon: '🟡', color: '#d29922', label: 'Mieszany' };
+    if (bullish) return { icon: '🟢', color: '#3fb950', label: 'Byczy' };
+    if (bearish) return { icon: '🔴', color: '#f85149', label: 'Niedźwiedzi' };
+    return { icon: '⚪', color: '#8b949e', label: 'Neutralny' };
+  };
+
   // Identify decision section (last / 🔟)
   const isDecisionSection = (section) => {
     return section.title && (/^🔟/.test(section.title) || /DECYZJA/i.test(section.title));
@@ -1236,11 +1641,12 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
             <div className={`trading-decision decision-${overallSignal}`}>
               <div className="decision-signal">
                 <span className="decision-icon">
-                  {overallSignal === 'buy' ? '🟢' : overallSignal === 'sell' ? '🔴' : '🟡'}
+                  {overallSignal === 'buy' ? '🟢' : overallSignal === 'sell' ? '🔴' : overallSignal === 'observe' ? '👁️' : '🟡'}
                 </span>
                 <span className="decision-label">
                   {overallSignal === 'buy' ? 'KUPUJ' :
-                   overallSignal === 'sell' ? 'SPRZEDAJ' : 'TRZYMAJ'}
+                   overallSignal === 'sell' ? 'SPRZEDAJ' :
+                   overallSignal === 'observe' ? 'OBSERWUJ' : 'TRZYMAJ'}
                 </span>
               </div>
               <div className="decision-metrics">
@@ -1280,6 +1686,7 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
         <div className="analysis-grid">
           {sections.filter(s => !isDecisionSection(s)).map((section, idx) => {
             const parsed = section.title ? parseTitle(section.title) : null;
+            const tl = section.title ? getTrafficLight(section) : null;
             return (
               <div key={idx} className={`analysis-card ${section.type === 'intro' ? 'intro-card' : ''} ${section.signal ? `card-${section.signal}` : ''}`}>
                 {parsed && (
@@ -1288,10 +1695,14 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
                       {parsed.num || '#'}
                     </div>
                     <span className="card-title">{parsed.text}</span>
+                    {tl && <span className="traffic-light" style={{ color: tl.color }} title={tl.label}>{tl.icon} {tl.label}</span>}
                   </div>
                 )}
                 <div className="card-content">
-                  {section.lines.map((l, li) => renderLine(l, li))}
+                  {section.lines.length > 0
+                    ? section.lines.map((l, li) => renderLine(l, li))
+                    : <p className="a-line empty-section-note">Brak istotnych sygnałów w tej kategorii.</p>
+                  }
                 </div>
               </div>
             );
@@ -1326,7 +1737,7 @@ function AnalysisDisplay({ analysis, ticker, currency }) {
 
 /* ======================== CANDLESTICK CHART ======================== */
 
-function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, activeOverlays }) {
+function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, activeOverlays, focusMode, scenarios, aiLevels }) {
   const containerRef = useRef(null);
   const [tooltip, setTooltip] = useState(null);
   const [crosshair, setCrosshair] = useState(null);
@@ -1345,22 +1756,27 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
 
   if (!data || data.length === 0) return null;
 
+  // Show all candles from the month
+  const totalCandles = data.length;
+  const visibleCount = totalCandles;
+  const startIdx = 0;
+  const visibleData = data;
+
   const showRsi = activeOverlays && activeOverlays.has('rsi');
   const showFib = activeOverlays && activeOverlays.has('fibonacci');
   const showEma = activeOverlays && activeOverlays.has('ema');
   const showSma = activeOverlays && activeOverlays.has('sma');
   const showBb = activeOverlays && activeOverlays.has('bb');
+  const showSentiment = activeOverlays && activeOverlays.has('sentiment');
 
-  const n = data.length;
+  const n = visibleData.length;
   const paddingLeft = 80;
-  const paddingRight = 60;
+  const paddingRight = (showRsi || showSentiment) ? 80 : 60;
   const paddingTop = 30;
   const paddingBottom = 55;
   const priceAreaH = 500;
   const volumeAreaH = 100;
-  const rsiAreaH = showRsi ? 130 : 0;
-  const rsiGap = showRsi ? 20 : 0;
-  const totalH = priceAreaH + volumeAreaH + rsiAreaH + rsiGap + paddingTop + paddingBottom + 20;
+  const totalH = priceAreaH + volumeAreaH + paddingTop + paddingBottom + 20;
 
   const minCandleW = 10;
   const minSpacing = minCandleW / 0.6;
@@ -1371,7 +1787,7 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
   const candleSpacing = usableW / n;
   const candleW = Math.max(Math.min(candleSpacing * 0.6, 20), 6);
 
-  const prices = data.flatMap(d => [d.high, d.low]);
+  const prices = visibleData.flatMap(d => [d.high, d.low]);
   const maxPrice = Math.max(...prices);
   const minPrice = Math.min(...prices);
   const pricePad = (maxPrice - minPrice) * 0.08 || 1;
@@ -1379,16 +1795,15 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
   const pMin = minPrice - pricePad;
   const pRange = pMax - pMin;
 
-  const volumes = data.map(d => d.volume || 0);
+  const volumes = visibleData.map(d => d.volume || 0);
   const maxVol = Math.max(...volumes) || 1;
 
   const getX = (i) => paddingLeft + i * candleSpacing + candleSpacing / 2;
   const getY = (price) => paddingTop + (1 - (price - pMin) / pRange) * priceAreaH;
   const volBase = paddingTop + priceAreaH + 20 + volumeAreaH;
 
-  // RSI sub-chart helpers
-  const rsiTop = volBase + rsiGap;
-  const getRsiY = (val) => rsiTop + (1 - val / 100) * rsiAreaH;
+  // RSI overlay helpers (scaled to price area)
+  const getRsiY = (val) => paddingTop + (1 - val / 100) * priceAreaH;
 
   // Price grid
   const gridLines = [];
@@ -1397,13 +1812,15 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
     gridLines.push({ y: getY(price), price });
   }
 
-  // SMA20 (built-in)
+  // SMA20 (built-in, only when SMA overlay active)
   const smaPoints = [];
-  for (let i = 0; i < n; i++) {
-    if (i >= 19) {
-      const slice = data.slice(i - 19, i + 1);
-      const avg = slice.reduce((s, d) => s + d.close, 0) / 20;
-      smaPoints.push({ x: getX(i), y: getY(avg) });
+  if (showSma) {
+    for (let i = 0; i < n; i++) {
+      if (i >= 19) {
+        const slice = data.slice(i - 19, i + 1);
+        const avg = slice.reduce((s, d) => s + d.close, 0) / 20;
+        smaPoints.push({ x: getX(i), y: getY(avg) });
+      }
     }
   }
   const smaPath = smaPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
@@ -1412,25 +1829,30 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
   const labelMinPx = 70;
   const labelStep = Math.max(1, Math.ceil(labelMinPx / candleSpacing));
 
+  // Slice overlay series to match visible window
+  const sliceOverlay = (series) => series ? series.slice(startIdx, startIdx + visibleCount) : null;
+
   // Overlay line builder
   const buildLinePath = (series) => {
-    if (!series) return '';
+    const sliced = sliceOverlay(series);
+    if (!sliced) return '';
     const pts = [];
-    for (let i = 0; i < Math.min(series.length, n); i++) {
-      if (series[i] !== null && series[i] !== undefined) {
-        pts.push({ x: getX(i), y: getY(series[i]) });
+    for (let i = 0; i < Math.min(sliced.length, n); i++) {
+      if (sliced[i] !== null && sliced[i] !== undefined) {
+        pts.push({ x: getX(i), y: getY(sliced[i]) });
       }
     }
     return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
   };
 
-  // RSI line path
+  // RSI overlay line path (on price area)
   const buildRsiPath = () => {
-    if (!overlays?.rsiSeries) return '';
+    const sliced = sliceOverlay(overlays?.rsiSeries);
+    if (!sliced) return '';
     const pts = [];
-    for (let i = 0; i < Math.min(overlays.rsiSeries.length, n); i++) {
-      if (overlays.rsiSeries[i] !== null) {
-        pts.push({ x: getX(i), y: getRsiY(overlays.rsiSeries[i]) });
+    for (let i = 0; i < Math.min(sliced.length, n); i++) {
+      if (sliced[i] !== null) {
+        pts.push({ x: getX(i), y: getRsiY(sliced[i]) });
       }
     }
     return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
@@ -1438,10 +1860,11 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
 
   // BB fill path
   const buildBbFill = () => {
-    if (!overlays?.bbSeries) return '';
+    const sliced = sliceOverlay(overlays?.bbSeries);
+    if (!sliced) return '';
     const upper = [], lower = [];
-    for (let i = 0; i < Math.min(overlays.bbSeries.length, n); i++) {
-      const b = overlays.bbSeries[i];
+    for (let i = 0; i < Math.min(sliced.length, n); i++) {
+      const b = sliced[i];
       if (b && b.upper !== null) {
         upper.push({ x: getX(i), y: getY(b.upper) });
         lower.push({ x: getX(i), y: getY(b.lower) });
@@ -1467,13 +1890,14 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
     setCrosshair(null);
   };
 
+  const fibColors = ['#8b949e', '#58a6ff', '#d29922', '#bc8cff', '#d29922', '#58a6ff', '#8b949e'];
+
   const formatP = (p) => {
     if (p > 1000) return p.toLocaleString('en-US', { maximumFractionDigits: 0 });
     if (p > 1) return p.toFixed(2);
     return p.toFixed(6);
   };
 
-  const fibColors = ['#8b949e', '#58a6ff', '#d29922', '#bc8cff', '#d29922', '#58a6ff', '#8b949e'];
 
   return (
     <div className="chart-wrapper" ref={containerRef}>
@@ -1481,6 +1905,8 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
         width={chartW}
         height={totalH}
         className="chart-svg"
+        onMouseLeave={handleMouseLeave}
+        style={{ cursor: 'crosshair' }}
       >
         <rect width={chartW} height={totalH} fill="#0d1117" rx="12" />
 
@@ -1502,7 +1928,7 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
           stroke="#21262d" strokeWidth="1" strokeDasharray="4,4" />
 
         {/* Volume bars */}
-        {data.map((candle, i) => {
+        {visibleData.map((candle, i) => {
           const x = getX(i);
           const isGreen = candle.close >= candle.open;
           const vol = candle.volume || 0;
@@ -1563,7 +1989,7 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
         )}
 
         {/* === CANDLESTICK === */}
-        {chartType === 'candlestick' && data.map((candle, i) => {
+        {chartType === 'candlestick' && visibleData.map((candle, i) => {
           const x = getX(i);
           const yOpen = getY(candle.open);
           const yClose = getY(candle.close);
@@ -1593,7 +2019,7 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
 
         {/* === LINE CHART === */}
         {chartType === 'line' && (() => {
-          const linePath = data.map((candle, i) => {
+          const linePath = visibleData.map((candle, i) => {
             const x = getX(i);
             const y = getY(candle.close);
             return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
@@ -1609,7 +2035,7 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
               </defs>
               <path d={areaPath} fill="url(#lineGrad)" />
               <path d={linePath} fill="none" stroke="#58a6ff" strokeWidth="2.5" strokeLinejoin="round" />
-              {data.map((candle, i) => (
+              {visibleData.map((candle, i) => (
                 <g key={`lp-${i}`}>
                   <circle cx={getX(i)} cy={getY(candle.close)} r="3.5"
                     fill="#0d1117" stroke="#58a6ff" strokeWidth="1.5" />
@@ -1625,7 +2051,7 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
         })()}
 
         {/* === BAR (OHLC) CHART === */}
-        {chartType === 'bar' && data.map((candle, i) => {
+        {chartType === 'bar' && visibleData.map((candle, i) => {
           const x = getX(i);
           const yOpen = getY(candle.open);
           const yClose = getY(candle.close);
@@ -1652,27 +2078,123 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
           );
         })}
 
-        {/* RSI Sub-Chart */}
+        {/* RSI Overlay on price area */}
         {showRsi && overlays?.rsiSeries && (
           <g>
-            <line x1={paddingLeft} y1={rsiTop} x2={chartW - paddingRight} y2={rsiTop}
-              stroke="#21262d" strokeWidth="1" />
-            <text x={paddingLeft - 8} y={rsiTop + 6} fill="#8b949e" fontSize="10" textAnchor="end" fontWeight="600">RSI</text>
+            {/* RSI 70/30 zone background */}
             <rect x={paddingLeft} y={getRsiY(70)} width={chartW - paddingLeft - paddingRight} height={getRsiY(30) - getRsiY(70)}
-              fill="rgba(88,166,255,0.04)" />
+              fill="rgba(188,140,255,0.04)" />
+            {/* RSI horizontal guide lines */}
             <line x1={paddingLeft} y1={getRsiY(70)} x2={chartW - paddingRight} y2={getRsiY(70)}
-              stroke="#f85149" strokeWidth="0.7" strokeDasharray="4,4" opacity="0.5" />
-            <text x={paddingLeft - 8} y={getRsiY(70) + 4} fill="#f85149" fontSize="9" textAnchor="end" opacity="0.7">70</text>
+              stroke="#f85149" strokeWidth="0.7" strokeDasharray="4,4" opacity="0.35" />
             <line x1={paddingLeft} y1={getRsiY(50)} x2={chartW - paddingRight} y2={getRsiY(50)}
-              stroke="#484f58" strokeWidth="0.5" strokeDasharray="2,4" opacity="0.4" />
+              stroke="#484f58" strokeWidth="0.5" strokeDasharray="2,4" opacity="0.3" />
             <line x1={paddingLeft} y1={getRsiY(30)} x2={chartW - paddingRight} y2={getRsiY(30)}
-              stroke="#3fb950" strokeWidth="0.7" strokeDasharray="4,4" opacity="0.5" />
-            <text x={paddingLeft - 8} y={getRsiY(30) + 4} fill="#3fb950" fontSize="9" textAnchor="end" opacity="0.7">30</text>
-            <line x1={paddingLeft} y1={rsiTop + rsiAreaH} x2={chartW - paddingRight} y2={rsiTop + rsiAreaH}
-              stroke="#21262d" strokeWidth="1" />
-            <path d={buildRsiPath()} fill="none" stroke="#bc8cff" strokeWidth="1.8" strokeLinejoin="round" />
+              stroke="#3fb950" strokeWidth="0.7" strokeDasharray="4,4" opacity="0.35" />
+            {/* RSI line */}
+            <path d={buildRsiPath()} fill="none" stroke="#bc8cff" strokeWidth="2" strokeLinejoin="round" opacity="0.85" />
+            {/* RSI right-side axis labels */}
+            <text x={chartW - paddingRight + 6} y={getRsiY(70) + 4} fill="#f85149" fontSize="9" textAnchor="start" opacity="0.7">70</text>
+            <text x={chartW - paddingRight + 6} y={getRsiY(50) + 4} fill="#bc8cff" fontSize="9" textAnchor="start" opacity="0.7">50</text>
+            <text x={chartW - paddingRight + 6} y={getRsiY(30) + 4} fill="#3fb950" fontSize="9" textAnchor="start" opacity="0.7">30</text>
+            <text x={chartW - paddingRight + 6} y={getRsiY(0) + 4} fill="#8b949e" fontSize="8" textAnchor="start" opacity="0.5">RSI</text>
           </g>
         )}
+
+        {/* Sentiment Overlay (0-100 scale, same Y as RSI) */}
+        {showSentiment && overlays?.sentimentSeries && (() => {
+          const sliced = sliceOverlay(overlays.sentimentSeries);
+          if (!sliced || sliced.length === 0) return null;
+          const getSentY = (val) => paddingTop + (1 - val / 100) * priceAreaH;
+          const pts = sliced.map((v, i) => ({ x: getX(i), y: getSentY(v), val: v })).filter(p => p.val !== null && p.val !== undefined);
+          if (pts.length < 2) return null;
+          const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+          const areaPath = linePath + ` L ${pts[pts.length - 1].x} ${paddingTop + priceAreaH} L ${pts[0].x} ${paddingTop + priceAreaH} Z`;
+          return (
+            <g>
+              <defs>
+                <linearGradient id="sentGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3fb950" stopOpacity="0.2" />
+                  <stop offset="50%" stopColor="#d29922" stopOpacity="0.05" />
+                  <stop offset="100%" stopColor="#f85149" stopOpacity="0.2" />
+                </linearGradient>
+              </defs>
+              <rect x={paddingLeft} y={getSentY(75)} width={chartW - paddingLeft - paddingRight} height={getSentY(25) - getSentY(75)}
+                fill="rgba(210,153,34,0.03)" />
+              <line x1={paddingLeft} y1={getSentY(75)} x2={chartW - paddingRight} y2={getSentY(75)}
+                stroke="#3fb950" strokeWidth="0.5" strokeDasharray="3,6" opacity="0.3" />
+              <line x1={paddingLeft} y1={getSentY(50)} x2={chartW - paddingRight} y2={getSentY(50)}
+                stroke="#d29922" strokeWidth="0.5" strokeDasharray="2,4" opacity="0.2" />
+              <line x1={paddingLeft} y1={getSentY(25)} x2={chartW - paddingRight} y2={getSentY(25)}
+                stroke="#f85149" strokeWidth="0.5" strokeDasharray="3,6" opacity="0.3" />
+              <path d={areaPath} fill="url(#sentGrad)" />
+              <path d={linePath} fill="none" stroke="#d29922" strokeWidth="2.5" strokeLinejoin="round" opacity="0.9" />
+              {pts.map((p, i) => (
+                <circle key={`sp-${i}`} cx={p.x} cy={p.y} r="2.5"
+                  fill={p.val >= 60 ? '#3fb950' : p.val <= 40 ? '#f85149' : '#d29922'}
+                  opacity="0.7" />
+              ))}
+              <text x={chartW - paddingRight + 6} y={getSentY(75) + 4} fill="#3fb950" fontSize="8" textAnchor="start" opacity="0.7">Greed</text>
+              <text x={chartW - paddingRight + 6} y={getSentY(50) + 4} fill="#d29922" fontSize="8" textAnchor="start" opacity="0.7">50</text>
+              <text x={chartW - paddingRight + 6} y={getSentY(25) + 4} fill="#f85149" fontSize="8" textAnchor="start" opacity="0.7">Fear</text>
+              <text x={chartW - paddingRight + 6} y={getSentY(5) + 4} fill="#d29922" fontSize="7" textAnchor="start" opacity="0.5">SENT</text>
+            </g>
+          );
+        })()}
+
+        {/* === FOCUS MODE: AI Levels on Chart === */}
+        {focusMode && aiLevels && (() => {
+          const levels = [
+            { price: aiLevels.stopLoss, label: 'SL', color: '#f85149', dash: '6,3' },
+            { price: aiLevels.entry, label: 'Entry', color: '#58a6ff', dash: '6,3' },
+            { price: aiLevels.takeProfit1, label: 'TP1', color: '#3fb950', dash: '6,3' },
+            { price: aiLevels.takeProfit2, label: 'TP2', color: '#3fb950', dash: '3,3' },
+            { price: aiLevels.support1, label: 'S1', color: '#d29922', dash: '4,4' },
+            { price: aiLevels.resistance1, label: 'R1', color: '#a371f7', dash: '4,4' },
+          ].filter(l => l.price && l.price > pMin && l.price < pMax);
+          return levels.map((lvl, i) => {
+            const y = getY(lvl.price);
+            return (
+              <g key={`ai-lvl-${i}`}>
+                <line x1={paddingLeft} y1={y} x2={chartW - paddingRight} y2={y}
+                  stroke={lvl.color} strokeWidth="1" strokeDasharray={lvl.dash} opacity="0.6" />
+                <rect x={paddingLeft - 2} y={y - 9} width={54} height={18} rx="4"
+                  fill="#0d1117" stroke={lvl.color} strokeWidth="0.7" opacity="0.9" />
+                <text x={paddingLeft + 3} y={y + 3} fill={lvl.color} fontSize="8" fontWeight="700" fontFamily="monospace">
+                  🤖 {lvl.label}
+                </text>
+                <text x={chartW - paddingRight + 4} y={y + 3} fill={lvl.color} fontSize="8" fontFamily="monospace" fontWeight="600" opacity="0.8">
+                  {formatP(lvl.price)}
+                </text>
+              </g>
+            );
+          });
+        })()}
+
+        {/* === FOCUS MODE: Scenario Channels (bullish green / bearish red clouds) === */}
+        {focusMode && scenarios && (() => {
+          const lastPrice = visibleData[n - 1]?.close;
+          if (!lastPrice) return null;
+          const baseTarget = scenarios.base?.target;
+          const altTarget = scenarios.alternative?.target;
+          if (!baseTarget || !altTarget) return null;
+          const bullTarget = scenarios.base?.direction === 'bullish' ? baseTarget : altTarget;
+          const bearTarget = scenarios.base?.direction === 'bearish' ? baseTarget : altTarget;
+          const midX = getX(Math.floor(n * 0.6));
+          const endX = getX(n - 1);
+          const priceX = getX(Math.floor(n * 0.4));
+          const yPrice = getY(lastPrice);
+          const yBull = getY(Math.min(bullTarget, pMax));
+          const yBear = getY(Math.max(bearTarget, pMin));
+          return (
+            <g opacity="0.25">
+              <path d={`M ${priceX} ${yPrice} Q ${midX} ${yBull} ${endX} ${yBull} L ${endX} ${yPrice} Z`}
+                fill="#3fb950" />
+              <path d={`M ${priceX} ${yPrice} Q ${midX} ${yBear} ${endX} ${yBear} L ${endX} ${yPrice} Z`}
+                fill="#f85149" />
+            </g>
+          );
+        })()}
 
         {/* Crosshair */}
         {crosshair && (
@@ -1685,7 +2207,7 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
         )}
 
         {/* Date labels */}
-        {data.map((candle, i) => {
+        {visibleData.map((candle, i) => {
           if (i % labelStep !== 0 && i !== n - 1) return null;
           return (
             <text key={`dt-${i}`} x={getX(i)} y={totalH - 10}
@@ -1719,7 +2241,8 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
             <text x="414" y="8" fill="#8b949e" fontSize="10">BB</text>
           </>}
           {showFib && <text x="450" y="8" fill="#d29922" fontSize="10">Fib</text>}
-          {showRsi && <text x="480" y="8" fill="#bc8cff" fontSize="10">RSI ▼</text>}
+          {showRsi && <text x="480" y="8" fill="#bc8cff" fontSize="10">RSI</text>}
+          {showSentiment && <text x="510" y="8" fill="#d29922" fontSize="10">Sentiment</text>}
         </g>
       </svg>
 
@@ -1742,6 +2265,7 @@ function ChartComponent({ data, chartType = 'candlestick', overlays, fibonacci, 
           </div>
         </div>
       )}
+
     </div>
   );
 }
